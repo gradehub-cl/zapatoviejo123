@@ -114,12 +114,13 @@ check('el modal da la ruta exacta y el link directo al sistema de avance',()=>{
   const html=leer('src/app/avance-curricular.js');
   assert.match(html,/class="avance-pasos"/);
   assert.match(html,/fuente\.pestanaFicha/);
+  assert.doesNotMatch(html,/archivoFicha|\bFAA\b/);
 });
 
-check('si suben el Seguimiento Curricular, se le dice cuál es la ficha',()=>{
-  assert.equal(run(`esSeguimientoCurricular([],'SC-040013-202620.pdf')`),true);
-  assert.equal(run(`esSeguimientoCurricular(['SEGUIMIENTO CURRICULAR','PONTIFICIA UNIVERSIDAD'],'archivo.pdf')`),true);
-  assert.equal(run(`esSeguimientoCurricular(['FICHA ACADÉMICA ACUMULADA'],'FAA-040013-202620.pdf')`),false);
+check('identifica el Seguimiento Curricular por su encabezado',()=>{
+  assert.equal(run(`esSeguimientoCurricular(['SEGUIMIENTO\tCURRICULAR','PONTIFICIA UNIVERSIDAD'])`),true);
+  assert.equal(run(`esSeguimientoCurricular(['Seguimiento Curricular','FICHA ACADÉMICA ACUMULADA'])`),false);
+  assert.equal(run(`esSeguimientoCurricular([])`),false);
 });
 
 check('pegar sin notas o un texto ajeno da un aviso distinto',()=>{
@@ -153,4 +154,42 @@ check('el menú del perfil tiene «Cargar semestres pasados» junto a la calcula
   assert.match(leer('src/app/perfil-menu.js'),/ficha\.hidden=!avanceCurricularDisponible\(\)/);
 });
 
-console.log(`\nPASS: ${ok}   FAIL: 0`);
+async function probarSubida(){
+  run(`cargarPdfJs=async()=>({});
+    lineasDePdf=async()=>__lineasPdf;
+    revisarFilasAvance=async filas=>{globalThis.__revisionFicha=filas;};`);
+  const subir=async (ls,archivo={})=>{
+    ctx.__lineasPdf=ls;
+    ctx.__revisionFicha=null;
+    ctx.__inputFicha={value:'seleccionado',files:[{name:'Ficha Académica Acumulada.pdf',size:100,type:'application/octet-stream',...archivo}]};
+    await run('subirFichaAcademica(__inputFicha)');
+  };
+  await subir(lineas(items));
+  check('un PDF sin FAA y con MIME genérico llega a revisión',()=>{
+    assert.equal(ctx.__revisionFicha[0].sigla,'TST1001');
+    assert.equal(ctx.__inputFicha.value,'');
+  });
+  await subir(['FICHA ACADÉMICA ACUMULADA','Distribución que el lector no reconoce'],{name:'SC-renombrado.pdf'});
+  check('un formato de ficha sin filas reconocibles explica el problema y ofrece pegar texto',()=>{
+    assert.match(stub.textContent,/no pudimos identificar ramos con nota/);
+    assert.match(stub.textContent,/Seguimiento Curricular/);
+    assert.doesNotMatch(stub.textContent,/FAA|Ese PDF es/);
+    assert.equal(ctx.__revisionFicha,null);
+  });
+  await subir(['SEGUIMIENTO CURRICULAR']);
+  check('recomienda la otra pestaña cuando el contenido es Seguimiento Curricular',()=>{
+    assert.match(stub.textContent,/Ese PDF es el Seguimiento Curricular/);
+  });
+  await subir([]);
+  check('distingue un PDF sin texto de uno cuyo formato no reconoce',()=>{
+    assert.match(stub.textContent,/no tiene texto legible/);
+  });
+  await subir(lineas(items),{name:'texto.txt',type:'text/plain'});
+  check('un archivo de texto queda fuera del lector de PDF',()=>{
+    assert.equal(ctx.__revisionFicha,null);
+    assert.match(stub.textContent,/Elige la Ficha Académica Acumulada en PDF/);
+  });
+}
+
+probarSubida().then(()=>console.log(`\nPASS: ${ok}   FAIL: 0`))
+  .catch(error=>{console.error(error);process.exitCode=1;});

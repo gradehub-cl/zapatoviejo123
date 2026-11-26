@@ -28,6 +28,8 @@
 // registran tal cual: el dato oficial es 0 y falsearlo para que el promedio
 // funcione sería exactamente lo que este proyecto no hace.
 const CREDITOS_UC={
+  ...Object.fromEntries(Object.values(RAMOS_MALLA_UC_MEDICINA).flat()
+    .map(([nombre,sigla,creditos])=>[nombre,[creditos,sigla]])),
   'Introducción a la Arquitectura':[10,'AQH0000'],
   'Taller de Formación y Representación I':[20,'AQT0000'],
   'Ciudad y Paisaje I: Introducción a la Forma Urbana y Territorial':[10,'AQU0000'],

@@ -55,7 +55,7 @@ const FAMILIAS_COLOR=[
   // Lo específico va antes que lo general: 'Métodos Cuantitativos' tiene que
   // resolverse antes de que 'Métodos Matemáticos' se lo lleve.
   [/metodos cuantitativos|estadistica|probabil|investigacion operativa|juegos y estrategias|toma de decisiones|optimizacion/, '#a3e635'], // lima — cuantitativo
-  [/metodos matematicos|calculo|algebra|ecuaciones diferenciales/, '#a3e635'], // lima — matemáticas
+  [/metodos matematicos|calculo|algebra|ecuaciones diferenciales|razonamiento matematico/, '#a3e635'], // lima — matemáticas
   [/contabilidad|costos|contable|tributa|impuesto/, '#22c55e'], // verde — contable
   [/auditoria|control interno|riesgos/,          '#ea580c'], // naranjo — auditoría
   [/ingles|idioma/,                              '#ec4899'], // rosa — idiomas
@@ -67,6 +67,10 @@ const FAMILIAS_COLOR=[
   [/marketing|negocios|comercial|competencia y mercado|mercados/, '#d946ef'], // fucsia — negocios
   [/programacion|machine learning|datos|sistemas|tecnologia|informatica|transformacion digital|ingenieria/, '#6366f1'], // índigo — tecnología
   [/derecho|legal|legisla|etica|filosof|pensamiento|historia/, '#ea580c'], // naranjo — humanidades y derecho
+  [/^internado\b/, '#d946ef'], // fucsia — práctica profesional
+  [/^clinicas?\b|^integrado quirurgico|^medicina adulto|^pediatria|^obstetricia/, '#3b82f6'], // azul — clínica
+  [/^salud publica|^psicologia medica/, '#6366f1'], // índigo — salud y comunidad
+  [/^bases y fundamentos de la medicina|^bases y mecanismos de la enfermedad|^integrado ciencias medicas|^morfologia|^inmunologia|^farmacologia|^neurociencias/, '#0ea5e9'], // cian — ciencias médicas
   // La física de Ingeniería UC no se llama "física": los ramos son Dinámica,
   // Termodinámica y Electricidad y Magnetismo, y sus laboratorios heredan el
   // matiz porque el nombre los contiene ("Laboratorio de Dinámica").

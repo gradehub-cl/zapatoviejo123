@@ -151,7 +151,9 @@ const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 // nada. El rojo acá NO es el del semáforo —no dice nada sobre la nota— sino el
 // de urgencia que la app ya usa en errores y en "no alcanza".
 const RECORRECCION_DIAS_URGENTE = 2;
-const ORIGENES_FECHA=new Set(['usuario','catalogo','calendario','desconocido']);
+// 'consenso': la persona usó la fecha que pusieron sus compañeros. No es un
+// voto nuevo (ver fechaAportaRespaldo); sí lo es si después la edita.
+const ORIGENES_FECHA=new Set(['usuario','catalogo','calendario','consenso','desconocido']);
 
 function origenFechaSeguro(origen){return ORIGENES_FECHA.has(origen)?origen:null;}
 

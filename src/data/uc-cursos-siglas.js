@@ -52,6 +52,8 @@ const CURSOS_UC=[
 ];
 
 const SIGLAS_UC={
+  'UC-MEDICINA':Object.fromEntries(Object.values(RAMOS_MALLA_UC_MEDICINA).flat()
+    .map(([nombre,sigla])=>[nombre,sigla])),
   'ING-PC':{
     'Cálculo I':'MAT1610', 'Álgebra Lineal':'MAT1203', 'Química para Ingeniería':'QIM100E',
     'Desafíos de la Ingeniería':'ING1004', 'Filosofía: ¿Para Qué?':'FIL2001',
