@@ -343,8 +343,12 @@ function plantillaPauta(tipo){
 // Derecho UC usa «Solemne» en sus programas y calendario de evaluaciones.
 // La carrera guardada puede ser el código de malla o el nombre declarado.
 function esDerechoUC(tenant,carrera){return tenant==='uc'&&(carrera==='UC-DERECHO'||carrera==='Derecho');}
+function editorMedicinaUC(tenant,carrera){
+  return tenant==='uc'&&(carrera==='UC-MEDICINA'||carrera==='Medicina')&&enAppNativa();
+}
 // Solo alimenta el placeholder del campo: no arma ninguna estructura.
 function ejemploEvaluacion(tenant,carrera){
+  if(editorMedicinaUC(tenant,carrera))return 'Interrogación';
   return esDerechoUC(tenant,carrera)||tenant==='fen'||tenant==='uai'?'Solemne':'Prueba';
 }
 
@@ -360,9 +364,8 @@ function ejemploEvaluacion(tenant,carrera){
 // solemnes + examen". Ofrecer esa plantilla empujaba a la mayoría a una
 // estructura que después tenían que deshacer a mano.
 function plantillasPauta(tenant,carrera){
-  // Las plantillas UC conocidas vienen de Ingeniería. No hay una estructura
-  // común verificada para Derecho: se deja escribir la pauta de cada curso.
-  if(esDerechoUC(tenant,carrera))return [];
+  // Derecho y Medicina usan estructuras definidas en el programa de cada ramo.
+  if(esDerechoUC(tenant,carrera)||editorMedicinaUC(tenant,carrera))return [];
   return tenant==='uc'
     ?[
       {tipo:'tres-pruebas',label:'3 pruebas + examen'},
@@ -386,6 +389,9 @@ function plantillasPauta(tenant,carrera){
 function sugerenciasEvaluacion(tenant,carrera){
   const comunes=['Laboratorio','Informe','Taller','Proyecto','Tarea','Presentación','Examen'];
   if(esDerechoUC(tenant,carrera))return ['Solemne','Control de lectura','Prueba','Control','Trabajo',...comunes];
+  // Manual de Pregrado y programas de Morfología III y Bases de la Enfermedad I.
+  if(editorMedicinaUC(tenant,carrera))
+    return ['Interrogación','Prueba escrita','Prueba oral','Minitest','Gymkhana','ECOE','Evaluación clínica','Profesionalismo',...comunes];
   if(tenant==='uc')return ['Interrogación 1','Interrogación 2','Interrogación 3','Prueba 1','Prueba 2','Prueba 3','Control 1','Control 2','Control 3',...comunes];
   if(tenant==='fen')return ['Solemne 1','Solemne 2','Solemne 3','Control 1','Control 2','Control 3','Prueba sorpresa','Casos y ensayos','Trabajo individual','Trabajo en grupo','Participación',...comunes];
   // La UAI usa las dos palabras, y eso no es una suposición: sale de sus
