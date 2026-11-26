@@ -25,8 +25,8 @@ function obIniciar(){
   // y la carrera de la anterior, y podía heredar sus ramos agregados a mano.
   // El nombre que trae Google o Apple lo pone enterOnboarding DESPUÉS de esto,
   // con la cuenta que entra. No toca S ni nada guardado.
-  ['ob-name','ob-apellido','ob-carrera-buscar'].forEach(id=>{const c=document.getElementById(id);if(c)c.value='';});
-  selectedCarrera=null;selectedCarreraNombre=null;carreraFiltro='';
+  ['ob-name','ob-apellido','ob-tenant-buscar'].forEach(id=>{const c=document.getElementById(id);if(c)c.value='';});
+  resetCarreraOnboarding();
   obRamos=[];obRamosKey='';obManualOpen=false;obManualError='';obVarianteElegida={};
   if(typeof initCarreraGrid==='function')initCarreraGrid();
   elegirTipoCuenta(typeof consumirEntradaProfesor==='function'&&consumirEntradaProfesor()?'profesor':'estudiante');
