@@ -7,6 +7,9 @@
 -- identidad del ramo/evaluación y fecha/hora. Nunca devuelve user_id, notas ni
 -- candidatos bajo el umbral. Solo cuentan decisiones explícitas cuyo origen es
 -- `usuario`: catálogo y consenso no pueden hacerse eco a sí mismos.
+--
+-- Umbral: 3 personas distintas, por separado para la fecha y para la hora
+-- (era 5; Martín lo bajó a 3 el 2026-11-26 para que aparezca en más ramos).
 
 create or replace function public.gradehub_consensus_norm(p_value text)
 returns text
@@ -93,7 +96,7 @@ as $$
     from valid as v
     where fecha_origen = 'usuario'
     group by v.ramo_key, v.categoria_key, v.nota_key, v.fecha
-    having count(distinct user_id) >= 5
+    having count(distinct user_id) >= 3
   ),
   date_top as (
     select ramo_key, categoria_key, nota_key, max(respaldos) as respaldos
@@ -134,7 +137,7 @@ as $$
     where v.hora_origen = 'usuario'
       and v.hora ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
     group by v.ramo_key, v.categoria_key, v.nota_key, v.fecha, v.hora
-    having count(distinct user_id) >= 5
+    having count(distinct user_id) >= 3
   ),
   hour_top as (
     select ramo_key, categoria_key, nota_key, fecha, max(respaldos) as respaldos
