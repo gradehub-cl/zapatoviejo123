@@ -36,7 +36,7 @@ chk('con un ramo no se repite como "el que más costó"',run('datosWrapped(__uno
 
 const final=run('slidesWrapped(datosWrapped(__ramos),{uni:{total:11,mejorQue:70}},"2026-2")').pop();
 chk('la tarjeta para compartir no nombra el ramo que más costó',!JSON.stringify(final).includes('Conta'));
-chk('la tarjeta es la hoja: ramo estrella y mejor nota, sin la comparación',JSON.stringify(final).includes('Micro')&&JSON.stringify(final).includes('Mejor nota')&&!JSON.stringify(final).includes('70%'));
+chk('la tarjeta omite nombres, notas individuales y comparaciones',!JSON.stringify(final).includes('Micro')&&!JSON.stringify(final).includes('Mejor nota')&&!JSON.stringify(final).includes('70%'));
 
 ctx.__ramos[0].nombre='<img src=x onerror=alert(1)>';
 chk('los nombres se escapan',!run('JSON.stringify(slidesWrapped(datosWrapped(__ramos),null,"x"))').includes('<img'));
@@ -64,7 +64,7 @@ chk('VoiceOver lee la cifra final, no el conteo',/aria-hidden="true"/.test(cifra
 chk('un porcentaje cuenta con su signo',/data-suf="%"/.test(run('cifraWrapped("84%")')));
 const todas=JSON.stringify(run('slidesWrapped(datosWrapped(__ramos),{curso:{ramo:"Micro",mejorQue:84,total:26},uni:{total:121,mejorQue:71}},"2026-2")'));
 // Una sola comparación: la del curso si existe; la de la universidad si no (2026-11-07).
-chk('promedio en la casilla, estrella con ranking y una comparación con regla',/hoja-casilla/.test(todas)&&/wrapped-ranking/.test(todas)&&(todas.match(/wrapped-regla/g)||[]).length===1);
+chk('promedio en la casilla y sin ranking ni comparación en un semestre difícil',/hoja-casilla/.test(todas)&&!/wrapped-ranking/.test(todas)&&!/wrapped-regla/.test(todas));
 chk('la casilla no usa colores del semáforo y sin timbre no celebra',!/var\(--(green|yellow|red)/.test(run('casillaWrapped("3,2","2026-2",false)'))&&!/hoja-timbre/.test(run('casillaWrapped("3,2","2026-2",false)')));
 
 // HIG, Accessibility: un gesto necesita una alternativa, y el texto tiene que

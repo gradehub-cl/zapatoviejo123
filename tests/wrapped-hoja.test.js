@@ -22,25 +22,17 @@ check('la semana pesada sale desde tres evaluaciones en la misma semana',()=>{
   assert.equal(d.semana.k,3);assert.equal(d.semana.lunes,'2026-09-14');
   assert.equal(datos([ramo('A',[nota('a1',5,'2026-09-14'),nota('a2',5,'2026-09-25')])]).semana,null);
 });
-check('las páginas no comparten esqueleto: semana como objeto, ramo difícil como lista corregida y cierre de respiro',()=>{
+check('la semana usa el calendario y el cierre reúne las acciones',()=>{
   datos([ramo('A',[nota('a1',6,'2026-09-14'),nota('a2',6.4,'2026-09-15'),nota('a3',6.8,'2026-09-18')]),
     ramo('B',[nota('b1',4.4,'2026-09-16'),nota('b2',4.9,'2026-10-02'),nota('b3',4.6,'2026-11-18')])]);
-  const s=run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos,true),null,"2026-2",null)');
+  const s=run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos),null,"2026-2")');
   const semana=s.find(x=>x.forma==='objeto');
-  assert.ok(semana&&!semana.big&&/<b>4<\/b> evaluaciones/.test(semana.titulo),'la semana manda el calendario y el dato va chico');
-  const lista=s.find(x=>x.forma==='lista');
-  assert.ok(lista,'el ramo aprobado que más costó se cuenta nota por nota');
-  assert.deepEqual([...lista.heroe.matchAll(/<span>(b\d)<\/span>/g)].map(m=>m[1]),['b1','b2','b3'],'en orden de fecha');
-  assert.match(lista.heroe,/Promedio<\/span><span class="hoja-lapiz"><b>4,6<\/b>/);
-  assert.equal(s.find(x=>x.tipo==='cierre').forma,'respiro');
-  // Reprobado: sin lista ni cifra, solo el nombre.
-  datos([ramo('A',[nota('a1',6,'2026-09-14'),nota('a2',6.4,'2026-10-15')]),ramo('B',[nota('b1',2.4,'2026-09-16'),nota('b2',3.1,'2026-10-02')])]);
-  const r=run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos,true),null,"2026-2",null)').find(x=>x.k==='El ramo que más costó');
-  assert.ok(r&&!r.forma&&!r.heroe&&!r.big);
+  assert.ok(semana&&!semana.big&&/<b>4<\/b> evaluaciones/.test(semana.titulo));
+  assert.equal(s.at(-1).tipo,'final');assert.doesNotMatch(JSON.stringify(s),/El ramo que más costó/);
 });
 check('sin fechas no hay semana, comienzo, nota que movió ni remontada, y no revienta',()=>{
   const d=datos([ramo('A',[nota('a1',5),nota('a2',6)]),ramo('B',[nota('b1',4)])]);
-  assert.equal(d.semana,null);assert.equal(d.primera,null);assert.equal(d.movio,null);assert.equal(d.remontada,null);
+  assert.equal(d.semana,null);assert.equal(d.remontada,null);
   assert.doesNotMatch(JSON.stringify(run('slidesWrapped(datosWrapped(S.ramos),null,"2026-2")')),/NaN|undefined/);
 });
 check('la remontada exige estar bajo 4,0 a mitad de camino y terminar aprobado',()=>{
@@ -49,10 +41,6 @@ check('la remontada exige estar bajo 4,0 a mitad de camino y terminar aprobado',
   assert.equal(d.personalidad.id,'remontada');
   const reprobado=datos([ramo('Cálculo',[nota('c1',3.0,'2026-08-20'),nota('c2',3.1,'2026-09-15'),nota('c3',3.2,'2026-10-20')])]);
   assert.equal(reprobado.remontada,null,'no celebra una remontada que no aprobó');
-});
-check('la nota que movió el promedio se mide cuando todos los ramos tienen nota',()=>{
-  const d=datos([ramo('A',[nota('a1',3,'2026-08-20'),nota('a2',4,'2026-10-01')]),ramo('B',[nota('b1',6,'2026-08-25'),nota('b2',6,'2026-09-01')])]);
-  assert.equal(d.movio.x.nombre,'a2','no cuenta la primera nota de B, que solo llena un ramo vacío');
 });
 check('la personalidad sigue el orden de la tabla y la elegida va entre las cinco alternativas',()=>{
   const siete=datos([ramo('A',[nota('a1',7,'2026-08-20'),nota('a2',7,'2026-09-20'),nota('a3',6,'2026-10-20')])]);
@@ -63,30 +51,20 @@ check('la personalidad sigue el orden de la tabla y la elegida va entre las cinc
     assert.equal(p.opciones.length,5);assert.ok(p.opciones.some(o=>o.id===p.id));assert.equal(p.opciones['ABCDE'.indexOf(p.letra)].id,p.id);
   }
 });
-check('frente al semestre anterior: sube o se mantiene; una baja no aparece',()=>{
-  assert.equal(datos([ramo('A',[nota('a1',6)])],[{label:'2026-1',gpa:5.0}]).anterior.delta,1);
-  assert.equal(datos([ramo('A',[nota('a1',4)])],[{label:'2026-1',gpa:5.0}]).anterior,null);
-  assert.equal(datos([ramo('A',[nota('a1',5)])]).anterior,null,'sin semestre anterior no hay comparación');
-});
 check('las revelaciones dibujan datos reales: días de la semana, antes y después, curva y semestre anterior',()=>{
   const sem=datos([ramo('A',[nota('a1',5,'2026-09-14'),nota('a2',5,'2026-09-16'),nota('a3',6,'2026-09-16'),nota('a4',6,'2026-10-20')])]).semana;
   assert.deepEqual(Array.from(sem.dias),[1,0,2,0,0,0,0]);
   assert.match(run(`semanaWrapped(${JSON.stringify(sem.dias)})`),/dia tope/,'el miércoles, con dos, va resaltado');
   assert.doesNotMatch(run('semanaWrapped([1,1,1,0,0,0,0])'),/tope/,'con una por día no se resalta ninguno');
-  const mov=datos([ramo('A',[nota('a1',3,'2026-08-20'),nota('a2',4,'2026-10-01')]),ramo('B',[nota('b1',6,'2026-08-25'),nota('b2',6,'2026-09-01')])]).movio;
-  assert.equal(Number(run(`fmtPromedioDato(${mov.despues})`))-Number(run(`fmtPromedioDato(${mov.antes})`)),mov.delta,'el corrector muestra los mismos promedios que el delta');
   const rem=datos([ramo('Cálculo',[nota('c1',3.0,'2026-08-20'),nota('c2',3.4,'2026-09-15'),nota('c3',6.8,'2026-10-20'),nota('c4',6.5,'2026-11-20')])]).remontada;
   assert.equal(rem.serie.length,4);assert.equal(rem.serie[rem.iMinimo],rem.minimo);assert.ok(rem.iMinimo>=1,'la curva parte desde la segunda nota');
   assert.doesNotMatch(run(`curvaWrapped(${JSON.stringify(rem.serie.slice(1))},${rem.iMinimo-1},${rem.final})`),/NaN/);
-  const ant=datos([ramo('A',[nota('a1',6)])],[{label:'2026-1',gpa:5.0}]).anterior;
-  assert.equal(ant.antes,5);assert.equal(ant.ahora,6);
-  assert.match(run('barrasWrapped([{label:"2026-1",valor:5},{label:"2026-2",valor:6,ahora:true}])'),/5,0[\s\S]*6,0/);
 });
 check('con pocos datos no repite ni inventa: primera=mejor, un solo ramo',()=>{
   const uno=datos([ramo('A',[nota('a1',5.5,'2026-09-01')])]);
   const s=run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos,true),null,"2026-2",null)');
   assert.ok(!s.some(x=>x.k==='Tu primera nota fue un'),'la primera nota es la mejor: la cuenta la goma');
-  assert.ok(s.some(x=>x.tipo==='goma'));
+  assert.deepEqual(Array.from(s,x=>x.tipo),['umbral','ramos','final']);
   assert.ok(!JSON.stringify(s).includes('ramo estrella')&&!JSON.stringify(s).includes('Ramo estrella'),'con un ramo no hay estrella');
   assert.ok(uno);
 });
@@ -104,7 +82,7 @@ check('pulido tras la revisión en el iPhone: desempate, goma, empuje y útiles'
 check('la tarjeta lleva solo el primer nombre; las cifras van con coma',()=>{
   datos([ramo('A',[nota('a1',5.5,'2026-09-01'),nota('a2',6.5,'2026-10-01')])]);
   const slides=run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos,true),null,"2026-2")');
-  const final=slides.at(-1);assert.equal(final.nombre,'Ana');assert.doesNotMatch(JSON.stringify(slides),/Sintética|Pérez/);
+  const final=slides.at(-1);assert.equal(final.nombre,undefined);assert.doesNotMatch(JSON.stringify(slides),/Sintética|Pérez/);
   assert.doesNotMatch(JSON.stringify(slides.map(s=>String(s.big||'').replace(/<[^>]*>/g,''))),/\d\.\d/);
 });
 // Lucas, 2026-11-07: cada historia se prepara, hay preguntas y un semestre
@@ -121,11 +99,10 @@ check('las preguntas tienen la correcta entre sus alternativas y casi todo se pr
   datos([ramo('A',[nota('a1',5.5,'2026-09-01'),nota('a2',6.5,'2026-10-01')]),ramo('B',[nota('b1',4.8,'2026-09-08'),nota('b2',5.1,'2026-10-08')])]);
   const slides=run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos,true),null,"2026-2")');
   const preguntas=slides.filter(x=>x.tipo==='pregunta');
-  assert.ok(preguntas.length>=2);
+  assert.equal(preguntas.length,1);
   preguntas.forEach(q=>assert.equal(q.pregunta.opciones.filter(o=>o.correcta).length,1,q.titulo));
-  assert.equal(slides.find(x=>x.titulo==='¿Cuál fue tu mejor ramo?').pregunta.opciones.find(o=>o.correcta).texto,'A');
   assert.ok(slides.find(x=>x.tipo==='goma'));
-  assert.ok(slides.filter(x=>x.prep).length>=slides.length/2);
+  assert.ok(slides.filter(x=>x.prep).length>=2);
 });
 check('un semestre con un ramo reprobado trae ánimo y no compara hacia abajo',()=>{
   datos([ramo('A',[nota('a1',6.5,'2026-09-01'),nota('a2',6.0,'2026-10-01')]),ramo('B',[nota('b1',2.5,'2026-09-08'),nota('b2',3.0,'2026-10-08')])]);
@@ -135,7 +112,7 @@ check('un semestre con un ramo reprobado trae ánimo y no compara hacia abajo',(
   assert.ok(!slides.some(x=>/wrapped-regla/.test(x.viz||'')),'sin percentiles bajo el 50');
   assert.match(slides.find(x=>x.tipo==='promedio').prep.texto,/no cuenta toda la historia/);
   const bueno=run('slidesWrapped(extrasWrapped(datosWrapped([S.ramos[0]]),[S.ramos[0]],true),{curso:{ramo:"A",mejorQue:80,total:30}},"2026-2")');
-  assert.ok(!bueno.some(x=>x.tipo==='animo'));assert.ok(bueno.some(x=>/wrapped-regla/.test(x.viz||'')));
+  assert.ok(!bueno.some(x=>x.tipo==='animo'));assert.ok(!bueno.some(x=>/wrapped-regla/.test(x.viz||'')));
 });
 check('el recado: video de un profe bien calificado y nada más; sin video no se habla del recado',()=>{
   datos([ramo('A',[nota('a1',5.5,'2026-09-01')])]);
@@ -144,10 +121,11 @@ check('el recado: video de un profe bien calificado y nada más; sin video no se
   for(const r of [null,undefined,{calificaciones:2,video:null}])assert.ok(!armar(r).some(x=>x.tipo==='video'),JSON.stringify(r));
   const con=armar({calificaciones:1,video:{src:'https://ejemplo.invalid/v.mp4',quien:'Profe <b>',ramo:'Ramo A'}});
   const v=con.find(x=>x.tipo==='video');assert.equal(v.k,'Un recado de Profe &lt;b&gt;');assert.ok(!v.sinCalificar);
-  assert.ok(con.some(x=>x.k==='Antes de cerrar'),'quien ya calificó igual puede calificar a otro profe');
+  assert.ok(con.at(-2).accion,'quien ya calificó igual puede calificar a otro profe');
+  assert.equal(con.at(-1).accion,undefined,'la tarjeta final tiene una sola acción principal');
   const sin=armar({calificaciones:0,video:null});
   assert.ok(!sin.some(x=>x.tipo==='video'),'son pocos videos: a quien no calificó no se le promete uno');
-  assert.equal(sin.filter(x=>x.k==='Antes de cerrar').length,1,'la invitación a calificar sale una vez');
+  assert.equal(sin.filter(x=>x.accion).length,1,'la invitación a calificar sale una vez');
   assert.match(run('videoWrapped({src:null,quien:"tu profe"})'),/Aquí va el video del profe/);
   assert.match(run('videoWrapped({src:null,fallo:true,quien:"P"})'),/No pudimos cargar el video/);
   assert.match(run('videoWrapped({src:"https://ejemplo.invalid/p.mp4",quien:"P"})'),/p\.mp4#t=0\.1/,'sin póster, iPhone pinta el primer cuadro');
@@ -211,4 +189,93 @@ check('volver por Anterior, flecha, toque o índice repite la introducción y la
     delete ctx.document.body.children;
     delete ctx.DOMParser;
   }
+});
+
+check('dos ramos con pocas notas tienen una hoja de nombres y un cierre sin cifras',()=>{
+  datos([ramo('A',[nota('a',5)]),ramo('B',[nota('b',4)])]);
+  for(const valor of ['normal','inválida']){
+    if(valor==='inválida')run('S.ramos[0].categorias[0].notas[0].valor=NaN;S.ramos[0].notaOficial=5');
+    const s=run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos),null,"2026-2")');
+    assert.deepEqual(Array.from(s,x=>x.tipo),['umbral','ramos','final']);
+    assert.equal(s.at(-1).big,null);
+    assert.doesNotMatch(JSON.stringify(s),/NaN|undefined|\b0 notas\b/);
+  }
+});
+check('la personalidad sigue en la hoja y solo cuatro historias ofrecen compartir',()=>{
+  const d=datos(run('ramosVistaPreviaWrapped()'));
+  const slides=ctx.slidesWrapped(d,{curso:{ramo:'Ramo de prueba',mejorQue:82,total:39}},'2026-2');
+  const apodo=slides.find(s=>s.pregunta?.opciones.some(o=>o.texto===d.personalidad.nombre&&o.correcta));
+  assert.ok(apodo);assert.equal(apodo.compartible,undefined);
+  assert.ok(slides.indexOf(apodo)>slides.findIndex(s=>s.tipo==='promedio'));
+  assert.deepEqual(Array.from(slides.filter(s=>s.compartible),s=>s.compartible[0]),
+    ['La vuelta del semestre','Mi mejor nota','Mi marca en la regla','Mi semestre']);
+  assert.equal(slides.at(-1).compartible[1],'Entregué mi hoja.');
+  const reprobado=run('ramosVistaPreviaWrapped()');
+  reprobado[3].categorias[0].notas.forEach(n=>n.valor=3.3);
+  const dificil=ctx.slidesWrapped(datos(reprobado),null,'2026-2');
+  assert.ok(dificil.some(s=>s.tipo==='animo'));
+  assert.deepEqual(Array.from(dificil.filter(s=>s.compartible),s=>s.compartible[0]),['La vuelta del semestre','Mi mejor nota','Mi semestre']);
+});
+check('la tarjeta compartida es neutra, el ánimo cuenta lo bueno y calificar va en su propia página',()=>{
+  const reprobado=run('ramosVistaPreviaWrapped()');
+  reprobado[3].categorias[0].notas.forEach(n=>n.valor=3.3);
+  const d=datos(reprobado);
+  const dificil=ctx.slidesWrapped(d,null,'2026-2',null,{tenant:'uc',ramos:[]});
+  const final=dificil.at(-1);
+  assert.match(final.sub,/Lo que te llevas/);
+  assert.equal(final.compartible[2],'Ahora sí, guarda el lápiz.');
+  assert.doesNotMatch(final.compartible.join(' '),/Lo que te llevas/);
+  assert.equal(final.accion,undefined);
+  const animo=dificil.find(s=>s.tipo==='animo');
+  assert.match(animo.viz,new RegExp(`Anotaste <b>${d.nNotas}</b> notas`));
+  assert.ok(animo.viz.includes(`<b>${ctx.fmt(d.mejor.valor)}</b>`));
+  const ramo=reprobado.find(r=>r.nombre===d.ranking[0].nombre);
+  const conSeccion=ctx.slidesWrapped(d,null,'2026-2',null,{tenant:'uc',ramos:[{...ramo,seccion:'1'}]});
+  const postit=conSeccion.at(-2);
+  assert.equal(postit.forma,'postit');assert.equal(postit.accion.texto,'Calificar profesor');
+  assert.equal(postit.compartible,undefined);assert.equal(conSeccion.at(-1).accion,undefined);
+});
+check('el cierre con dos notas distingue una reprobación real de tener pocos datos',()=>{
+  const rs=run('ramosVistaPreviaWrapped()').slice(0,2);
+  rs.forEach(r=>r.categorias[0].notas.splice(1));
+  const original=datos(rs);
+  assert.equal(original.reprobados,1);assert.ok(original.gpa>=4);
+  assert.match(ctx.slidesWrapped(original,null,'2026-2').at(-1).sub,/Lo que te llevas/);
+  rs[0].categorias[0].notas[0].valor=5;
+  const aprobado=datos(rs);
+  assert.equal(aprobado.reprobados,0);
+  assert.equal(ctx.slidesWrapped(aprobado,null,'2026-2').at(-1).sub,'Ahora sí, guarda el lápiz.');
+});
+check('avance puro: malla con créditos completos, mínimo dos ramos identificados y sin duplicados',()=>{
+  const m={1:['Uno','Lab'],2:['Dos','Uno'],3:['Tres']};
+  const c={Uno:[10,'A'],Lab:[0,'L'],Dos:[5,'B'],Tres:[10,'C']};
+  const avanzar=(m,c,ids)=>ctx.avanceCreditosWrapped(m,c,new Set(ids));
+  assert.equal(avanzar(null,c,['A','B']),null);
+  assert.equal(avanzar(m,{Uno:c.Uno},['A','B']),null);
+  assert.equal(avanzar(m,c,['A','L','ajeno']),null);
+  assert.deepEqual({...avanzar(m,c,['A','B','ajeno'])},{total:25,aprobados:15});
+  assert.equal(avanzar(m,c,['A','B','C']).aprobados,25);
+});
+check('el cálculo conserva los créditos del plan pero el avance no sale en 2026-2',()=>{
+  run('S=freshState();S.tenant="uc"');
+  const uno={...ramo('Cálculo I',[nota('i',5)]),sigla:'MAT1610',creditos:999};
+  const dos={...ramo('Cálculo II',[nota('ii',6)]),sigla:'MAT1620',creditos:999};
+  const otro={...ramo('Álgebra Lineal',[nota('al',6)]),sigla:'MAT1203',origen:{tenant:'fen'}};
+  const archivo={label:'2026-1',ramos:[uno,otro]};
+  const avance=(rs,hs,t='uc',c='ING-PC')=>ctx.avanceMallaWrapped(rs,hs,t,c);
+  assert.equal(avance([uno],[archivo]),null,'recursado una sola vez');
+  assert.equal(avance([uno,dos],[archivo],'uai','COM'),null,'carrera sin tabla autorizada');
+  const a=avance([dos],[archivo]);assert.equal(a.aprobados,20);
+  datos([uno,dos]);ctx.__avance=a;
+  assert.equal(run('slidesWrapped({...datosWrapped(S.ramos),avance:__avance},null,"2026-2").some(s=>s.tipo==="avance")'),false);
+  dos.categorias[0].peso=50;assert.equal(avance([dos],[archivo]),null,'pauta a medio cerrar');
+  dos.notaOficial=3;assert.equal(avance([dos],[archivo]),null,'reprobación oficial');
+});
+
+check('las fechas imposibles no generan una semana ni un relato de remontada',()=>{
+  const d=datos([ramo('A',[nota('a',3,'2026-09-31'),nota('b',3,'2026-09-31'),nota('c',7,'2026-09-31')])]);
+  assert.equal(d.semana,null);assert.equal(d.remontada,null);
+});
+check('la entrada anticipada de vista previa exige el permiso de administración',()=>{
+  ctx.esAdministrador=()=>false;run('abrirWrappedVistaPrevia()');assert.equal(run('_wrapped'),null);
 });
