@@ -171,7 +171,8 @@ begin
 end;
 $$;
 
-revoke all on function public.curso_nota_set(text, text, numeric) from public;
-revoke all on function public.curso_posicion(text, text) from public;
+-- `anon` va aparte de `public`: Supabase se lo otorga por defecto a cada función.
+revoke all on function public.curso_nota_set(text, text, numeric) from public, anon;
+revoke all on function public.curso_posicion(text, text) from public, anon;
 grant execute on function public.curso_nota_set(text, text, numeric) to authenticated;
 grant execute on function public.curso_posicion(text, text) to authenticated;
