@@ -1,5 +1,7 @@
-function presetRamo(nombre,tenant,carrera,ahora){
-  const def=definicionPreset(nombre,tenant,carrera);if(!def)return null;
+// `sigla`, la guardada en el ramo, habilita en otra carrera UC el programa del
+// mismo curso (#1090). Sin ella, igual que antes.
+function presetRamo(nombre,tenant,carrera,ahora,sigla){
+  const def=definicionPreset(nombre,tenant,carrera,sigla);if(!def)return null;
   const evals=Array.isArray(def)?def:(def.evals||[]);
   // Un programa puede traer reglas sin publicar ponderaciones. No se inventa una
   // pauta vacía: sus reglas se muestran por reglasDelPreset(). Tampoco se carga
@@ -171,12 +173,12 @@ function addFromCatalogCodificado(nombre,sigla){
 // Devuelve el ramo creado para quien necesite completarlo (la sección, por
 // ejemplo, que el catálogo no conoce).
 function crearRamoDesdeCatalogo(nombre,sigla){
-  const candidato=findPresetName(nombre,S.tenant,S.carrera);
+  const candidato=findPresetName(nombre,S.tenant,S.carrera,sigla);
   // Dos cursos UC pueden compartir nombre y tener siglas distintas. El
   // horario trae la sigla exacta: nunca adjuntar la pauta de un homónimo.
   const siglaPreset=candidato&&S.tenant==='uc'?siglaDePreset(candidato):null;
   const presetName=sigla&&siglaPreset&&normName(sigla)!==normName(siglaPreset)?null:candidato;
-  const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
+  const preset=presetName?presetRamo(presetName,S.tenant,S.carrera,undefined,sigla):null;
   // Un ramo no coordinado (coordinacion-ramo.js) no trae pauta para todos,
   // pero sus datos siguen valiendo: nombre, sigla y créditos del programa.
   const referencia=!preset?datosRamoNoCoordinado(nombre,sigla):null;

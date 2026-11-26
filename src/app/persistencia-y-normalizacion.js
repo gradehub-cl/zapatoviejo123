@@ -25,13 +25,13 @@ function estadoPeriodoPauta(periodo,ahora){
   const fin=semestre===1?`${anio}-08-01`:`${anio+1}-01-01`;
   return hoy<fin?'vigente':'vencido';
 }
-function definicionPreset(nombre,tenant,carrera){
+function definicionPreset(nombre,tenant,carrera,sigla){
   if(tenant!=='uc'){
     const presets=PRESETS_POR_TENANT[tenant];if(!presets)return null;
     const clave=claveCatalogo(nombre,Object.keys(presets),tenant);
     return clave?presets[clave]:null;
   }
-  if(tenant!=='uc'||!presetUcDisponible(nombre,carrera))return null;
+  if(tenant!=='uc'||!presetUcDisponible(nombre,carrera,sigla))return null;
   const clave=claveUc(nombre);
   return clave?PRESETS_UC[clave]:null;
 }
@@ -52,7 +52,7 @@ function evalsDePreset(def){return Array.isArray(def)?def:(def&&def.evals||[]);}
 function periodoDePreset(def){return !Array.isArray(def)&&def&&typeof def.periodo==='string'?def.periodo:null;}
 function infoPeriodoPauta(r){
   if(!r||!r.origen||!r.origen.tenant)return null;
-  const def=definicionPreset(r.nombre,r.origen.tenant,r.origen.carrera);
+  const def=definicionPreset(r.nombre,r.origen.tenant,r.origen.carrera,siglaParaPrograma(r));
   const evals=Array.isArray(def)?def:(def&&def.evals||[]);
   if(!evals.length||!pautaPresetSuficiente(evals))return null;
   const periodo=periodoDePreset(def);
@@ -85,14 +85,14 @@ function pautaCalzaParaFechas(r,evals){
 function origenParaFechasOficiales(r,contexto){
   if(r&&r.origen&&r.origen.tenant)return r.origen;
   if(!r||!contexto||!contexto.tenant||!Array.isArray(r.categorias))return null;
-  const def=definicionPreset(r.nombre,contexto.tenant,contexto.carrera);
+  const def=definicionPreset(r.nombre,contexto.tenant,contexto.carrera,siglaParaPrograma(r));
   const evals=Array.isArray(def)?def:(def&&def.evals||[]);
   return def&&pautaCalzaParaFechas(r,evals)?contexto:null;
 }
 function completarFechasOficiales(r,contexto){
   const origen=origenParaFechasOficiales(r,contexto);
   if(!origen)return;
-  const def=definicionPreset(r.nombre,origen.tenant,origen.carrera);
+  const def=definicionPreset(r.nombre,origen.tenant,origen.carrera,siglaParaPrograma(r));
   if(!def||estadoPeriodoPauta(periodoDePreset(def))!=='vigente')return;
   const evals=Array.isArray(def)?def:(def.evals||[]);
   const porNombre=new Map();
@@ -164,7 +164,7 @@ function horaAportaRespaldo(item){return !!item&&item.horaOrigen==='usuario';}
 
 function fechasOficialesRamo(r){
   if(!r||!r.origen||!r.origen.tenant)return new Map();
-  const def=definicionPreset(r.nombre,r.origen.tenant,r.origen.carrera);
+  const def=definicionPreset(r.nombre,r.origen.tenant,r.origen.carrera,siglaParaPrograma(r));
   const evals=Array.isArray(def)?def:(def&&def.evals||[]);
   const fechas=new Map();
   evals.forEach(([nombre,,extra])=>{if(extra&&extra.fecha)fechas.set(normName(nombre),extra.fecha);});
