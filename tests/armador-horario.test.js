@@ -27,6 +27,25 @@ const sec=(sigla,seccion,horario,profesores=['Docente Ficticio'])=>({periodo:'20
 const b=(dias,modulo,tipo='CLAS')=>({dias,modulo,tipo,sala:'SIN SALA'});
 const nrcs=c=>c.ramos.map(r=>r.sigla+'-'+r.secciones.map(s=>s.seccion).join('/')).join(' ');
 
+console.log('\nCupos');
+{
+  const lleno=sec('CUP1000',1,[b(['L'],1)]);lleno.vacantes_disponibles=0;
+  const libre=sec('CUP1000',2,[b(['L'],1)]);
+  const r=armar([lleno,libre],['CUP1000']);
+  chk('mismo horario: primero la sección con cupos',r.combinaciones[0].ramos[0].secciones[0].seccion===2&&r.combinaciones[0].ramos[0].secciones[0].cupos===20);
+  chk('con una sección libre no hay aviso',!r.combinaciones[0].avisos.some(a=>a.tipo==='sin_cupos'));
+  const sinLugar=sec('CUP2000',1,[b(['M'],1)]);sinLugar.vacantes_disponibles=0;
+  const conLugar=sec('CUP2000',2,[b(['W'],1)]);
+  const r2=armar([sinLugar,conLugar],['CUP2000']);
+  chk('horario sin cupos: se propone igual, pero abajo y con aviso',r2.combinaciones.length===2&&r2.combinaciones[0].ramos[0].secciones[0].seccion===2
+    &&r2.combinaciones[1].avisos.some(a=>a.tipo==='sin_cupos'&&a.siglas[0]==='CUP2000'));
+  const sinDato=sec('CUP3000',1,[b(['J'],1)]);delete sinDato.vacantes_disponibles;
+  const r3=armar([sinDato],['CUP3000']);
+  chk('sin dato de cupos: no se avisa ni se inventa',r3.combinaciones[0].ramos[0].secciones[0].cupos===null&&!r3.combinaciones[0].avisos.length);
+  chk('el texto dice los cupos',ctx.proximoSeccionTexto({seccion:1,profesores:[],cupos:0}).includes('sin cupos')&&ctx.proximoSeccionTexto({seccion:1,profesores:[],cupos:1}).includes('1 cupo'));
+  chk('el aviso se lee',ctx.proximoAvisoHorario({tipo:'sin_cupos',siglas:['CUP2000']}).includes('no tiene cupos libres'));
+}
+
 console.log('\nTopes de cátedra');
 {
   const oferta=[sec('TST1001',1,[b(['L','W'],1)]),sec('TST1001',2,[b(['M','J'],1)]),sec('TST2002',1,[b(['L','W'],1)])];

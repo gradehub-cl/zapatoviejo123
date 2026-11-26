@@ -60,7 +60,7 @@ const tick=()=>new Promise(setImmediate);
  ctx.supabaseClient.rpc=async(n,p)=>{calls.push({n,p});if(n==='mis_anuncios_editados_gradehub')return {data:[{anuncio_id:ad.id,accion_id:15,editado_at:'2026-10-25T12:00:00Z'},{anuncio_id:'otro',accion_id:99,editado_at:'2026-10-25T12:00:00Z'}]};if(n==='marcar_edicion_anuncio_vista')return errorAcuse?{error:{code:'OFFLINE'}}:{data:true};return {data:[]};};
  await run("renderPanelProfesor(root,[ad],{cabecera:()=>'',salida:()=>''})");
  assert.match(root.innerHTML,/GradeHub editó tu anuncio/);assert.match(root.innerHTML,/25 de octubre de 2026/);assert(!root.innerHTML.includes('data-ver-edicion="otro"'));
- assert.equal(quitado,false);ver.listeners.click();await tick();assert.equal(fila.open,true);assert.match(preview.innerHTML,/Descripción de la clase completamente ficticia/);assert.equal(quitado,false,'sin acuse el aviso se conserva');
+ assert.match(root.innerHTML,/data-profesor-fila/);assert.equal(quitado,false);ver.listeners.click();await tick();assert.equal(fila.open,true);assert.match(preview.innerHTML,/Descripción de la clase completamente ficticia/);assert.equal(quitado,false,'sin acuse el aviso se conserva');
  errorAcuse=false;await fila.listeners.toggle();await tick();assert.equal(quitado,true);
  assert.equal(calls.at(-1).n,'marcar_edicion_anuncio_vista');assert.equal(calls.at(-1).p.p_accion_id,15);
  const n=calls.length;await fila.listeners.toggle();assert.equal(calls.length,n,'un anuncio visto no repite acuses');

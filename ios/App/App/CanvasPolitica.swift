@@ -13,7 +13,15 @@ enum CanvasPolitica {
     // El programa llega como texto plano y con tope: nunca HTML a la web.
     static let programaMax = 60_000
     static let docentesPaginasMax = 3
-    static func limitePaginas(_ ruta: String) -> Int { tipo(ruta) == .docentes ? docentesPaginasMax : paginasMax }
+    static let anuncioMax = 8_000
+    static let anunciosPaginasMax = 3
+    static func limitePaginas(_ ruta: String) -> Int {
+        switch tipo(ruta) {
+        case .docentes: return docentesPaginasMax
+        case .anuncios: return anunciosPaginasMax
+        default: return paginasMax
+        }
+    }
 
     private static func calza(_ texto: String, _ patron: String) -> Bool {
         let match = texto.range(of: patron, options: .regularExpression)
@@ -21,10 +29,10 @@ enum CanvasPolitica {
     }
 
     static func rutaValida(_ ruta: String) -> Bool {
-        calza(ruta, "^(users/self|courses|calendar_events|courses/[0-9]{1,12}|courses/[0-9]{1,12}/(assignments|assignment_groups|users))$")
+        calza(ruta, "^(users/self|courses|calendar_events|courses/[0-9]{1,12}|courses/[0-9]{1,12}/(assignments|assignment_groups|users|discussion_topics))$")
     }
 
-    enum Tipo { case yo, cursos, tareas, grupos, eventos, programa, docentes }
+    enum Tipo { case yo, cursos, tareas, grupos, eventos, programa, docentes, anuncios }
     static func tipo(_ ruta: String) -> Tipo? {
         guard rutaValida(ruta) else { return nil }
         if ruta == "users/self" { return .yo }
@@ -32,6 +40,7 @@ enum CanvasPolitica {
         if ruta == "calendar_events" { return .eventos }
         if calza(ruta, "^courses/[0-9]{1,12}$") { return .programa }
         if ruta.hasSuffix("/users") { return .docentes }
+        if ruta.hasSuffix("/discussion_topics") { return .anuncios }
         return ruta.hasSuffix("/assignments") ? .tareas : .grupos
     }
 
@@ -42,6 +51,7 @@ enum CanvasPolitica {
         var contextos = 0
         var roles: [String] = []
         var matriculas = 0
+        var soloAnuncios = 0
         for item in items {
             let v = item.value ?? ""
             let ok: Bool
@@ -51,6 +61,7 @@ enum CanvasPolitica {
             case (.cursos, "include[]"): ok = v == "term"
             case (.docentes, "enrollment_type[]"): roles.append(v); ok = ["teacher", "ta"].contains(v)
             case (.docentes, "include[]"): matriculas += 1; ok = v == "enrollments"
+            case (.anuncios, "only_announcements"): soloAnuncios += 1; ok = v == "true"
             case (.tareas, "include[]"): ok = v == "submission"
             case (.tareas, "bucket"): ok = ["future", "past", "upcoming", "undated"].contains(v)
             case (.tareas, "order_by"): ok = ["due_at", "position", "name"].contains(v)
@@ -65,6 +76,7 @@ enum CanvasPolitica {
         // Sin contexto, Canvas devolvería el calendario personal de la cuenta.
         if tipo == .eventos && (contextos == 0 || contextos > contextosMax) { return false }
         if tipo == .docentes && (roles.sorted() != ["ta", "teacher"] || matriculas != 1) { return false }
+        if tipo == .anuncios && soloAnuncios != 1 { return false }
         return true
     }
 
@@ -74,6 +86,15 @@ enum CanvasPolitica {
         let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
         let paginas = items.filter { $0.name == "page" }
         guard paginas.count <= 1, paginas.allSatisfy({ Int($0.value ?? "").map { (1...docentesPaginasMax).contains($0) } ?? false }) else { return false }
+        return parametrosValidos(ruta, items.filter { $0.name != "page" })
+    }
+
+    // Las páginas siguientes conservan el filtro obligatorio: nunca leen foros.
+    static func paginaAnunciosValida(_ url: URL, ruta: String) -> Bool {
+        guard tipo(ruta) == .anuncios else { return true }
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        let paginas = items.filter { $0.name == "page" }
+        guard paginas.count <= 1, paginas.allSatisfy({ Int($0.value ?? "").map { (1...anunciosPaginasMax).contains($0) } ?? false }) else { return false }
         return parametrosValidos(ruta, items.filter { $0.name != "page" })
     }
 
@@ -125,6 +146,23 @@ enum CanvasPolitica {
             }
         }
         return salida
+    }
+
+    // Solo anuncios publicados: título, publicación y texto plano. No pasan IDs,
+    // autor, enlaces estructurados, adjuntos, participantes ni respuestas.
+    static func proyectarAnuncios(_ anuncios: [[String: Any]]) -> [[String: Any]] {
+        anuncios.compactMap { a in
+            guard a["published"] as? Bool != false, a["is_announcement"] as? Bool != false,
+                  let publicado = a["posted_at"] as? String, !publicado.isEmpty else { return nil }
+            let completo = textoPrograma(a["message"] as? String ?? "")
+            var texto = String(completo.prefix(anuncioMax))
+            // Un recorte a mitad de una frase no se interpreta como fecha completa.
+            if completo.count > anuncioMax {
+                if let fin = texto.lastIndex(where: { $0 == "\n" || $0 == "." || $0 == ";" }) { texto = String(texto[...fin]) }
+                else { texto = "" }
+            }
+            return ["title": String(textoPrograma(a["title"] as? String ?? "").prefix(180)), "posted_at": String(publicado.prefix(40)), "texto": texto]
+        }
     }
 
     // La nota propia que Canvas ya publicó, cuando la web la pide. Sin
@@ -326,5 +364,38 @@ enum CanvasPolitica {
             if let entrega = tarea["submission"] as? [String: Any] { fila["submission"] = proyectarEntrega(entrega) }
             return fila
         }
+    }
+}
+
+// La validación usa red fuera de la cola. Solo el intento más reciente puede
+// escribir; desconectar invalida cualquier respuesta en vuelo de esa cuenta.
+final class ConexionesCanvas {
+    private let cola = DispatchQueue(label: "cl.gradehub.canvas.llavero")
+    private var pendientes: [String: UUID] = [:]
+
+    func iniciar(_ cuenta: String) -> UUID {
+        let intento = UUID()
+        cola.sync { pendientes[cuenta] = intento }
+        return intento
+    }
+
+    func terminar(_ intento: UUID, cuenta: String, completar: () -> Void) -> Bool {
+        cola.sync {
+            guard pendientes[cuenta] == intento else { return false }
+            pendientes.removeValue(forKey: cuenta)
+            completar()
+            return true
+        }
+    }
+
+    func desconectar(_ cuenta: String, borrar: () -> Bool) -> Bool {
+        cola.sync {
+            pendientes.removeValue(forKey: cuenta)
+            return borrar()
+        }
+    }
+
+    func revisarRevocacion(_ revisar: () -> Void) {
+        cola.sync(execute: revisar)
     }
 }

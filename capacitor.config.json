@@ -9,9 +9,14 @@
     },
     "Keyboard": {
       "resize": "native"
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_gradehub",
+      "iconColor": "#2DD4BF"
     }
   },
   "ios": {
-    "allowsLinkPreview": false
+    "allowsLinkPreview": false,
+    "loggingBehavior": "none"
   }
 }

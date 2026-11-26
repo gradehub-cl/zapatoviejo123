@@ -96,7 +96,7 @@ function contenidoEvolucionStatsHTML(){
   const techo=Math.max(5,Math.ceil(Math.max(...validos.map(p=>p.valor))));
   const grafico=validos.length?htmlGraficoEvolucion(serie,'notas-estudiante','tu promedio en el tiempo',{
     recto:true,unPunto:true,piso,techo,referencia:4,marcas:Array.from({length:techo-piso+1},(_,i)=>techo-i),rotulo:n=>n===4?'4,0':n,
-    resumen:'Un paso por nota, con la pauta actual. Las notas sin fecha van al principio en orden guardado.'+' Segmentos rectos; línea discontinua en 4,0.'
+    resumen:'Un paso por nota, con las ponderaciones actuales. Las notas sin fecha van al principio en orden guardado.'+' Segmentos rectos; línea discontinua en 4,0.'
   }):`<p class="stats-evolucion-vacio">${puntos.length?'Aún no hay un promedio calculable para estas notas.':rangoEvolucionStats==='mes'?'No hay notas con fecha de este mes.':rangoEvolucionStats==='semana'?'No hay notas con fecha de esta semana.':'Todavía no hay notas para este rango.'}</p>`;
   const opciones=[['semana','Semana'],['mes','Mes'],['semestre','Semestre']];
   const fecha=p=>textoFechaEvolucion(p);

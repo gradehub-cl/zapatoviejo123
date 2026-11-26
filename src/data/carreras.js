@@ -162,7 +162,33 @@ const CARRERAS_DECLARABLES={
   ],
   uc:[
     // Sinónimos de búsqueda: admision.uc.cl/carreras/ingenieria/ y /actuacion/.
-    {n:'Ingeniería',malla:'ING-PC',alias:['Ingeniería Civil','Ingeniería Plan Común','Ingeniería Civil Plan Común','Plan Común de Ingeniería']},
+    {n:'Ingeniería Civil',malla:'ING-PC',alias:['Ingeniería','Ingeniería Plan Común','Ingeniería Civil Plan Común','Plan Común de Ingeniería']},
+    // Majors de Ingeniería con malla oficial de SIDING (mallas-uc.js). Quien ya
+    // eligió «Ingeniería» (ING-PC) no cambia: puede pasarse a su major en Ajustes.
+    // `soloAjustes`: no aparecen en el onboarding. Quien llega es casi siempre
+    // novato, todavía no tiene major, y ver 21 opciones lo confunde (Lucas,
+    // 2026-11-23). El major se elige después, desde Ajustes.
+    {n:'Ingeniería Civil · Major en Computación (Track Computación)',malla:'UC-ING-COMPUTACION',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Computación (Track Sistemas de Información)',malla:'UC-ING-COMPUTACION-SI',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Geociencias',malla:'UC-ING-GEOCIENCIAS',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Biológica',malla:'UC-ING-BIOLOGICA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Civil',malla:'UC-ING-CIVIL',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Eléctrica',malla:'UC-ING-ELECTRICA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Estructural',malla:'UC-ING-ESTRUCTURAL',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Geotécnica',malla:'UC-ING-GEOTECNICA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Matemática',malla:'UC-ING-MATEMATICA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Mecánica',malla:'UC-ING-MECANICA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Minera',malla:'UC-ING-MINERA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Química',malla:'UC-ING-QUIMICA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Robótica',malla:'UC-ING-ROBOTICA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería de Construcción',malla:'UC-ING-CONSTRUCCION',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería de Sistemas de Transporte',malla:'UC-ING-TRANSPORTE',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería de Software',malla:'UC-ING-SOFTWARE',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Investigación Operativa',malla:'UC-ING-INVESTIGACION-OPERATIVA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería y Arquitectura',malla:'UC-ING-ARQUITECTURA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería y Ciencias Ambientales',malla:'UC-ING-AMBIENTAL',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería, Diseño e Innovación (Track Diseño)',malla:'UC-ING-DISENO-TRACK-DISENO',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería, Diseño e Innovación',malla:'UC-ING-DISENO',soloAjustes:true},
     {n:'Actuación',malla:'UC-ACTUACION',alias:['Teatro']},
     {n:'Administración Pública',malla:'UC-ADMINISTRACION-PUBLICA'},
     {n:'Agronomía',malla:'UC-AGRONOMIA'},
@@ -236,7 +262,13 @@ const CARRERAS_DECLARABLES={
   ],
 };
 
-const CARRERAS_UC={'ING-PC':'Ingeniería · Plan Común','COM':'Ingeniería Comercial','OTRA':'Otra carrera'};
+// Cada major de Ingeniería UC cursa el mismo plan común: hereda de ING-PC los
+// programas oficiales y las siglas, y solo cambia la malla que se sugiere.
+// Un código que no está acá se representa a sí mismo.
+const CARRERA_BASE_UC=Object.fromEntries(CARRERAS_DECLARABLES.uc
+  .filter(c=>typeof c.malla==='string'&&c.malla.startsWith('UC-ING-'))
+  .map(c=>[c.malla,'ING-PC']));
+const CARRERAS_UC={'ING-PC':'Ingeniería Civil','COM':'Ingeniería Comercial','OTRA':'Otra carrera'};
 // Plan común de Ingeniería UC, currículum C2022. Los nombres y los créditos
 // salen del catálogo oficial vía la API de mallas.ing.uc.cl (la herramienta de
 // la propia Escuela), no de una imagen ni de memoria.
@@ -303,6 +335,13 @@ const AVANCE_CURRICULAR={uc:{portal:'Mi UC',documento:'avance curricular',ficha:
   pestanaFicha:'Ficha Académica Acumulada',pestanaAvance:'Seguimiento Curricular',archivoFicha:'FAA',
   alternativa:'Mi UC › Información Académica › Avance curricular'}};
 
+// Dónde exportar a .ics las fechas de los cursos. Sin entrada, el importador solo
+// habla de Apple, Google u Outlook. Webcursos es Moodle 4.5: verificado el
+// 2026-11-24 que su exportación está encendida (apagada responde "no export"
+// antes de pedir sesión). Se usa el archivo y no la URL de suscripción, que deja
+// leer el calendario a cualquiera que la tenga y habría que cuidar como clave.
+const CALENDARIO_PORTAL_POR_TENANT={uai:{donde:'Webcursos',url:'https://webc.uai.cl/calendar/export.php'}};
+
 // Portal por universidad: recursos oficiales según el tenant del estudiante.
 const PORTAL_UC=[
   {title:'Académico',links:[
@@ -326,7 +365,7 @@ const PORTAL_UC=[
 const PORTAL=[
   {title:'Académico',links:[
     {label:'Canvas',desc:'Plataforma de cursos y tareas',url:'https://uchile.instructure.com',color:'#e84646'},
-    {label:'Docencia Web FEN',desc:'Portal académico de la facultad',url:'https://docencia.fen.uchile.cl',color:'#2563eb'},
+    {label:'Docencia Web FEN',desc:'Portal académico de la facultad',url:'https://docenciaweb.fen.uchile.cl/',color:'#2563eb'},
     {label:'U-Campus',desc:'Inscripción de ramos, horarios y más',url:'https://ucampus.uchile.cl',color:'#16a34a'},
   ]},
   {title:'Facultad',links:[

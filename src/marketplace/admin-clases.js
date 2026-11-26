@@ -27,7 +27,7 @@ function olvidarSesionMarketplace(){
   olvidarEncuestas();
   soyAdministradorCache=false;
   alcanceFilasAdmin=new Map();
-  vistaAdmin={area:'anuncios',seccion:'campanas',busqueda:'',estado:'publicado',profesores:'aprobado',busquedaProfesores:''};
+  vistaAdmin={area:'anuncios',seccion:'campanas',busqueda:'',estado:'publicado',profesores:null,busquedaProfesores:''};
   olvidarPerfilProfesor();
   anunciosRecomendacion={tenant:null,lista:null,pidiendo:false};
 }
@@ -93,6 +93,32 @@ function revisionAdminAnuncioHTML(a,profesor){
       <button type="button" class="clase-accion admin-revision-borrar" data-admin-borrar="${esc(a.id)}">Borrar anuncio</button>
     </div>
   </section>`;
+}
+// Cambios que un profesor envió sobre su anuncio publicado (2026-11-24). El
+// anuncio sigue mostrándose como estaba hasta que se aprueban.
+const CAMPOS_EDICION_ADMIN={titulo:'Título',descripcion:'Descripción',precio_clp:'Precio',pack_clases:'Clases por pack',
+  modalidad:'Formato',modalidad_otra:'Formato (otro)',ubicacion:'Dónde',ubicacion_otra:'Dónde (otro)',detalles:'Detalles',
+  linea_datos:'Bajo el título',contacto_tipo:'Tipo de contacto',contacto_valor:'Contacto',
+  descuento_gradehub_pct:'Descuento %',codigo_descuento:'Código de descuento'};
+function valorEdicionAdmin(k,v){
+  if(v===null||v===undefined||v==='')return 'Sin indicar';
+  if(k==='precio_clp')return pesosClase(Number(v));
+  if(k==='descuento_gradehub_pct')return v+'%';
+  if(k==='detalles'&&Array.isArray(v))return v.map(d=>d&&typeof d==='object'?[d.etiqueta,d.valor].filter(Boolean).join(': '):String(d)).join(' · ')||'Sin indicar';
+  if(Array.isArray(v))return v.join(' · ')||'Sin indicar';
+  if(typeof v==='object')return JSON.stringify(v);
+  return String(v);
+}
+function edicionPendienteAdminHTML(id,cambios,enviada){
+  const filas=Object.entries(cambios||{}).map(([k,c])=>`<div><dt>${esc(CAMPOS_EDICION_ADMIN[k]||k)}</dt><dd><del>${esc(valorEdicionAdmin(k,c&&c.antes))}</del><br><ins>${esc(valorEdicionAdmin(k,c&&c.despues))}</ins></dd></div>`).join('');
+  return `<h4>El profesor envió cambios</h4>
+    <p class="profesor-info">${enviada?`Enviados el ${esc(new Date(enviada).toLocaleString('es-CL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))}. `:''}El anuncio se sigue mostrando como estaba hasta que los apruebes. Aprobar no cambia su campaña ni sus números.</p>
+    <dl class="admin-revision-datos">${filas}</dl>
+    <div class="admin-revision-acciones">
+      <button type="button" class="btn-confirm" data-admin-aprobar-edicion="${esc(id)}">Aprobar cambios</button>
+      <label>Comentario para el profesor<textarea data-admin-comentario-edicion="${esc(id)}" maxlength="1000" placeholder="Qué debe corregir antes de volver a enviarlos"></textarea></label>
+      <button type="button" class="clase-accion" data-admin-rechazar-edicion="${esc(id)}">Rechazar con comentario</button>
+    </div>`;
 }
 // El descuento es de GradeHub: el profesor conserva solo lectura.
 function descuentoAdminPct(a){
@@ -219,6 +245,7 @@ function filaAdminAnuncio(a,ahora=Date.now()){
       <p class="clase-sin-datos">${esc(lineaCostoCampanaClase(costo))}</p>`:''}
     ${vig==='expirado'&&!costo?.sinCosto?'<p class="admin-lista-cobro">Campaña terminada · lista para revisar y registrar el cobro.</p>':''}
     ${vig==='eliminado'&&publicado?'<p class="admin-lista-cobro">Anuncio borrado de la revisión. Esta publicación anterior se conserva para el cobro.</p>':''}
+    ${a.edicion_pendiente?`<section class="admin-revision" aria-label="Cambios enviados por el profesor">${edicionPendienteAdminHTML(a.id,a.edicion_pendiente.cambios,a.edicion_pendiente.enviada_at)}</section>`:''}
     <div class="admin-anuncio-acciones">
       ${['borrador','en_revision','publicado','pausado'].includes(a.estado)?`<span data-admin-edicion="${esc(a.id)}"></span>`:''}
       <button type="button" class="clase-accion" data-admin-estadisticas="${esc(a.id)}" aria-controls="admin-estadisticas-${esc(a.id)}" aria-expanded="false">Ver estadísticas</button>
@@ -273,7 +300,7 @@ function filasAdminHig(profesores,ahora=Date.now()){
 function filtrarAdminHig(filas,{seccion='campanas',busqueda='',estado=''}={}){
   const palabras=normalizarBusquedaClase(busqueda).split(' ').filter(Boolean);
   return filas.filter(f=>(seccion==='cobros'||f.a.estado!=='eliminado')&&
-    (seccion!=='revision'||f.a.estado==='en_revision')&&
+    (seccion!=='revision'||f.a.estado==='en_revision'||!!f.a.edicion_pendiente)&&
     (seccion!=='cobros'||f.a.publicado_at||(f.a.cobros||[]).length||f.a.cobro)&&
     (!estado||f.estado[1]===estado)&&palabras.every(t=>normalizarBusquedaClase([f.p.nombre,f.a.titulo,...(f.a.ramos_siglas||[])].join(' ')).includes(t)));
 }
@@ -284,7 +311,7 @@ function cobroPendienteAdmin({a,costo,estado}){
 }
 // Primero lo que espera una decisión; después, lo que más se está mostrando.
 function ordenFilasAdmin(x,y){
-  const prioridad=f=>f.a.estado==='en_revision'?0:cobroPendienteAdmin(f)?1:2;
+  const prioridad=f=>f.a.estado==='en_revision'||f.a.edicion_pendiente?0:cobroPendienteAdmin(f)?1:2;
   return prioridad(x)-prioridad(y)||(Number(y.a.campana?.vistas)||0)-(Number(x.a.campana?.vistas)||0);
 }
 // Cuántas personas con el ramo vieron el anuncio. Cada consulta recorre las
@@ -320,31 +347,57 @@ function filaAdminHigHTML({p,a,costo,estado},ahora){
   // respeta pausas y suspensiones. No se reconstruye desde el reloj local.
   const dias=campana&&Number.isSafeInteger(campana.dias_cobrados)?campana.dias_cobrados:null;
   return `<details class="admin-hig-fila pe-admin-fila" data-admin-fila="${esc(a.id)}"><summary>
-    <span class="pe-identidad"><span class="pe-avatar" aria-hidden="true">${esc(inicial)}</span><span class="admin-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc(p.nombre||'Sin nombre')} <span class="clase-estado clase-estado-${esc(estado[1])}">${esc(estado[0])}</span></small>${descuentoAdminPct(a)===null?'':`<span class="admin-descuento-etiqueta">−${descuentoAdminPct(a)}% GradeHub</span>`}</span></span>
+    <span class="pe-identidad"><span class="pe-avatar" aria-hidden="true">${esc(inicial)}</span><span class="admin-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc(p.nombre||'Sin nombre')} <span class="clase-estado clase-estado-${esc(estado[1])}">${esc(estado[0])}</span>${a.edicion_pendiente?' <span class="clase-estado clase-estado-en_revision">Cambios por revisar</span>':''}</small>${descuentoAdminPct(a)===null?'':`<span class="admin-descuento-etiqueta">−${descuentoAdminPct(a)}% GradeHub</span>`}</span></span>
     <span class="pe-fila-metricas" data-pe-anuncio-metricas="${esc(a.id)}">${[['vistas','Vistas'],['aperturas','Aperturas'],['contactos','Contactos']].map(([k,t])=>`<span><b data-pe-conteo="${k}">${valor(k)}</b><small>${t}</small></span>`).join('')}<span><b>${numeroPrivado(dias)}</b><small>Días publicada</small></span><span class="adm-alcance" data-adm-alcance-fila="${esc(a.id)}">${alcanceFilaAdminHTML(null)}</span></span><span class="pe-ver"><i aria-hidden="true">⌄</i><span class="adm-oculto">Ver</span></span>
     </summary><div class="admin-hig-detalle">${a.estado==='en_revision'?revisionAdminAnuncioHTML(a,p):''}${filaAdminAnuncio(a,ahora)}</div></details>`;
 }
 // Aceptar, rechazar y eliminar (Lucas, 2026-10-23). Eliminar solo aparece
 // si no hay historial que perder; si lo hay, se explica por qué y se pausa.
-function personaAdminHigHTML(p){
-  const id=esc(p.user_id),estado=p.estado;
-  const fecha=p.solicitado_at&&Number.isFinite(new Date(p.solicitado_at).getTime())
-    ?new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'long',timeZone:'America/Santiago'}).format(new Date(p.solicitado_at)):'';
-  const alumnos=Number(p.alumnos_conectados)||0;
+const FILTROS_PROFESORES_ADMIN=[['pendiente','Por revisar'],['aprobado','Activos'],['suspendido','Pausados'],['rechazado','Rechazados']];
+const COLUMNAS_PROFESOR_ADMIN=['Publicados','En revisión','Cobros en deuda','Alumnos conectados','Alcance 30 días'];
+function cobrosEnDeudaAdmin(a){
+  const cobros=Array.isArray(a.cobros)?a.cobros:a.cobro?[a.cobro]:[];
+  return cobros.filter(c=>c.estado==='deuda').length;
+}
+function cifrasProfesorAdmin(p,ahora){
+  const anuncios=p.anuncios||[],deudas=anuncios.reduce((total,a)=>total+cobrosEnDeudaAdmin(a),0);
+  return {publicados:anuncios.filter(a=>p.estado==='aprobado'&&vigenciaAnuncio(a,ahora)==='publicado').length,
+    revision:anuncios.filter(a=>a.estado==='en_revision').length,deudas,alumnos:p.alumnos_conectados,alcance:p.ultimos_30_dias?.vieron};
+}
+function personaAdminHigHTML(p,cifras=cifrasProfesorAdmin(p)){
+  const id=esc(p.user_id),nombre=esc(p.nombre||'Sin nombre'),estado=p.estado;
+  if(estado==='pendiente'){
+    const fecha=p.solicitado_at&&Number.isFinite(Date.parse(p.solicitado_at))
+      ?new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'long',year:'numeric',timeZone:'America/Santiago'}).format(new Date(p.solicitado_at)):'';
+    const unis=(p.universidades||[]).map(u=>(UNIVERSIDADES_PERFIL.find(([v])=>v===u)||[])[1]||u);
+    const ramos=ramosUniversidadPerfilHTML(p);
+    return `<article class="adm-postulacion" data-admin-persona="${id}">
+      <h3>${nombre}</h3>${fecha?`<p class="adm-prof-fecha">Postuló el ${esc(fecha)}</p>`:''}
+      <div class="adm-prof-formacion">${!p.ramos_por_universidad||!ramos?esc(unis.join(' · ')||'Universidad sin informar'):''}
+        ${ramos||'<p>Ramos sin informar</p>'}</div>
+      <p class="adm-prof-presentacion">${esc(p.presentacion||'Sin presentación.')}</p>
+      <div class="adm-postular-acciones"><button type="button" class="accion-principal" data-admin-postulacion="${id}" data-estado="aprobado">Aceptar</button>
+      <button type="button" class="clase-accion" data-admin-postulacion="${id}" data-estado="rechazado">Rechazar</button></div>
+      ${p.correo?`<details class="adm-prof-contacto"><summary>Contacto</summary><p>${esc(p.correo)}</p></details>`:''}
+    </article>`;
+  }
+  const etiqueta={aprobado:'Activo',suspendido:'Pausado',rechazado:'Rechazado'}[estado]||estado;
+  const valores=[cifras.publicados,cifras.revision,cifras.deudas,cifras.alumnos,cifras.alcance];
+  const celdas=valores.map((v,i)=>`<span class="adm-prof-cifra"><small>${COLUMNAS_PROFESOR_ADMIN[i]}</small><b>${v==null?'—':Number(v).toLocaleString('es-CL')}</b></span>`).join('');
+  return `<details class="adm-prof-fila" data-admin-persona="${id}"><summary>
+    <span class="adm-prof-nombre">${nombre}</span><span class="adm-prof-estado">${esc(etiqueta)}</span>${celdas}<span class="adm-prof-flecha" aria-hidden="true">›</span></summary>
+    ${fichaAdminProfesorHTML(p)}</details>`;
+}
+function accionesProfesorAdminHTML(p){
+  const id=esc(p.user_id),alumnos=Number(p.alumnos_conectados)||0;
   const sePuedeEliminar=p.tiene_historial===false&&alumnos===0;
   const porQueNo=p.tiene_historial?'Tiene campañas con cobros: páusalo en vez de eliminarlo.'
     :alumnos?`Tiene ${alumnos} ${alumnos===1?'alumno conectado':'alumnos conectados'}: páusalo en vez de eliminarlo.`:'';
-  const acciones=[
-    estado==='pendiente'?`<button type="button" class="accion-principal" data-admin-postulacion="${id}" data-estado="aprobado">Aceptar</button><button type="button" class="clase-accion" data-admin-postulacion="${id}" data-estado="rechazado">Rechazar</button>`:'',
-    estado==='rechazado'?`<button type="button" class="clase-accion" data-admin-postulacion="${id}" data-estado="aprobado">Aceptar</button>`:'',
-    estado==='aprobado'||estado==='suspendido'?`<button type="button" class="clase-accion" data-admin-profesor="${id}" data-estado="${estado==='aprobado'?'suspendido':'aprobado'}">${estado==='aprobado'?'Pausar profesor':'Reactivar profesor'}</button>`:'',
-    estado!=='pendiente'&&sePuedeEliminar?`<button type="button" class="clase-accion admin-hig-eliminar" data-admin-eliminar="${id}" data-nombre="${esc(p.nombre||'')}">Eliminar</button>`:'',
-  ].join('');
-  return `<section class="admin-hig-persona" data-admin-persona="${id}"><div><h3>${esc(p.nombre||'Sin nombre')}</h3><p>${esc(p.correo||'')}</p><p>${esc({aprobado:'Aprobado',pendiente:'Esperando revisión',suspendido:'Suspendido',rechazado:'Rechazado'}[estado]||estado)} · ${(p.anuncios||[]).length} anuncios${estado==='pendiente'&&fecha?` · postuló el ${esc(fecha)}`:''}</p>
-    ${estado==='pendiente'&&p.presentacion?`<p class="admin-hig-presentacion">${esc(p.presentacion)}</p>`:''}
-    ${estado!=='pendiente'&&porQueNo?`<p class="admin-hig-motivo">${esc(porQueNo)}</p>`:''}</div>
-    <div class="admin-hig-persona-acciones">${acciones}${estado==='aprobado'?`<span data-admin-ejemplo="${id}"></span>`:''}</div>
-    ${estado==='pendiente'?'':fichaAdminProfesorHTML(p)}</section>`;
+  const activo=p.estado==='aprobado';
+  return `<div class="adm-prof-gestion">${p.estado==='rechazado'?`<button type="button" class="clase-accion" data-admin-postulacion="${id}" data-estado="aprobado">Aceptar</button>`:''}
+    ${activo||p.estado==='suspendido'?`<button type="button" class="clase-accion" data-admin-profesor="${id}" data-estado="${activo?'suspendido':'aprobado'}">${activo?'Pausar profesor':'Reactivar profesor'}</button>`:''}
+    ${activo?`<span data-admin-ejemplo="${id}"></span>`:''}</div>
+    ${sePuedeEliminar?`<div class="adm-prof-baja"><button type="button" class="clase-accion admin-hig-eliminar" data-admin-eliminar="${id}" data-nombre="${esc(p.nombre||'')}">Eliminar</button></div>`:porQueNo?`<p class="admin-hig-motivo">${esc(porQueNo)}</p>`:''}`;
 }
 // La ficha de un profesor (Lucas, 2026-10-23): lo que hace falta para decidir
 // y cobrar, sin salir del panel. Sin el SQL nuevo, cada bloque se omite.
@@ -353,21 +406,16 @@ const ACCIONES_ADMIN_TEXTO={descuento_anuncio:d=>d&&d.pct!=null?`Fijó un descue
   nota_profesor:()=>'Editó la nota interna',publicar_anuncio:()=>'Publicó un anuncio',devolver_anuncio:()=>'Devolvió un anuncio',pausar_anuncio:()=>'Pausó un anuncio',
   borrar_anuncio_revision:()=>'Borró un anuncio en revisión',terminar_anuncio_pausado:()=>'Terminó una campaña',marcar_cobro:()=>'Registró un cobro'};
 function fichaAdminProfesorHTML(p){
-  const id=esc(p.user_id),anuncios=(p.anuncios||[]).filter(a=>a.estado!=='eliminado');
-  const cuenta=e=>anuncios.filter(a=>e.includes(a.estado)).length;
-  const deudas=anuncios.reduce((n,a)=>n+(Array.isArray(a.cobros)?a.cobros:a.cobro?[a.cobro]:[]).filter(c=>c.estado==='deuda').length,0);
-  const d30=p.ultimos_30_dias,num=v=>new Intl.NumberFormat('es-CL').format(Number(v)||0);
-  const dato=(t,v)=>`<div><dt>${t}</dt><dd>${v}</dd></div>`;
+  const id=esc(p.user_id),d30=p.ultimos_30_dias;
+  const borradores=(p.anuncios||[]).filter(a=>a.estado==='borrador').length;
   const alumnos=Number(p.alumnos_conectados)||0,visible=p.panel_alumnos!==false;
   const historial=Array.isArray(p.historial)?p.historial:null;
   const fecha=f=>Number.isFinite(new Date(f).getTime())?new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'America/Santiago'}).format(new Date(f)):'';
-  return `<details class="admin-hig-ficha"><summary>Ficha del profesor</summary><div class="admin-hig-ficha-cuerpo">
+  return `<div class="admin-hig-ficha-cuerpo">
+    ${p.correo?`<p>Correo · ${esc(p.correo)}</p>`:''}
     <div data-admin-directorio="${id}"></div>
     ${ramosUniversidadPerfilHTML(p)}
-    <dl class="admin-hig-ficha-datos">
-      ${dato('Publicados',num(cuenta(['publicado'])))}${dato('En revisión',num(cuenta(['en_revision'])))}${dato('Borradores',num(cuenta(['borrador'])))}
-      ${dato('Cobros en deuda',num(deudas))}${p.alumnos_conectados!=null?dato('Alumnos conectados',num(alumnos)):''}
-    </dl>
+    ${borradores?`<p>Borradores · ${borradores}</p>`:''}
     ${d30?barrasDetalleClaseHTML({titulo:'Alcance · últimos 30 días',filas:[{nombre:'Lo vieron',valor:d30.vieron},{nombre:'Lo abrieron',valor:d30.abrieron},{nombre:'Lo contactaron',valor:d30.contactaron}]}):''}
     ${p.panel_alumnos!=null&&p.estado==='aprobado'?`<div class="admin-hig-ficha-fila"><span><b>Panel de alumnos</b><small>${visible?'Lo ve en su menú.':'Oculto: no ve a sus alumnos ni se conecta nadie nuevo.'}</small></span>
       <button type="button" class="clase-accion" role="switch" aria-checked="${visible}" data-admin-panel-alumnos="${id}" data-activo="${!visible}" data-alumnos="${alumnos}">${visible?'Ocultar':'Mostrar'}</button></div>`:''}
@@ -375,7 +423,8 @@ function fichaAdminProfesorHTML(p){
       <textarea id="admin-nota-${id}" class="admin-hig-nota-texto" maxlength="1000" data-admin-nota-texto="${id}" placeholder="Ej. Material: 15% de comisión, código GRADEHUB 5%">${esc(p.nota||'')}</textarea>
       <button type="button" class="clase-accion" data-admin-nota="${id}">Guardar nota</button>`:''}
     ${historial?`<h4>Últimos cambios</h4>${historial.length?`<ul class="admin-hig-historial">${historial.map(h=>`<li><span>${esc((ACCIONES_ADMIN_TEXTO[h.accion]||(()=>h.accion))(h.detalle))}</span><small>${esc(fecha(h.fecha))}${h.admin?' · '+esc(h.admin):''}</small></li>`).join('')}</ul>`:'<p class="admin-hig-motivo">Sin cambios registrados.</p>'}`:''}
-  </div></details>`;
+    ${accionesProfesorAdminHTML(p)}
+  </div>`;
 }
 // El número de postulaciones esperando va en el riel: «Profesores · 2».
 function marcarPendientesNavAdmin(n){
@@ -384,8 +433,6 @@ function marcarPendientesNavAdmin(n){
   b.textContent=n?`Profesores · ${n}`:'Profesores';
   if(n)b.setAttribute('aria-label',`Profesores, ${n} ${n===1?'postulación':'postulaciones'} por revisar`);else b.removeAttribute('aria-label');
 }
-// Filtro y búsqueda de profesores, con Aprobados como estado inicial.
-const FILTROS_PROFESORES_ADMIN=[['aprobado','Aprobados'],['pendiente','Pendientes'],['suspendido','Pausados'],['rechazado','Rechazados'],['','Todos']];
 function filtrarProfesoresAdmin(profesores,{estado='',busqueda=''}={}){
   const palabras=normalizarBusquedaClase(busqueda).split(' ').filter(Boolean);
   return (profesores||[]).filter(p=>(!estado||p.estado===estado)&&palabras.every(t=>normalizarBusquedaClase(p.nombre||'').includes(t)));

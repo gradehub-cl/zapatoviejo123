@@ -21,10 +21,18 @@ let _promptInstalar=null;
 function lsLeer(k){try{return localStorage.getItem(k);}catch(e){return null;}}
 function lsEscribir(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 
-// La app iOS (Capacitor). app-session.js tiene su propia constante; esta es
-// función porque app.js carga antes y no puede declarar el mismo nombre.
+// La app de Capacitor, en iPhone o Android. app-session.js tiene su propia
+// constante; esta es función porque app.js carga antes y no puede declarar el
+// mismo nombre.
 function enAppNativa(){
   try{return !!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());}
+  catch(e){return false;}
+}
+// Lo que existe solo en el iPhone: widgets, Actividad en Vivo, Apple nativo y
+// el gesto de volver desde el borde (en Android ese borde es del sistema).
+// Android es la excepción, así que sin getPlatform cuenta como iPhone.
+function enAppIOS(){
+  try{return enAppNativa()&&!(typeof window.Capacitor.getPlatform==='function'&&window.Capacitor.getPlatform()==='android');}
   catch(e){return false;}
 }
 // Dentro de la app la página vive en capacitor://localhost. Una dirección que
@@ -47,7 +55,8 @@ function vibrar(tipo){
   try{
     const H=enAppNativa()&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Haptics;
     if(!H)return;
-    if(tipo==='nota')H.notification({type:'SUCCESS'}).catch(()=>{});
+    // «exito»: algo salió bien que no es una nota (aceptar un amigo, elegir username).
+    if(tipo==='nota'||tipo==='exito')H.notification({type:'SUCCESS'}).catch(()=>{});
     else if(tipo==='borrar'||tipo==='error')H.notification({type:'WARNING'}).catch(()=>{});
     else if(tipo==='levantar')H.impact({style:'MEDIUM'}).catch(()=>{});
     // El generador de selección se prepara una vez y queda listo para cada tic.
@@ -180,7 +189,8 @@ function showMainApp(){
   contarVisita();
   pintarAvisoInstalar();
   // Si llegó con el link de un profesor, ahora que hay sesión se le ofrece compartir.
-  if(typeof revisarInvitacionProfesor==='function')setTimeout(revisarInvitacionProfesor,600);
+  const enlaceUniversal=typeof activarEnlacesUniversales==='function'&&activarEnlacesUniversales();
+  if(enlaceUniversal!=='profe'&&typeof revisarInvitacionProfesor==='function')setTimeout(revisarInvitacionProfesor,600);
   // En una cuenta existente el catálogo puede no haberse pedido nunca: si un
   // ramo UC quedó sin SCT, hay que traerlo incluso sin abrir el buscador. Si ya
   // se cargó durante onboarding, completa de inmediato.

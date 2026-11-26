@@ -4,7 +4,9 @@ const leer=f=>fs.readFileSync(path.join(__dirname,'..',f),'utf8');
 const ids=new Map();
 function nodo(id){if(ids.has(id))return ids.get(id);const n={isConnected:true,innerHTML:'',textContent:'',value:'',disabled:false,
   style:{setProperty(){},removeProperty(){}},classList:{add(){},remove(){},contains(){return false},toggle(){}},
-  addEventListener(){},appendChild(){},setAttribute(){},removeAttribute(){},focus(){},querySelectorAll(){return []},dataset:{}};
+  addEventListener(){},appendChild(){},setAttribute(){},getAttribute(){return null},removeAttribute(){},focus(){},
+  closest(sel){return this.isConnected?nodo(sel==='#s-canvas'?'s-canvas':'modal'):null},
+  querySelector(sel){return nodo(sel.replace(/^#/,''))},querySelectorAll(){return []},dataset:{}};
   ids.set(id,n);return n;}
 let conectado=false,tokenRecibido='',rutas=[],pedidos=[],guardados=0;
 // Notas sintéticas: escala 1–7, puntos sobre 7, puntaje sobre 25, sin publicar y no calificables.
@@ -44,6 +46,8 @@ const igual=(a,b,m)=>assert.equal(JSON.stringify(a),JSON.stringify(b),m);
   run("S.tipoCuenta='estudiante'");
   chk(run("cursosCanvasDelSemestre([{id:42,course_code:'MAT1620-2',term:{name:'2026 Segundo Semestre'}},{id:'../x',course_code:'MAT1610-1',term:{name:'2026 Segundo Semestre'}}],new Date(2026,9,21)).length")===1,'solo rutas con ID numérico seguro');
   await run('pintarCanvasAjustes()');
+  chk(!nodo('s-canvas').innerHTML.includes('type="password"')&&nodo('s-canvas').innerHTML.includes('Traer notas'),'primero se elige la acción');
+  nodo('s-canvas-solo-conectar').onclick();
   chk(/type="password"/.test(nodo('s-canvas').innerHTML),'el campo del token no muestra caracteres');
   const guardadosAntes=guardados;
   const falso='123~'+('A'.repeat(24));nodo('s-canvas-token').value=falso;
@@ -55,8 +59,48 @@ const igual=(a,b,m)=>assert.equal(JSON.stringify(a),JSON.stringify(b),m);
   chk(/Traer fechas/.test(nodo('s-canvas').innerHTML),'Ajustes muestra la acción con conexión');
   const antes=run('JSON.stringify(S)');
   run('openModal=()=>{globalThis.__abierto=true}');
+  // Atajo de Inicio → token → la misma revisión, con la cuenta que abrió la hoja.
+  let opciones;
+  const abrirAjustes=ctx.openSettings;
+  ctx.openSettings=(seccion,op)=>{assert.equal(seccion,'canvas');opciones=op};
+  run('ACCIONES_HERRAMIENTAS.canvas()');
+  ctx.openSettings=abrirAjustes;
+  assert.equal(opciones.volverA,'Inicio');
+  conectado=false;
+  await ctx.pintarCanvasAjustes({accion:opciones.accionCanvas});
+  assert.equal(nodo('s-canvas').dataset.accionCanvas,'notas');
+  const campo=nodo('s-canvas-token'),boton=nodo('s-canvas-conectar');
+  const conectarAntes=plugin.conectar,eventos=[];
+  ctx.track=(...args)=>eventos.push(args);
+  for(const [code,mensaje] of [['0',/conexión/],['403',/no autorizó/],['429',/Espera/],['401',/rechazó/]]){
+    campo.value=falso;boton.disabled=false;
+    plugin.conectar=async()=>{throw {code}};
+    await ctx.conectarCanvas();
+    assert.match(nodo('query').textContent,mensaje);
+    assert.equal(campo.value,code==='401'?'':falso);
+    assert.equal(boton.disabled,false);
+    assert.deepEqual(rutas,[]);
+  }
+  let completar,intentos=0;
+  plugin.conectar=()=>new Promise(resolve=>{intentos++;completar=()=>{conectado=true;resolve({conectado:true})}});
+  campo.value=falso;
+  const primera=ctx.conectarCanvas();
+  await ctx.conectarCanvas();completar();await primera;
+  assert.equal(intentos,1);
+  assert.deepEqual(rutas,['courses','courses/42/assignments'],'al conectar abre las notas sin elegir la acción otra vez');
+  assert.equal(run('JSON.stringify(S)'),antes);
+  assert.equal(guardados,guardadosAntes);
+  assert(!JSON.stringify(eventos).includes(falso));
+  rutas=[];eventos.length=0;conectado=false;
+  await ctx.pintarCanvasAjustes({accion:'notas'});
+  campo.value=falso;boton.disabled=false;
+  const cancelada=ctx.conectarCanvas();campo.isConnected=false;
+  completar();await cancelada;
+  assert.deepEqual(rutas,[],'un resultado tardío no abre otra revisión');
+  assert.deepEqual(eventos,[]);
+  campo.isConnected=true;plugin.conectar=conectarAntes;
   await run('traerFechasCanvas()');
-  assert.deepEqual(rutas,['courses','courses/42/users','courses/42/assignments','calendar_events'],'solo GET a rutas esperadas');
+  assert.deepEqual(rutas,['courses','courses/42/users','courses/42/assignments','calendar_events','courses/42/discussion_topics'],'solo GET a rutas esperadas');
   run('cerrarRevisionDocenciaCanvas()'); // sigue a fechas sin aceptar la sección opcional
   const evPedido=pedidos.find(x=>x.path==='calendar_events').params;
   igual(evPedido['context_codes[]'],['course_42'],'eventos solo del curso, nunca el calendario personal');

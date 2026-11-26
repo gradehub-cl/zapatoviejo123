@@ -341,7 +341,7 @@ function abrirMenuRamo(boton){
   abrirMenu(boton,[
     {texto:'Editar ramo',icono:ic('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),accion:openEditRamoModal},
     {texto:'Editar evaluaciones',icono:ic('<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>'),accion:openPautaManualModal},
-    ...(oficial?[{texto:'Reportar pauta',icono:ic('<path d="M4 21V4h12l-1.5 4L16 12H4"/>'),accion:()=>openReportModal(r.id)}]:[]),
+    ...(oficial?[{texto:'Reportar ponderaciones',icono:ic('<path d="M4 21V4h12l-1.5 4L16 12H4"/>'),accion:()=>openReportModal(r.id)}]:[]),
     'sep',
     {texto:'Eliminar ramo',peligro:true,icono:ic('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/>'),accion:confirmDeleteRamo}
   ]);

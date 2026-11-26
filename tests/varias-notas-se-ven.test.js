@@ -49,10 +49,11 @@ const pintar=notas=>{
 // laxa: una comprobación que también pasa con el código viejo no prueba nada.
 const abierta=h=>/class="eval-group-body open"/.test(h);
 
-console.log('\n=== Recién creada, sin notas ===');
+console.log('\n=== Guardada sin notas ===');
+// Desde 2026-11-22 una lista abierta con 0 o 1 nota se ve como nota sola
+// (seVeComoNotaSola): una fila con "+ Nota", no un desplegable con una fila.
 let h=pintar([]);
-chk('la lista se muestra desplegada', abierta(h));
-chk('y el "+ Agregar nota" queda alcanzable', /gregar nota/.test(h));
+chk('es una fila con "+ Nota", sin desplegable', /class="nota-en-fila"/.test(h)&&!/eval-group-body/.test(h));
 
 console.log('\n=== Con notas adentro ===');
 h=pintar([{id:'n1',nombre:'Control 1',valor:5.5,peso:1},{id:'n2',nombre:'Control 2',valor:4.0,peso:1}]);

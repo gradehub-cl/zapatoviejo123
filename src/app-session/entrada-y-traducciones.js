@@ -10,6 +10,14 @@ function enterOnboarding(){
     const n=(m.full_name||m.name||'').trim();
     if(n)nameInput.value=n.split(' ')[0];
   }
+  // El apellido también, si el proveedor lo trae: el que separa Google
+  // (family_name) o lo que sigue al primer nombre.
+  const apellidoInput=document.getElementById('ob-apellido');
+  if(apellidoInput&&!apellidoInput.value.trim()&&currentUser&&currentUser.user_metadata){
+    const m=currentUser.user_metadata,completo=String(m.full_name||m.name||'').trim().split(/\s+/);
+    const a=String(m.family_name||'').trim()||(completo.length>1?completo.slice(1).join(' '):'');
+    if(a)apellidoInput.value=a.slice(0,60);
+  }
   obIniciar();
   // Con el correo institucional ya sabemos su universidad: llega marcada en el
   // paso 2, sin saltarlo, para que pueda corregirla. Solo en el onboarding:
@@ -56,7 +64,9 @@ function traduceAuthError(e,contexto){
   if(m.includes('already')||m.includes('exists'))return contexto==='cambio_correo'
     ?'Ese correo ya está asociado a otra cuenta.'
     :MSG_VERIFICA;
-  if(m.includes('invalid login')||m.includes('credentials'))return 'Usuario o contraseña incorrectos.';
+  // Lo más común detrás de este error es una cuenta creada con Google o Apple:
+  // se dice a todos, así que no revela nada sobre el correo (2026-11-23).
+  if(m.includes('invalid login')||m.includes('credentials'))return 'Correo o contraseña incorrectos. Si creaste tu cuenta con Google o Apple, entra con ese botón.';
   // Sin esto caían en "revisa tu internet": el correo de recuperación tiene un
   // límite por hora y quien lo pedía dos veces creía que no tenía conexión.
   if((e&&e.status===429)||code.includes('rate_limit')||m.includes('rate limit')||m.includes('security purposes'))

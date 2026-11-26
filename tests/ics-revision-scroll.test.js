@@ -3,6 +3,7 @@
 const fs=require('fs'),vm=require('vm'),path=require('path');
 const raiz=path.join(__dirname,'..');
 let lista=null,enfocado=null;
+const hoja={scrollTop:0};
 function elemento(){return {innerHTML:'',textContent:'',value:'',dataset:{},style:{setProperty(){}},
   classList:{add(){},remove(){},contains(){return false}},addEventListener(){},appendChild(){},focus(){},
   setAttribute(){},removeAttribute(){},querySelector(){return null},querySelectorAll(){return []}};}
@@ -10,7 +11,7 @@ const modal=elemento();
 Object.defineProperty(modal,'innerHTML',{set(){
   // Cada render crea una lista nueva arriba del todo, como el navegador.
   const selects=Array.from({length:12},(_,i)=>({focus(o){enfocado={i,tipo:'evaluacion',o};}}));
-  lista={scrollTop:0,querySelectorAll:selector=>selector==='[data-ics-evaluacion]'?selects:[]};
+  lista={scrollTop:0,closest:selector=>selector==='.modal-sheet'?hoja:null,querySelectorAll:selector=>selector==='[data-ics-evaluacion]'?selects:[]};
 },get(){return '';}});
 const ctx={console,window:{addEventListener(){},matchMedia:()=>({matches:false,addEventListener(){},addListener(){}})},
   document:{getElementById:id=>id==='modal-content'?modal:id==='ics-revision-lista'?lista:elemento(),
@@ -33,6 +34,13 @@ run(`asignarDestinoIcs(10,claveDestinoIcs(destinosIcs()[0]))`);
 chk('la lista queda donde estaba',lista.scrollTop===640);
 chk('el foco vuelve a la evaluación de la misma fila sin desplazar',!!enfocado&&enfocado.i===10&&enfocado.tipo==='evaluacion'&&enfocado.o&&enfocado.o.preventScroll===true);
 chk('la elección quedó guardada',run('icsImportDraft[10].target')===run('claveDestinoIcs(destinosIcs()[0])'));
+
+console.log('\n=== En Canvas iOS se desplaza la hoja ===');
+run(`enAppNativa=()=>true;contextoFechasCanvas={estado:S,cuenta:null};renderRevisionIcs();`);
+hoja.scrollTop=480;enfocado=null;
+run(`asignarDestinoIcs(10,'')`);
+chk('la hoja conserva la posición y la lista no necesita scroll interno',hoja.scrollTop===480&&lista.scrollTop===0);
+chk('la evaluación conserva el foco de la fila',enfocado?.i===10&&enfocado.o?.preventScroll===true);
 
 console.log(fallos?`\nFAIL: ${fallos}`:'\nRevisión de calendario OK');
 process.exit(fallos?1:0);

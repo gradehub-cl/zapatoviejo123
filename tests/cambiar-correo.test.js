@@ -56,7 +56,22 @@ Promise.resolve(cambiar()).then(resultado=>{
   return kit.ctx.cambiarCorreoCuenta();
 }).then(resultado=>{
   chk('el éxito confirma el cambio inmediato sin pedir correos',resultado===true&&/correo actualizado/i.test(kit.ids['s-account-email-status'].textContent)&&!/confirm/i.test(kit.ids['s-account-email-status'].textContent)&&kit.ctx.currentUser.email==='nuevo@ejemplo.test');
-  chk('Ajustes no promete una confirmación por correo',!/confirmación a tu correo actual/i.test(app)&&/al tiro/.test(app));
+
+  // Producción (2026-11-23): el cambio queda pendiente en new_email y Supabase
+  // manda un enlace. Eso no es un error: se dice que llegó el enlace.
+  kit=arnes({data:{user:{email:'cuenta@ejemplo.test',new_email:'nuevo@ejemplo.test'}},error:null});
+  kit.ids['s-account-email'].value='nuevo@ejemplo.test';
+  return kit.ctx.cambiarCorreoCuenta();
+}).then(resultado=>{
+  const aviso=kit.ids['s-account-email-status'].textContent;
+  chk('un cambio pendiente avisa del enlace, no de un error',resultado===true&&/enlace a nuevo@ejemplo\.test/.test(aviso)&&/sigues entrando con tu correo actual/.test(aviso)&&!/más tarde/.test(aviso)&&kit.ctx.currentUser.new_email==='nuevo@ejemplo.test');
+
+  kit=arnes({data:{user:{email:'cuenta@ejemplo.test',new_email:null}},error:null});
+  kit.ids['s-account-email'].value='nuevo@ejemplo.test';
+  return kit.ctx.cambiarCorreoCuenta();
+}).then(resultado=>{
+  chk('sin cambio ni pendiente, sigue siendo un fallo',resultado===false&&/más tarde/.test(kit.ids['s-account-email-status'].textContent));
+  chk('Ajustes avisa que el cambio se confirma por enlace',/enlace a la dirección nueva para confirmarla/.test(app)&&!/Se cambia al tiro/.test(app));
   chk('Ajustes expone el correo de acceso solo para una sesión iniciada',/id="s-account-email"/.test(app)&&/cambiarCorreoCuenta\(\)/.test(app)&&/currentUser\?`[\s\S]{0,1400}s-account-email/.test(app));
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
   process.exit(fail?1:0);

@@ -156,10 +156,12 @@ function repintarProgramaCanvas(){
 async function leerProgramaCanvas(){
   const r=(S.ramos||[]).find(x=>x.id===currentRamoId);
   if(!r||!canvasDisponible())return;
-  const id=r.id,sigla=siglaRamoCanvas(r);
+  const id=r.id,sigla=siglaRamoCanvas(r),estado=S,usuario=currentUser?.id||null;
+  const vigente=()=>S===estado&&(currentUser?.id||null)===usuario&&currentRamoId===id&&S.ramos.includes(r);
   canvasProgramaRamo.set(id,{cargando:true});repintarProgramaCanvas();
   try{
     const curso=(await cursosCanvas()).find(c=>c.sigla===sigla);
+    if(!vigente())return;
     if(!curso)canvasProgramaRamo.set(id,{error:'No encontramos este ramo en tu Canvas de este semestre.'});
     else{
       let resultado=pautaDesdeProgramaCanvas(await canvasGet(`courses/${curso.id}`,{'include[]':['syllabus_body']}),sigla),archivo=null;
@@ -171,10 +173,11 @@ async function leerProgramaCanvas(){
           resultado=desdeArchivos.resultado;archivo=desdeArchivos.archivo;
         }
       }
+      if(!vigente())return;
       canvasProgramaRamo.set(id,{resultado,archivo});
       track('canvas_programa',{estado:resultado.estado,evaluaciones:resultado.filas.length,senales:(resultado.senales||[]).length,desde_archivo:!!archivo});
     }
-  }catch(e){canvasProgramaRamo.set(id,{error:'No pudimos leer Canvas. Revisa la conexión o el token.'});}
+  }catch(e){if(!vigente())return;canvasProgramaRamo.set(id,{error:'No pudimos leer Canvas. Revisa la conexión o el token.'});}
   repintarProgramaCanvas();
 }
 // Lleva la propuesta al borrador del editor. Una evaluación con el mismo
@@ -198,12 +201,32 @@ function usarProgramaCanvas(){
   const r=(S.ramos||[]).find(x=>x.id===currentRamoId);
   const d=r&&canvasProgramaRamo.get(r.id);
   if(!d||!d.resultado||d.resultado.estado!=='propuesta')return;
+  const estadoCanvas=S;
   const aplicar=()=>{
+    if(S!==estadoCanvas||currentRamoId!==r.id||!S.ramos.includes(r))return;
     pautaDraft=filasProgramaParaEditor(d.resultado.filas,pautaDraft,r);
+    pautaProgramaCanvasDraft={ramoId:r.id,archivo:d.archivo||null,citas:d.resultado.reglas||[]};
     canvasProgramaRamo.delete(r.id);
     renderPautaManualModal();
     track('canvas_programa_usado',{evaluaciones:d.resultado.filas.length});
   };
   if(!pautaDraft.some(f=>String(f.nombre||'').trim()))return aplicar();
   showConfirm('Usar el programa de Canvas','Cambia las evaluaciones del editor por las del programa. Las notas que ya tienes se conservan cuando el nombre coincide. Nada se guarda hasta que toques Guardar.',aplicar,{label:'Usar programa',danger:false,focusCancel:true});
+}
+
+// Propuesta aditiva para revisión de Lucas: solo nombre del archivo y hasta
+// cuatro líneas ya marcadas por el lector. Sin token, URL, id de curso ni texto
+// completo. La firma evita atribuir citas de un archivo a otro tras una fusión.
+function firmaContenidoProgramaCanvas(d){return hashPautaSugerida(JSON.stringify([d.archivo,d.citas,d.pauta]));}
+function crearProgramaCanvas(archivo,citas,r){
+  const d={archivo:typeof archivo==='string'?archivo.trim().slice(0,160):null,
+    citas:(Array.isArray(citas)?citas:[]).filter(c=>typeof c==='string'&&c.trim()).slice(0,4).map(c=>c.trim().slice(0,220)),
+    pauta:firmaPautaSugerida(r)};
+  return {...d,firma:firmaContenidoProgramaCanvas(d)};
+}
+function copiarProgramaCanvas(d){
+  if(!d||!(d.archivo===null||typeof d.archivo==='string'&&d.archivo.length<=160)||
+    !Array.isArray(d.citas)||d.citas.length>4||d.citas.some(c=>typeof c!=='string'||!c.trim()||c.length>220)||
+    !/^[0-9a-f]{16}$/.test(d.pauta)||!/^[0-9a-f]{16}$/.test(d.firma)||firmaContenidoProgramaCanvas(d)!==d.firma)return null;
+  return {archivo:d.archivo,citas:[...d.citas],pauta:d.pauta,firma:d.firma};
 }

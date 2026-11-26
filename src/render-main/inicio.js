@@ -44,6 +44,7 @@ function renderHome(){
   renderClasesHoy();
   renderPropuestasPautaHome();
   renderRecorreccionesHome();
+  renderNotaPendienteInicio();
   renderWrappedHome();
   const g=gpa(S.ramos);
   const gpael=document.getElementById('home-gpa');
@@ -230,7 +231,7 @@ function renderHome(){
     insightsEl.style.display=cards.length?'grid':'none';
   }
 
-  const recordatoriosNotas=recordatoriosNotasFaltantes();
+  const recordatoriosNotas=enAppNativa()?[]:recordatoriosNotasFaltantes();
   let ramos=[...S.ramos];
   if(S.sortMode==='avg') ramos.sort((a,b)=>{const da=ramoAvg(a)??-1,db=ramoAvg(b)??-1;return db-da;});
   else if(S.sortMode==='name') ramos.sort((a,b)=>a.nombre.localeCompare(b.nombre));
@@ -287,7 +288,7 @@ function renderHome(){
     c.appendChild(div);
   });
   montarRecordatoriosNotasHome(c,recordatoriosNotas);
-  actualizarRecordatoriosProfesorHome(c);
+  if(!enAppNativa())actualizarRecordatoriosProfesorHome(c);
   if(S.sortMode==='manual')activarReordenRamos(c);
   // Publicidad de clases junto al ramo que calza. Vive en marketplace.js y
   // decide en el navegador; si no hay nada que mostrar, no pinta nada.

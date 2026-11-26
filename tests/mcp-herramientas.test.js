@@ -215,6 +215,92 @@ const ramo = (nombre, notas, extra = {}) => ({
   chk('rechaza nombres repetidos', /no repitas una evaluación/.test(val));
   chk('exige decir de dónde salió', /explica de qué documento/.test(val));
 
+  console.log('\n=== Gestionar propuestas: la RPC solo toca lo pendiente y propio ===');
+  // Postgres de verdad (PGlite) con la cadena de SQL del agente, datos sintéticos.
+  const { PGlite } = require('@electric-sql/pglite');
+  const db = new PGlite(), q = async (sql, p = []) => (await db.query(sql, p)).rows;
+  const fallo = async (sql, p) => { try { await q(sql, p); return ''; } catch (e) { return e.message; } };
+  await db.exec(leer('bin/supabase-stubs.sql'));
+  for (const f of ['agente_mcp', 'agente_sin_pgcrypto', 'agente_propuestas', 'agente_notas_propuestas', 'agente_fechas_propuestas', 'agente_ramos_propuestas', 'agente_propuestas_gestion']) {
+    await db.exec(leer('supabase/' + f + '.sql'));
+  }
+  const uid = n => `00000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+  const [ANA, BETO] = [uid(1), uid(2)], TA = 'a'.repeat(64), TB = 'b'.repeat(64), TV = 'e'.repeat(64);
+  for (const u of [ANA, BETO]) await q('insert into auth.users(id) values($1)', [u]);
+  await q('insert into agent_links(user_id,token,expires_at) values($1,$2,now()+interval \'1 day\'),($3,$4,now()+interval \'1 day\'),($1,$5,now()-interval \'1 day\')', [ANA, TA, BETO, TB, TV]);
+  const propuesta = async (u, tipo, status, minutos) => (await q(
+    "insert into agent_pauta_proposals(user_id,tipo,ramo,ramo_key,evaluaciones,fuente,status,created_at) values($1,$2,'Curso Sintético','curso sintetico','[]'::jsonb,'Programa sintético',$3,now()-make_interval(mins=>$4)) returning id",
+    [u, tipo, status, minutos]))[0].id;
+  const pauta = await propuesta(ANA, 'pauta', 'pendiente', 30), notas = await propuesta(ANA, 'notas', 'pendiente', 10);
+  const aplicada = await propuesta(ANA, 'notas', 'aplicada', 60), ajena = await propuesta(BETO, 'pauta', 'pendiente', 5);
+  const lista = async t => (await q('select listar_propuestas_agente($1) l', [t]))[0].l;
+  let l = await lista(TA);
+  chk('lista solo lo pendiente de la dueña del token, lo más nuevo primero', l.length === 2 && l[0].id === notas && l[1].id === pauta);
+  chk('con tipo, ramo, contenido y fuente', l[0].tipo === 'notas' && l[0].ramo === 'Curso Sintético' && Array.isArray(l[0].contenido) && l[0].fuente === 'Programa sintético');
+  chk('un token vencido no lista nada', /La conexión ya no es válida/.test(await fallo('select listar_propuestas_agente($1)', [TV])));
+  chk('retirar una pendiente propia funciona', (await q('select retirar_propuesta_agente($1,$2) r', [TA, pauta]))[0].r === true);
+  const estadoDe = async id => (await q('select status,resolved_at from agent_pauta_proposals where id=$1', [id]))[0];
+  chk('queda descartada, igual que un reemplazo', (await estadoDe(pauta)).status === 'descartada' && !!(await estadoDe(pauta)).resolved_at);
+  l = await lista(TA);
+  chk('y ya no aparece en la lista', l.length === 1 && l[0].id === notas);
+  chk('retirarla otra vez avisa que ya no está', /No se encontró esa propuesta pendiente/.test(await fallo('select retirar_propuesta_agente($1,$2)', [TA, pauta])));
+  chk('lo que la persona ya aceptó no se retira', /No se encontró/.test(await fallo('select retirar_propuesta_agente($1,$2)', [TA, aplicada])) && (await estadoDe(aplicada)).status === 'aplicada');
+  chk('la propuesta de otra cuenta no se toca', /No se encontró/.test(await fallo('select retirar_propuesta_agente($1,$2)', [TA, ajena])) && (await estadoDe(ajena)).status === 'pendiente');
+  chk('con token vencido no se retira', /La conexión/.test(await fallo('select retirar_propuesta_agente($1,$2)', [TV, notas])) && (await estadoDe(notas)).status === 'pendiente');
+  await db.exec(leer('supabase/agente_propuestas_gestion.sql'));
+  chk('el SQL se puede volver a aplicar', (await lista(TA)).length === 1);
+  const sqlGestion = leer('supabase/agente_propuestas_gestion.sql');
+  chk('sin tabla nueva ni borrado', !/create table|delete from|drop table/i.test(sqlGestion));
+
+  console.log('\n=== Gestionar propuestas desde el conector ===');
+  const servidorPropuestas = respuestas => {
+    const llamadas = [];
+    const ctx = {
+      console, Response, structuredClone,
+      HERRAMIENTAS: [], NOMBRES: ['listar_propuestas', 'retirar_propuesta'], validarPropuestaPauta: () => null,
+      fetch: async (url, options) => {
+        llamadas.push({ url, options });
+        const r = respuestas[url.split('/').pop()];
+        return { ok: r.ok !== false, json: async () => structuredClone(r.cuerpo) };
+      },
+      module: { exports: {} }, exports: {},
+    };
+    vm.createContext(ctx);
+    vm.runInContext(leer('engine.js'), ctx, { filename: 'engine.js' });
+    ctx.motorCompartido = { gh_crearCalculoRamo: ctx.module.exports.gh_crearCalculoRamo };
+    vm.runInContext(leer('functions/mcp/[[ruta]].js').replace(/^import .*;\s*$/gm, '').replace(/^export /gm, '') + '\n;globalThis.__mcp={onRequestPost};', ctx);
+    return async (name, args) => {
+      const r = await ctx.__mcp.onRequestPost({ params: { ruta: [TOKEN] },
+        request: { json: async () => ({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name, arguments: args || {} } }) } });
+      return { cuerpo: await r.json(), llamadas };
+    };
+  };
+  const ID = '11111111-2222-4333-8444-555555555555';
+  const filas = [{ id: ID, tipo: 'notas', ramo: 'Curso Sintético', creada: '2026-11-20T12:00:00Z', fuente: 'Correo sintético', contenido: [{ evaluacion: 'Examen', valor: 5 }] },
+    { id: '99999999-2222-4333-8444-555555555555', tipo: 'ramos', ramo: 'Tu semestre', creada: '2026-11-19T12:00:00Z', fuente: 'Horario', contenido: [] }];
+  let llamar = servidorPropuestas({ agente_datos: { cuerpo: { ramos: [] } }, listar_propuestas_agente: { cuerpo: filas } });
+  let rp = await llamar('listar_propuestas');
+  const lp = salida(rp.cuerpo);
+  chk('listar_propuestas devuelve las pendientes con su id', lp.total === 2 && lp.pendientes[0].id === ID && lp.pendientes[0].contenido[0].valor === 5);
+  chk('una de ramos no se presenta como si fuera de un ramo', lp.pendientes[1].ramo === null);
+  chk('y explica cómo se reemplaza cada tipo', /reemplaza sola/.test(lp.nota) && /ponderaciones no/.test(lp.nota));
+  const rpcListar = rp.llamadas.find(x => x.url.endsWith('/listar_propuestas_agente'));
+  chk('a la RPC solo viaja el token', JSON.stringify(JSON.parse(rpcListar.options.body)) === JSON.stringify({ p_token: TOKEN }));
+  llamar = servidorPropuestas({ agente_datos: { cuerpo: { ramos: [] } }, retirar_propuesta_agente: { cuerpo: true } });
+  rp = await llamar('retirar_propuesta', { id: ID });
+  chk('retirar_propuesta confirma y dice que no tocó el semestre', salida(rp.cuerpo).retirada === true && /No se tocó nada/.test(salida(rp.cuerpo).mensaje));
+  const rpcRetirar = rp.llamadas.find(x => x.url.endsWith('/retirar_propuesta_agente'));
+  chk('con el token de la ruta y el id pedido, sin user_id', JSON.stringify(JSON.parse(rpcRetirar.options.body)) === JSON.stringify({ p_token: TOKEN, p_id: ID }));
+  const antes = rp.llamadas.filter(x => x.url.endsWith('/retirar_propuesta_agente')).length;
+  rp = await llamar('retirar_propuesta', { id: 'no-es-un-id' });
+  chk('un id con mala forma no llega a la base', !!rp.cuerpo.error && rp.llamadas.filter(x => x.url.endsWith('/retirar_propuesta_agente')).length === antes);
+  llamar = servidorPropuestas({ agente_datos: { cuerpo: { ramos: [] } }, retirar_propuesta_agente: { ok: false, cuerpo: { message: 'No se encontró esa propuesta pendiente: puede que la persona ya la haya aceptado o rechazado.' } } });
+  rp = await llamar('retirar_propuesta', { id: ID });
+  chk('si ya no está pendiente, el agente lee por qué', /ya la haya aceptado/.test(rp.cuerpo.error?.message || ''));
+  llamar = servidorPropuestas({ agente_datos: { cuerpo: null }, retirar_propuesta_agente: { cuerpo: true } });
+  rp = await llamar('retirar_propuesta', { id: ID });
+  chk('con token muerto se corta antes de retirar', !!rp.cuerpo.error && !rp.llamadas.some(x => x.url.endsWith('/retirar_propuesta_agente')));
+
   console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
   process.exit(fail ? 1 : 0);
 })();

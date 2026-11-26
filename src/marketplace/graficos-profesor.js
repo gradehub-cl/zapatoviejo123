@@ -136,12 +136,15 @@ function tarjetaPanelClase(a,pesos,ahora){
   // Editar y volver a publicar llevan a configurar la campaña: en la app solo
   // queda pausar (3.1.1, ver campanasSeCompranAqui).
   const compras=campanasSeCompranAqui();
+  // Editar uno publicado envía los cambios a revisión sin bajarlo ni abrir
+  // una campaña nueva (2026-11-24); como el editor, solo en la web.
+  const editar=compras?`<button type="button" class="clase-accion" data-editar-publicado="${esc(a.id)}">${a.edicion_propia?'Editar cambios':'Editar'}</button>`:'';
   const accion={
-    publicado:`<button type="button" class="clase-accion" data-pausar="${esc(a.id)}">Pausar</button>`,
-    programado:`<button type="button" class="clase-accion" data-pausar="${esc(a.id)}">Pausar</button>`,
+    publicado:`<button type="button" class="clase-accion" data-pausar="${esc(a.id)}">Pausar</button>${editar}`,
+    programado:`<button type="button" class="clase-accion" data-pausar="${esc(a.id)}">Pausar</button>${editar}`,
     ...(compras?{
       borrador:`<button type="button" class="clase-accion" data-editar="${esc(a.id)}">Seguir editando</button>`,
-      pausado:`<button type="button" class="clase-accion" data-retomar="${esc(a.id)}">Volver a publicar</button>`,
+      pausado:`<button type="button" class="clase-accion" data-retomar="${esc(a.id)}">Volver a publicar</button>${editar}`,
       expirado:`<button type="button" class="clase-accion" data-retomar="${esc(a.id)}">Volver a publicar</button>`,
       agotado:`<button type="button" class="clase-accion" data-retomar="${esc(a.id)}">Volver a publicar</button>`,
     }:{}),
@@ -152,6 +155,9 @@ function tarjetaPanelClase(a,pesos,ahora){
       <span class="clase-estado clase-estado-${esc(vig)}">${esc(etiqueta)}</span>
     </div>
     <p class="clase-card-meta">${esc((a.ramos_siglas||[]).join(' · '))}${esClaseGratis(a)?' · Gratis':a.precio_clp?' · '+(preciosClase(a).pack?precioClase(a):pesos(preciosClase(a).porClaseFinal)+' por clase'):''}</p>
+    ${a.edicion_propia?(a.edicion_propia.estado==='rechazada'
+      ?`<div class="clase-comentario-revision"><strong>No aprobamos tus cambios</strong><p>${esc(a.edicion_propia.comentario||'')}</p><p>Se sigue mostrando la versión anterior. Puedes corregirlos y volver a enviarlos.</p></div>`
+      :'<p class="clase-card-detalle" role="status">Tus cambios están en revisión. Mientras, se sigue mostrando la versión anterior.</p>'):''}
     ${a.estado==='borrador'&&a.comentario_revision?`<div class="clase-comentario-revision"><strong>Cambios pedidos en la revisión</strong><p>${esc(a.comentario_revision)}</p></div>`:''}
     ${dias!==null?`<div class="clase-vigencia"><span>${dias===0?'Termina hoy':dias===1?'Queda 1 día':`Quedan ${dias} días`}</span>${avance!==null?`<div class="clase-riel"><i style="transform:scaleX(${avance.toFixed(3)})"></i></div>`:''}</div>`
       :`<p class="clase-card-detalle">${esc(empieza?`Empieza el ${empieza}.`:detalle)}</p>`}
@@ -167,8 +173,10 @@ function cabeceraProfesorHTML(titulo,bajada,accion='',idTitulo='profesor-titulo'
 }
 function filaProfesorClaseHTML(a,pesos,ahora){
   const vig=vigenciaAnuncio(a,ahora),etiqueta=(ESTADOS_ANUNCIO[vig]||[vig])[0];
+  const cambios=a.edicion_propia?.estado==='pendiente'?'Cambios en revisión':
+    a.edicion_propia?.estado==='rechazada'?'Cambios no aprobados':'';
   return `<details class="profesor-hig-fila" data-profesor-anuncio="${esc(a.id)}"><summary>
-    <span class="profesor-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc((a.ramos_siglas||[]).join(' · '))}</small></span>
+    <span class="profesor-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc([...(a.ramos_siglas||[]),cambios].filter(Boolean).join(' · '))}</small></span>
     <span class="clase-estado clase-estado-${esc(vig)}" data-estado-campana="${esc(a.id)}">${esc(etiqueta)}</span>
     ${campanasSeCompranAqui()?`<span class="profesor-hig-importe"><b data-costo-campana="${esc(a.id)}">${['publicado','pausado','expirado','agotado','sin_confirmar'].includes(vig)?'Cargando…':'—'}</b><small>Costo de campaña</small></span>`:''}
     <span class="profesor-hig-flecha" aria-hidden="true">⌄</span>
@@ -186,12 +194,6 @@ function presupuestoProfesorHTML(costo){
   if(costo.sinCosto)return '<p class="profesor-info">Publicación sin costo</p>';
   const porcentaje=costo.tope?Math.min(100,Math.round(costo.total/costo.tope*100)):0;
   return `<section class="profesor-hig-presupuesto presupuesto-visual"><div class="dato-circular">${datoCircularHTML(costo.tope?porcentaje:null,costo.tope?porcentaje+'%':'—',`Presupuesto utilizado: ${porcentaje}%`)}</div><div><span>Presupuesto utilizado</span><strong>${pesosClase(costo.total)}</strong><p>${costo.tope!==null?`de tu tope de ${pesosClase(costo.tope)}`:'Sin tope disponible'}</p><small>Publicación actual</small></div></section>`;
-}
-
-function seccionPanelClases(titulo,lista,pesos,ahora,vacio){
-  if(!lista.length&&!vacio)return '';
-  return `<section class="clases-seccion"><h3>${titulo}${lista.length?` <span>${lista.length}</span>`:''}</h3>
-    ${lista.length?`<div class="clase-lista">${lista.map(a=>filaProfesorClaseHTML(a,pesos,ahora)).join('')}</div>`:`<p class="clase-sin-datos">${vacio}</p>`}</section>`;
 }
 
 // La vista de Clases que estaba abierta: repintar tras pausar o retomar un

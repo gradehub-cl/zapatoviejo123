@@ -48,9 +48,30 @@ function gh_crearCalculoRamo(deps){
         return c&&c.peso===e.peso&&(c.slots||1)===e.slots&&normName(c.nombre)===normName(e.nombre)&&JSON.stringify(c.dropLowest||null)===JSON.stringify(e.dropLowest||null);
       }));
   }
+  // La eximición que la persona escribe en «Editar evaluaciones»,
+  // cuando el programa del catálogo no trae una. Se guarda por id y se lleva
+  // al mismo formato del catálogo, así que la calcula el mismo camino: si la
+  // presentación alcanza el mínimo, con los mínimos por evaluación y la
+  // confirmación (que incluye la asistencia), el examen sale del cálculo y la
+  // final es el promedio del resto. La presentación se aproxima a la décima,
+  // como la nota final. Sin nombres únicos no se adivina: no rige.
+  function eximicionPropia(r){
+    const p=r&&r.eximicionPropia,cats=(r&&r.categorias||[]).filter(c=>!c.fueraDePauta);
+    if(!p||typeof p!=='object'||!Array.isArray(p.segun)||!Number.isFinite(p.min))return null;
+    const nombre=id=>cats.find(c=>c.id===id)?.nombre;
+    const examen=nombre(p.examenId),segun=p.segun.map(nombre);
+    const minimos=(Array.isArray(p.minimos)?p.minimos:[]).map(m=>({evaluacion:nombre(m&&m.catId),min:m&&m.min}));
+    if(!examen||!segun.length||segun.some(n=>!n)||segun.includes(examen)||minimos.some(m=>!m.evaluacion||!Number.isFinite(m.min)))return null;
+    const usados=[examen,...segun,...minimos.map(m=>m.evaluacion)];
+    if(usados.some(n=>cats.filter(c=>normName(c.nombre)===normName(n)).length!==1))return null;
+    const asistencia=Number.isFinite(p.asistencia)&&p.asistencia>0&&p.asistencia<=100?p.asistencia:null;
+    return {origen:'editor',evaluacion:examen,segun,min:p.min,minimos,ignoraDescartes:false,comparaNotaOficial:true,requiereConfirmacion:true,
+      ...(asistencia?{confirmar:`cumples con ${String(asistencia).replace('.',',')} % de asistencia`,asistencia}:{})};
+  }
   function reglaDeEximicion(r){
     const def=definicionPresetDelRamo(r),regla=def?.eximicion;
-    if(!regla||Array.isArray(regla.secciones)&&!regla.secciones.includes(r.seccion))return null;
+    if(!regla)return eximicionPropia(r);
+    if(Array.isArray(regla.secciones)&&!regla.secciones.includes(r.seccion))return null;
     if(regla.requierePautaOriginal===true){
       const evals=def.evals||regla.pauta||[],cats=r.categorias||[];
       if(!Array.isArray(evals)||evals.length!==cats.length||evals.some(([nombre,peso,extra])=>{
@@ -329,13 +350,19 @@ function gh_crearCalculoRamo(deps){
     // no se deben pedir sus notas para dar por terminado el ramo.
     const pesoDeclarado=(r&&r.categorias||[]).reduce((s,c)=>s+(Number(c.peso)||0),0);
     if(Math.abs(pesoDeclarado-100)>0.05)return false;
-    const cubiertas=new Set((calculo&&calculo.ausencias&&calculo.ausencias.activas||[]).map(x=>x.desdeId));
+    // Sin cálculo a mano (ficha, Inicio, Wrapped) se miran igual las ausencias
+    // justificadas: un Control justificado no se rinde y no deja el ramo abierto.
+    const ausencias=calculo?calculo.ausencias:((r&&r.ausenciasJustificadas||[]).length?estadoAusenciasJustificadas(r):null);
+    const cubiertas=new Set((ausencias&&ausencias.activas||[]).map(x=>x.desdeId));
     const categorias=categoriasVigentes(r);
     return categorias.length>0&&categorias.every(c=>{
       if(c.optativa===true&&c.peso===0||categoriaEximida(r,c))return true;
       if(cubiertas.has(c.id))return true;
       const objetivo=Number.isInteger(c.slots)&&c.slots>1?c.slots:1;
-      return (c.notas||[]).filter(n=>typeof n.valor==='number').length>=objetivo;
+      // Una casilla reemplazada solo está activa si no tenía nota propia.
+      let reemplazadas=0;
+      for(let s=0;s<objetivo;s++)if(cubiertas.has(gh_claveAusenciaCasilla(c.id,s)))reemplazadas++;
+      return (c.notas||[]).filter(n=>typeof n.valor==='number').length+reemplazadas>=objetivo;
     });
   }
   function estadoRecuperativo(r,calculo){
@@ -553,12 +580,21 @@ function gh_crearCalculoRamo(deps){
     // la misma nota en lo pendiente y vuelve a pasar por el cálculo del ramo.
     if(((definicionPresetDelRamo(ramo)?.eximicion?.notaExamen==='maxima')||gh_bonusActivos(reglasBonusVigentes(ramo),ramo.bonusIngresado,ramo.bonusConfirmado).mejoras.length||(Array.isArray(ramo.reemplazosOptativos)&&ramo.reemplazosOptativos.length)||compuertasEfectivas(ramo).some(g=>g.efecto==='reemplazar'))&&
        !ramo.aporta&&!reglasCalculoVigentes(ramo).some(g=>g.type==='conditional_weights')){
+      // Una ausencia justificada que ya tiene su peso o su nota en otra
+      // evaluación no se rinde: proyectarle una nota la desactivaría
+      // («tiene_nota») y la nota necesaria ignoraría la justificación. Un
+      // rezago sí se rinde después, así que sigue pendiente.
+      const ausencias=baseInicial.ausencias;
+      const justificadas=new Set([...(ausencias?.activas||[]),...(ausencias?.pendientes||[]).filter(a=>a.tipo!=='rezago')].map(a=>a.desdeId));
       const pendientes=[];
-      categoriasVigentes(ramo).filter(c=>c.peso>0).forEach(c=>{
+      categoriasVigentes(ramo).filter(c=>c.peso>0&&!justificadas.has(c.id)).forEach(c=>{
         const hojas=hojasCategoria(c);
         if(!hojas.length&&c.directNota!==false)
           hojas.push({id:`__gh_pendiente_direct__${c.id}`,name:c.nombre,weight:1,type:'leaf'});
-        hojas.forEach(h=>{if(!Number.isFinite(baseInicial.notas[h.id]))pendientes.push({catId:c.id,hoja:h});});
+        hojas.forEach(h=>{
+          if(Number.isInteger(h.slot)&&justificadas.has(gh_claveAusenciaCasilla(c.id,h.slot)))return;
+          if(!Number.isFinite(baseInicial.notas[h.id]))pendientes.push({catId:c.id,hoja:h});
+        });
       });
       if(!pendientes.length)return null;
       const borde=gh_bordeOficial(objetivo,gh_meta(baseInicial.estructura));
@@ -670,7 +706,7 @@ function gh_crearCalculoRamo(deps){
     // diciendo cuál está incumplida hoy.
     return conCompuertas(resolver(estructura,objetivo));
   }
-  return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasBonusVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,notaNecesariaEximicion,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,avanceRamo,ramoAvg,referenciaRamoVinculado,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
+  return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasBonusVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,notaNecesariaEximicion,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,avanceRamo,ramoAvg,referenciaRamoVinculado,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,compuertasEfectivas,estadoParaNotaNecesaria,notaNecesaria};
 }
 
 if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta,gh_bonusActivos,gh_notaDesdePuntaje,gh_tablaPuntaje};

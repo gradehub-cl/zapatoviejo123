@@ -70,19 +70,27 @@ async function alternarAvisosPruebas(){
   if(avisosPruebasActivos()){
     try{localStorage.removeItem(CLAVE_AVISOS_PRUEBAS);}catch(e){}
     await programarAvisosPruebas();sincronizarActividadesPrueba();pintarAvisosPruebas();
-    if(estado)estado.textContent='Avisos desactivados en este iPhone.';
+    if(estado)estado.textContent='Avisos desactivados en este '+(enAppIOS()?'iPhone':'teléfono')+'.';
     track('avisos_pruebas_desactivados');
     return false;
   }
   let permiso=null;
   try{permiso=await ln.requestPermissions();}catch(e){}
   if(!permiso||permiso.display!=='granted'){
-    if(estado)estado.textContent='Para recibirlos, permite las notificaciones de GradeHub en la app Ajustes del iPhone.';
+    if(estado)estado.textContent=enAppIOS()?'Para recibirlos, permite las notificaciones de GradeHub en la app Ajustes del iPhone.'
+      :'Para recibirlos, permite las notificaciones de GradeHub en los ajustes del teléfono.';
     return false;
   }
   try{localStorage.setItem(CLAVE_AVISOS_PRUEBAS,'1');}catch(e){}
+  // Android: la hora exacta se pide aquí, una vez, cuando la persona acaba de
+  // pedir los avisos (ver alarmaExactaPermitida).
+  if(!await alarmaExactaPermitida(ln)&&typeof ln.changeExactNotificationSetting==='function'){
+    if(estado)estado.textContent='Para que lleguen justo a la hora, permite «Alarmas y recordatorios» para GradeHub.';
+    try{await ln.changeExactNotificationSetting();}catch(e){}
+  }
   await programarAvisosPruebas();sincronizarActividadesPrueba();pintarAvisosPruebas();
-  if(estado)estado.textContent='Listo. Te avisaremos antes de cada evaluación que tenga hora.';
+  if(estado)estado.textContent=await alarmaExactaPermitida(ln)?'Listo. Te avisaremos antes de cada evaluación que tenga hora.'
+    :'Listo. Sin «Alarmas y recordatorios», Android puede atrasar un poco los avisos.';
   track('avisos_pruebas_activados');
   return true;
 }

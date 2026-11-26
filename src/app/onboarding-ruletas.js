@@ -171,17 +171,25 @@ function montarRuletasOnboarding(){
     etiqueta:'ob-generacion-titulo',inicial:obGeneracion,alCambiar:v=>{obGeneracion=v;actualizarSemestreCalculado();if(document.getElementById('sem-grid')&&!document.getElementById('sem-grid').hidden)initSemGrid();checkOb();}});
 }
 
+// El apellido se exige a quien entró con correo (Lucas, 2026-11-18). Con Google
+// o Apple el proveedor ya trae el nombre: Apple no permite volver a pedirlo.
+function apellidoObligatorioOnboarding(){
+  const proveedor=typeof currentUser!=='undefined'&&currentUser?.app_metadata?.provider;
+  return proveedor==='email';
+}
+function apellidoLimpio(v){return String(v||'').replace(/\s+/g,' ').trim().slice(0,60);}
 function obStepValid(step,datos){
   const d=datos||{
     tipo:obTipo,
     nombre:(document.getElementById('ob-name')||{}).value||'',
+    apellido:(document.getElementById('ob-apellido')||{}).value||'',apellidoObligatorio:apellidoObligatorioOnboarding(),
     tenant:selectedTenant,carrera:selectedCarrera,semestre:selectedSem,generacion:obGeneracion,
     verano:typeof obVerano!=='undefined'&&obVerano,semInvalido:typeof obSemInvalido!=='undefined'&&obSemInvalido,
     carreraNombre:selectedCarreraNombre,
     ...datosProfesorOnboarding()
   };
   // El paso 1 pide el nombre y, a quien estudia, un semestre válido (o verano).
-  if(step===1)return !!String(d.nombre||'').trim()&&(d.tipo==='profesor'||(Number.isInteger(d.generacion)&&d.generacion>=2000&&d.generacion<=new Date().getFullYear()&&!d.semInvalido&&(!!d.semestre||!!d.verano)));
+  if(step===1)return !!String(d.nombre||'').trim()&&(!d.apellidoObligatorio||!!String(d.apellido||'').trim())&&(d.tipo==='profesor'||(Number.isInteger(d.generacion)&&d.generacion>=2000&&d.generacion<=new Date().getFullYear()&&!d.semInvalido&&(!!d.semestre||!!d.verano)));
   if(step===2)return !!d.tenant;
   if(step===3)return !!(d.carrera||String(d.carreraNombre||'').trim());
   if(step===5)return true;

@@ -387,7 +387,7 @@ const PREFIJO_SIGLA_HORARIO={uc:'',fen:'EN'};
 // Web FEN (Primavera 2026); en la UC la fila dice el módulo y no la hora.
 const HORARIO_FOTO_POR_TENANT={
   uc:{donde:'Mi UC o BuscaCursos',ejemplo:'MAT1610-1'},
-  fen:{donde:'Docencia Web',ejemplo:'ENMEM1505/02',horas:true},
+  fen:{donde:'Docencia Web',url:'https://docenciaweb.fen.uchile.cl/',ejemplo:'ENMEM1505/02',horas:true},
 };
 
 // Siglas de TODOS los ramos UC que hoy se pueden cargar desde una malla.

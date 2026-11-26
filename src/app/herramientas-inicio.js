@@ -2,13 +2,15 @@
 // La llave inglesa arriba a la derecha de Inicio abre un menú con las
 // herramientas de vez en cuando: calculadora, foto del horario, notas de
 // Canvas y semestres pasados (HIG: Pull-down buttons). Las mismas siguen en
-// Perfil › Herramientas; acá solo quedan más a mano. Solo en la app: hasta el
-// lanzamiento, lo nuevo va solo a la app.
+// Perfil › Herramientas; acá solo quedan más a mano. En la app y en la web
+// (Lucas, 2026-11-23): las herramientas ya existían en la web, esto solo las
+// acerca. Canvas sigue apareciendo solo donde está su plugin nativo.
 const ICONO_HERRAMIENTAS='<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>';
 // Qué herramientas ve esta cuenta. Función pura, como gruposPerfil.
-function herramientasInicio({tenant,conCanvas,conFicha}){
+function herramientasInicio({conHorario,conCanvas,conFicha,conProximo=false}){
   const lista=[['calculadora','Calculadora de nota']];
-  if(tenant==='uc')lista.push(['horario','Subir foto del horario']);
+  if(conProximo)lista.push(['proximo','Arma tu próximo semestre']);
+  if(conHorario)lista.push(['horario','Subir foto del horario']);
   if(conCanvas)lista.push(['canvas','Traer notas de Canvas']);
   if(conFicha)lista.push(['ficha','Cargar semestres pasados']);
   return lista;
@@ -17,17 +19,14 @@ const ACCIONES_HERRAMIENTAS={
   calculadora:()=>openCalculadoraApp(),
   horario:()=>abrirImportarHorarioBuscacursos(),
   ficha:()=>openAvanceCurricular(),
-  // Sin token todavía, lleva a conectarlo en vez de fallar.
-  canvas:async()=>{
-    let conectado=false;
-    try{const r=await pluginCanvas().estado();conectado=!!(r&&r.conectado);}catch(e){}
-    if(conectado)traerNotasCanvas();else openSettings('canvas');
-  },
+  canvas:()=>openSettings('canvas',{volverA:'Inicio',accionCanvas:'notas'}),
+  proximo:()=>abrirProximoSemestre(),
 };
 function herramientasInicioDisponibles(){
-  if(!(typeof enAppNativa==='function'&&enAppNativa())||esCuentaProfesor())return [];
-  return herramientasInicio({tenant:S.tenant,conCanvas:typeof canvasDisponible==='function'&&canvasDisponible(),
-    conFicha:typeof avanceCurricularDisponible==='function'&&avanceCurricularDisponible()});
+  if(esCuentaProfesor())return [];
+  return herramientasInicio({conHorario:typeof HORARIO_FOTO_POR_TENANT!=='undefined'&&!!HORARIO_FOTO_POR_TENANT[S.tenant],conCanvas:typeof canvasDisponible==='function'&&canvasDisponible(),
+    conFicha:typeof avanceCurricularDisponible==='function'&&avanceCurricularDisponible(),
+    conProximo:typeof proximoSemestreDisponible==='function'&&proximoSemestreDisponible()});
 }
 // La llama renderHome: el botón se ve solo si hay herramientas para esta cuenta.
 function pintarHerramientasInicio(){
@@ -40,7 +39,7 @@ function pintarHerramientasInicio(){
   const menu=document.getElementById('herramientas-menu');
   if(!menu)return;
   menu.innerHTML=lista.map(([clave,titulo])=>`<button type="button" role="menuitem" data-herramienta="${clave}">
-    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${clave==='canvas'?ICONO_CANVAS:PERFIL_ICONOS[clave]||''}</svg><span>${esc(titulo)}</span></button>`).join('');
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${clave==='canvas'?ICONO_CANVAS:clave==='proximo'?ICONO_PROXIMO:PERFIL_ICONOS[clave]||''}</svg><span>${esc(titulo)}</span></button>`).join('');
   menu.querySelectorAll('[data-herramienta]').forEach(b=>b.addEventListener('click',()=>{
     cerrarHerramientasInicio(false);
     const accion=ACCIONES_HERRAMIENTAS[b.dataset.herramienta];if(accion)accion();

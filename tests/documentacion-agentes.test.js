@@ -1,6 +1,6 @@
 // La guía de arranque es parte de la infraestructura de colaboración. Si queda
 // describiendo archivos que ya se separaron, el siguiente agente busca en el
-// lugar equivocado y puede perder cambios de otro carril al resolver conflictos.
+// lugar equivocado y puede perder cambios ajenos al resolver conflictos.
 const fs=require('fs');
 const path=require('path');
 const raiz=path.join(__dirname,'..');

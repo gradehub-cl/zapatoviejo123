@@ -105,6 +105,22 @@ vm.runInContext("S.carrera='ING-PC';S.carreraNombre='Ingeniería Civil';renderPa
 chk('el mismo editor conserva Prueba e Interrogación para Ingeniería',
   /placeholder="Ej: Prueba 1"/.test(stub.innerHTML)&&stub.innerHTML.includes('<option value="Interrogación 1">')&&stub.innerHTML.includes('3 interrogaciones + laboratorio'));
 
+console.log('\n=== Medicina UC · editor en la app ===');
+vm.runInContext("S.carrera='UC-MEDICINA';S.carreraNombre='Medicina';renderPautaManualModal()",appCtx);
+chk('el editor web mantiene su vocabulario general', !stub.innerHTML.includes('<option value="ECOE">'));
+appCtx.window.Capacitor={isNativePlatform:()=>true,getPlatform:()=> 'ios'};
+llamar('renderPautaManualModal');
+chk('el editor nativo ofrece los términos de Medicina',
+  /placeholder="Ej: Interrogación 1"/.test(stub.innerHTML)&&['ECOE','Gymkhana','Minitest']
+    .every(nombre=>stub.innerHTML.includes('<option value="'+nombre+'">')));
+chk('el editor nativo de Medicina parte con una evaluación editable',
+  !stub.innerHTML.includes('Parte con una estructura')&&!stub.innerHTML.includes('3 interrogaciones + laboratorio'));
+chk('funciona con el nombre declarado de Medicina', llamar('sugerenciasEvaluacion','uc','Medicina').includes('ECOE'));
+chk('Medicina de otra universidad y Veterinaria conservan sus opciones',
+  !llamar('sugerenciasEvaluacion','uandes','MED-UA').includes('ECOE')&&
+  !llamar('sugerenciasEvaluacion','uc','UC-MEDICINA-VETERINARIA').includes('ECOE'));
+delete appCtx.window.Capacitor;
+
 console.log('\n=== La UAI habla su propio idioma, que usa las dos palabras ===');
 // No es una suposición: sale de sus programas. Management 2026-2 dice "tres
 // pruebas solemnes"; Matemáticas Avanzadas II dice "pruebas de cátedra" y
@@ -139,6 +155,36 @@ chk('su ejemplo tampoco hereda Solemne', llamar('ejemploEvaluacion','usach')==='
 chk('tampoco hereda la malla de FEN', Object.keys(llamar('mallaFor', 'usach')).length === 0);
 chk('y las dos que sí tenemos siguen intactas',
   Object.keys(llamar('mallaFor', 'fen')).length > 0 && Object.keys(llamar('mallaFor', 'uc')).length > 0);
+
+console.log('\n=== «Pauta» no vuelve al texto que ve el estudiante (issue #1070) ===');
+// En Chile «pauta» se lee como pauta de corrección: las respuestas de la
+// prueba. Lo oficial es el «programa» del curso; lo que reportan estudiantes o
+// arma cada uno son «ponderaciones». Solo se vigila el texto visible: nombres
+// internos (pautaSugerida, presetRamo, proponer_pauta…) no cambian.
+// Fuera de alcance por ahora: src/data/ (sus textos están copiados en
+// supabase/consenso_periodo.sql y cambian con SQL), el panel de admin y los
+// documentos legales.
+const FUERA = /^src\/data\/|^src\/marketplace\/(admin-|metricas-anuncios)/;
+const listar = d => fs.readdirSync(raiz + d, { withFileTypes: true }).flatMap(e =>
+  e.isDirectory() ? listar(d + '/' + e.name) : /\.js$/.test(e.name) ? [d + '/' + e.name] : []);
+const archivosVisibles = [...listar('src'), 'index.html', 'preguntas.html', 'functions/mcp/herramientas.js', 'functions/mcp/[[ruta]].js']
+  .filter(f => !FUERA.test(f));
+const PALABRA = /(^|[^\w\-./#=$])[Pp]autas?(?![\w\-/=(:])/;
+const TEXTO = /[a-záéíóúñ] [Pp]autas?\b|\b[Pp]autas? [a-záéíóúñ¿]|>[Pp]autas?\b|['"`]Pautas?\b/;
+const hallazgos = [];
+archivosVisibles.forEach(f => fs.readFileSync(raiz + f, 'utf8').split('\n').forEach((linea, i) => {
+  const t = linea.trim();
+  if (/^(\/\/|\*|\/\*|<!--)/.test(t)) return;
+  const codigo = linea.replace(/\s\/\/\s.*$/, '').replace(/[Pp]auta de correcci[oó]n/g, '');
+  if (/data-nav-vista="admin:pautas"/.test(codigo)) return; // panel de admin
+  if (/compartir pauta ponderaciones programa/.test(codigo)) return; // palabras de búsqueda de Ajustes: quien escribe «pauta» igual encuentra la opción
+  if (PALABRA.test(codigo) && TEXTO.test(codigo)) hallazgos.push(f + ':' + (i + 1));
+}));
+chk(`ningún texto visible dice «pauta»${hallazgos.length ? ' — ' + hallazgos.slice(0, 5).join(', ') : ''}`, hallazgos.length === 0);
+chk('el detector reconoce un texto con «pauta»',
+  PALABRA.test("showToast('Tu pauta quedó guardada')") && TEXTO.test("showToast('Tu pauta quedó guardada')"));
+chk('y deja pasar los nombres internos',
+  !(PALABRA.test('pautaSugerida(r);const x=r.pauta;') && TEXTO.test('pautaSugerida(r);const x=r.pauta;')));
 
 console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
 process.exit(fail ? 1 : 0);

@@ -28,9 +28,17 @@ const SUPABASE_ANON_KEY = 'sb_publishable_JwBMAOR7iHW-gcRdLMGrYw_eCOISwqA';
 // permite— y ninguna obliga a SSE ni a sesiones, que son opcionales.
 const PROTOCOLOS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 const PROTOCOLO = PROTOCOLOS[PROTOCOLOS.length - 1];
+const INSTRUCCIONES = [
+  'Consulta estado_semestre para una vista general y resumen_para_hoy para el repaso del día.',
+  'Usa la sigla del ramo si está disponible. Antes de simular o proponer notas o fechas, consulta ver_ramo. En una evaluación con varias casillas, usa el nombre del grupo y su número de casilla por separado.',
+  'Si ver_ramo indica registrosSinCasilla, confirma a cuál corresponden antes de asumir que una casilla está vacía.',
+  'Usa simular y que_necesito_para_aprobar para calcular con las reglas guardadas en GradeHub.',
+  'Para proponer ramos, ponderaciones, notas o fechas, usa una fuente y pide que confirmen los datos faltantes. Cada propuesta queda pendiente de revisión en la app.',
+].join(' ');
 
 // Formato fijo: descarta basura antes de tocar la base.
 const tokenValido = t => /^[0-9a-f]{64}$/.test(t);
+const esObjeto = valor => valor !== null && typeof valor === 'object' && !Array.isArray(valor);
 
 function rpc(nombre, cuerpo) {
   return fetch(`${SUPABASE_URL}/rest/v1/rpc/${nombre}`, {
@@ -64,8 +72,18 @@ function comoMcp(h) {
   }
   return {
     name: h.nombre,
+    title: h.titulo,
     description: h.resumen,
-    inputSchema: { type: 'object', properties },
+    inputSchema: {
+      type: 'object', properties,
+      ...(h.requeridos ? { required: h.requeridos } : {}),
+    },
+    annotations: {
+      readOnlyHint: h.tipo === 'lectura',
+      destructiveHint: false,
+      ...(h.tipo === 'propuesta' ? { idempotentHint: false } : {}),
+      openWorldHint: false,
+    },
   };
 }
 
@@ -145,6 +163,83 @@ function reglasDelRamo(r, calculo) {
   return out;
 }
 
+// ¿La pauta guardada es la del catálogo oficial, tal como se cargó? Es lo que
+// separa «no tiene mínimo de examen» de «no lo tenemos anotado». Repite el
+// núcleo de `pautaEditada` (src/app/pautas-actualizacion.js) porque el servidor
+// no tiene el catálogo: misma huella `nombre:peso` sobre las evaluaciones que
+// son parte de la pauta, y una regla puesta a mano o una pauta sugerida ya no
+// es la oficial. tests/mcp-reglas-ramo.test.js compara las dos respuestas.
+function pautaOficialSinEditar(r) {
+  if (!r || typeof r.pautaHuella !== 'string' || !r.pautaHuella || r.pautaSugerida?.aceptada || r.consensoRespaldos) return false;
+  if ((r.gates || []).some(g => g && g.origen === 'editor')) return false;
+  const cats = (r.categorias || []).filter(c => !c.fueraDePauta);
+  if (cats.some(c => c.descarteOrigen === 'editor')) return false;
+  const huella = cats.map(c => `${c.nombre}:${Math.round((Number(c.peso) || 0) * 100) / 100}`).join('|');
+  return cats.length > 0 && huella === r.pautaHuella;
+}
+
+// El mínimo de examen dicho siempre, también cuando NO hay. Callarse obligaba al
+// agente a adivinar si Cálculo no tiene mínimo o si nadie lo anotó. Sale de las
+// compuertas que el motor aplica de verdad —las de la pauta y la del reglamento
+// de la universidad (GH_REGLAS_NOTA_POR_TENANT)—, no de las guardadas a secas.
+const ES_EXAMEN = /^(examen|evaluacion final)\b/;
+function examenDelRamo(r, calculo) {
+  const coma = n => String(n).replace('.', ',');
+  const cats = Array.isArray(r.categorias) ? r.categorias : [];
+  const examenes = cats.filter(c => Number(c.peso) > 0 && ES_EXAMEN.test(norm(c.nombre)));
+  if (!examenes.length) return { evaluaciones: [], minimo: null, texto: 'El ramo no tiene una evaluación de examen en sus ponderaciones.' };
+  const ids = new Set(examenes.map(c => c.id));
+  const guardadas = Array.isArray(r.gates) ? r.gates : [];
+  const efectivas = (calculo.compuertasEfectivas ? calculo.compuertasEfectivas(r) : guardadas)
+    .filter(g => g && ((g.type === 'min_grade_required' && ids.has(g.catId)) || (g.type === 'group_min' && (g.catIds || []).some(id => ids.has(id)))));
+  const nombres = examenes.map(c => c.nombre);
+  const oficial = pautaOficialSinEditar(r);
+  if (!efectivas.length) {
+    return {
+      evaluaciones: nombres, minimo: null, pautaOficialSinEditar: oficial,
+      texto: oficial
+        ? `${nombres.join(' y ')} no tiene nota mínima: el programa cargado no la pide.`
+        : `${nombres.join(' y ')} no tiene nota mínima en las ponderaciones guardadas, pero las armó o editó la persona: confírmalo con el programa.`,
+    };
+  }
+  const nombreDe = id => (cats.find(c => c.id === id) || {}).nombre || null;
+  const reglas = efectivas.map(g => {
+    const sobre = g.type === 'group_min' ? (g.catIds || []).map(nombreDe).filter(Boolean) : [nombreDe(g.catId)].filter(Boolean);
+    const origen = guardadas.includes(g) ? 'pauta' : 'reglamento';
+    const efecto = g.efecto === 'reemplazar' || g.cap === 'self' ? 'la final queda en esa nota'
+      : Number.isFinite(g.cap) ? `la final queda en ${coma(g.cap)}` : 'no se aprueba';
+    return { sobre, minimo: g.min, ...(g.cap != null ? { tope: g.cap } : {}), origen,
+      texto: `${sobre.join(' + ')}: mínimo ${coma(g.min)}; si no, ${efecto}${origen === 'reglamento' ? ' (reglamento de la universidad)' : ''}.` };
+  });
+  return { evaluaciones: nombres, minimo: Math.max(...reglas.map(x => x.minimo)), pautaOficialSinEditar: oficial, reglas, texto: reglas.map(x => x.texto).join(' ') };
+}
+
+// La exigencia que la persona guardó para el ramo: «exigencia» la pone Editar
+// ramo en la app y «exigenciaPuntaje» la calculadora. Es del ramo, no de cada
+// evaluación, y sin ella la app usa 50 %. El puntaje máximo de cada evaluación
+// no se guarda en ninguna parte: eso va en `sinDato`.
+function exigenciaDelRamo(r) {
+  const valida = v => Number.isFinite(Number(v)) && Number(v) >= 1 && Number(v) <= 99 ? Number(v) : null;
+  if (valida(r.exigencia) !== null) return { porcentaje: valida(r.exigencia), origen: 'ramo' };
+  if (valida(r.exigenciaPuntaje) !== null) return { porcentaje: valida(r.exigenciaPuntaje), origen: 'calculadora' };
+  return { porcentaje: null, origen: null, texto: 'La persona no guardó exigencia para este ramo; la app usa 50 % por defecto. Pregúntala o léela del programa antes de convertir puntos.' };
+}
+
+// De dónde salió una fecha o una hora. Los valores son los de la app
+// (ORIGENES_FECHA): 'usuario' la escribió o confirmó la persona —también una
+// propuesta de agente que aceptó—, 'catalogo' viene de la pauta publicada,
+// 'calendario' de Canvas o de un calendario importado. Lo que no lo dice queda
+// 'desconocido', que no es lo mismo que oficial.
+const ORIGENES = new Set(['usuario', 'catalogo', 'calendario']);
+const origenDe = (valor, origen) => (valor ? (ORIGENES.has(origen) ? origen : 'desconocido') : null);
+
+const SIN_DATO = {
+  puntajeMaximo: 'GradeHub no guarda el puntaje máximo de cada evaluación. Para pasar puntos a nota usa puntaje_a_nota con el total que diga el programa o Canvas.',
+  origenNota: 'No se guarda de dónde salió cada nota (Canvas, correo o a mano). editadaEn dice cuándo cambió su valor, cuando se sabe.',
+  sala: 'No se guarda la sala de las evaluaciones.',
+  temario: 'No se guarda qué materia entra en cada evaluación; pídela o léela del programa.',
+};
+
 // Cada llamada arma el adaptador con los ramos entregados por `agente_datos`.
 // No se guarda identidad ni estado académico en el isolate: otro request nunca
 // puede heredar la cuenta anterior. El catálogo no viaja al servidor, por eso
@@ -168,11 +263,131 @@ function alcanzaMetaOficial(calculo, ramo, promedio, meta) {
     && !(objetivo >= 4 && calculo.gatesActivas(ramo).length);
 }
 
+// ¿Cuánto necesito en ESTA evaluación, con todo lo demás fijo? `notaNecesaria`
+// reparte la misma nota en todo lo pendiente, y con examen y laboratorio
+// pendientes esa respuesta no sirve para preparar el examen. No hay fórmula
+// nueva: se fija lo demás con los supuestos del agente (o `resto`) en una copia
+// del ramo —y del ramo vinculado, si lo hay— y se le pregunta al mismo
+// `notaNecesaria`, que ya respeta compuertas, descartes, eximición, el vínculo
+// con su mínimo y el redondeo oficial. Lo único pendiente que queda es la
+// evaluación pedida, así que su respuesta es la nota de esa evaluación.
+function necesitaEnEvaluacion(ramos, ramo, args, meta, tenant) {
+  const calculoBase = calculoPara(ramos, tenant);
+  const vinculado = calculoBase.ramoVinculado ? calculoBase.ramoVinculado(ramo, ramos) : null;
+  const partes = [ramo, ...(vinculado ? [vinculado] : [])];
+  const enRamo = (r, nombre) => (r.categorias || []).filter(c => norm(c.nombre) === norm(nombre));
+  // La evaluación se busca primero en el ramo pedido y después en el vinculado
+  // (el laboratorio de Dinámica vive en otro ramo y entra a su nota).
+  const ubicar = (nombre, ramoPedido) => {
+    const donde = ramoPedido == null ? partes : partes.filter(r => norm(r.nombre) === norm(ramoPedido) || norm(siglaDeRamo(r)) === norm(ramoPedido));
+    for (const r of donde) {
+      const cats = enRamo(r, nombre);
+      if (cats.length > 1) return { error: `Hay más de una evaluación llamada "${nombre}" en ${r.nombre}. Corrige las ponderaciones en la app antes de calcular.` };
+      if (cats.length) return { r, cat: cats[0] };
+    }
+    const declaradas = partes.flatMap(r => (r.categorias || []).map(c => (partes.length > 1 ? `${c.nombre} (${r.nombre})` : c.nombre)));
+    return { error: `No encontré "${nombre}" en ${ramo.nombre}. Las evaluaciones que tiene son: ${declaradas.join(', ')}.` };
+  };
+  const slotsDe = c => (Number.isInteger(c.slots) && c.slots > 1 ? c.slots : 1);
+  const casillaValida = (c, casilla) => casilla == null || (Number.isInteger(casilla) && casilla >= 1 && casilla <= slotsDe(c));
+
+  const objetivo = ubicar(String(args.evaluacion || '').trim());
+  if (objetivo.error) return { error: objetivo.error };
+  const { r: ramoObjetivo, cat: objetivoCat } = objetivo;
+  const casillaObjetivo = args.casilla == null ? null : args.casilla;
+  if (!casillaValida(objetivoCat, casillaObjetivo)) return { error: `${objetivoCat.nombre} tiene ${slotsDe(objetivoCat)} casilla${slotsDe(objetivoCat) > 1 ? 's' : ''}; la casilla va de 1 a ${slotsDe(objetivoCat)}.` };
+  const pendientesObjetivo = pendientesDeCategoria(objetivoCat).filter(c => casillaObjetivo == null || slotsDe(objetivoCat) === 1 || c === casillaObjetivo);
+  if (!pendientesObjetivo.length) return { error: `${objetivoCat.nombre}${casillaObjetivo != null && slotsDe(objetivoCat) > 1 ? ' casilla ' + casillaObjetivo : ''} ya tiene nota: no queda nada que calcular ahí. Para probar otra nota usa simular.` };
+  const esObjetivo = (r, c, casilla) => r === ramoObjetivo && c === objetivoCat && (casillaObjetivo == null || slotsDe(c) === 1 || casilla === casillaObjetivo);
+
+  let resto = null;
+  if (args.resto != null) {
+    resto = Number(args.resto);
+    if (!Number.isFinite(resto) || resto < 1 || resto > 7) return { error: '«resto» tiene que ser una nota entre 1,0 y 7,0.' };
+  }
+  const supuestos = args.supuestos == null ? [] : args.supuestos;
+  if (!Array.isArray(supuestos) || supuestos.length > 60) return { error: 'Los supuestos tienen que venir en una lista de hasta 60.' };
+  // Cada supuesto cae sobre una casilla pendiente. Uno sin casilla en una
+  // evaluación de varias vale para todas sus casillas pendientes.
+  const fijadas = new Map();
+  const clave = (r, c, casilla) => `${r.id}|${c.id}|${casilla == null ? '' : casilla}`;
+  for (const s of supuestos) {
+    const nombre = String(s && s.evaluacion || '').trim(), valor = Number(s && s.valor), casilla = s && s.casilla;
+    if (!nombre) return { error: 'Cada supuesto necesita el nombre de su evaluación.' };
+    if (!Number.isFinite(valor) || valor < 1 || valor > 7) return { error: `El supuesto de "${nombre}" está fuera de la escala 1,0 a 7,0.` };
+    const lugar = ubicar(nombre, s.ramo);
+    if (lugar.error) return { error: lugar.error };
+    if (!casillaValida(lugar.cat, casilla)) return { error: `La casilla de "${nombre}" va de 1 a ${slotsDe(lugar.cat)}.` };
+    const pedidas = pendientesDeCategoria(lugar.cat).filter(c => casilla == null || slotsDe(lugar.cat) === 1 || c === casilla);
+    const libres = pedidas.filter(c => !esObjetivo(lugar.r, lugar.cat, c));
+    if (!libres.length) {
+      return { error: pedidas.length
+        ? `"${nombre}" es la evaluación que estás calculando: no puede ser también un supuesto.`
+        : `"${nombre}"${casilla != null && slotsDe(lugar.cat) > 1 ? ' casilla ' + casilla : ''} ya tiene nota; los supuestos son solo para lo pendiente.` };
+    }
+    for (const c of libres) {
+      if (fijadas.has(clave(lugar.r, lugar.cat, c))) return { error: `Hay dos supuestos para "${nombre}"${c != null ? ' casilla ' + c : ''}.` };
+      fijadas.set(clave(lugar.r, lugar.cat, c), { r: lugar.r, cat: lugar.cat, casilla: c, valor, origen: 'supuesto' });
+    }
+  }
+  // Todo lo pendiente fuera de la evaluación pedida queda fijo: con un
+  // supuesto, con `resto`, o se pide en vez de suponerlo en silencio.
+  const faltan = [];
+  for (const r of partes) for (const c of r.categorias || []) for (const casilla of pendientesDeCategoria(c)) {
+    if (!(Number(c.peso) > 0) || esObjetivo(r, c, casilla) || fijadas.has(clave(r, c, casilla))) continue;
+    if (resto !== null) fijadas.set(clave(r, c, casilla), { r, cat: c, casilla, valor: resto, origen: 'resto' });
+    else faltan.push(`${c.nombre}${casilla != null ? ' ' + casilla : ''}${r !== ramo ? ' (' + r.nombre + ')' : ''}`);
+  }
+  if (faltan.length) {
+    return { error: `Para calcular ${objetivoCat.nombre} con el resto fijo falta suponer: ${faltan.join(', ')}. Pásalos en «supuestos» o usa «resto» para darles a todos la misma nota.` };
+  }
+
+  const fijas = [...fijadas.values()];
+  const clones = new Map(partes.map(r => [r, ramoSimulado(r, fijas.filter(f => f.r === r).map(f => ({ evaluacion: f.cat.nombre, valor: f.valor, casilla: f.casilla })))]));
+  const calculo = calculoPara(ramos.map(x => clones.get(x) || x), tenant);
+  const necesaria = calculo.notaNecesaria(clones.get(ramo), meta);
+  let estado = 'alcanzable';
+  if (necesaria === null) estado = 'no_calculable';
+  else if (necesaria > 7) estado = 'fuera_de_escala';
+  else if (necesaria <= 1 + 1e-9) estado = 'con_cualquier_nota';
+  // La comprobación con la nota puesta: la misma copia con la evaluación
+  // pedida en esa nota, para que el agente vea la final y las compuertas.
+  let comprobacion = null;
+  if (estado === 'alcanzable' || estado === 'con_cualquier_nota') {
+    const valor = Math.max(1, Math.min(7, necesaria));
+    const conObjetivo = new Map([...clones].map(([orig, c]) => [orig, orig === ramoObjetivo
+      ? ramoSimulado(c, pendientesObjetivo.map(casilla => ({ evaluacion: objetivoCat.nombre, valor, casilla })))
+      : c]));
+    const calc2 = calculoPara(ramos.map(x => conObjetivo.get(x) || x), tenant);
+    const final = calc2.ramoAvg(conObjetivo.get(ramo));
+    comprobacion = {
+      finalConEsaNota: final,
+      alcanzaLaMeta: alcanzaMetaOficial(calc2, conObjetivo.get(ramo), final, meta),
+      compuertasIncumplidas: calc2.gatesActivas(conObjetivo.get(ramo)).map(g => ({ nombre: g.nombre, actual: g.actual, minimo: g.min, tope: g.cap })),
+    };
+  }
+  return {
+    ramo: ramo.nombre, meta,
+    evaluacion: objetivoCat.nombre,
+    ...(ramoObjetivo !== ramo ? { enRamoVinculado: ramoObjetivo.nombre } : {}),
+    ...(slotsDe(objetivoCat) > 1 ? { casillas: pendientesObjetivo } : {}),
+    notaNecesaria: necesaria,
+    estado,
+    ...(estado === 'no_calculable' ? { motivo: 'El motor no puede proyectar esta evaluación (por ejemplo, una ausencia justificada sin resolver o una eximición ya cerrada).' } : {}),
+    ...(comprobacion || {}),
+    supuestos: fijas.map(f => ({ evaluacion: f.cat.nombre, ...(f.casilla != null ? { casilla: f.casilla } : {}), ...(f.r !== ramo ? { ramo: f.r.nombre } : {}), valor: f.valor, origen: f.origen })),
+    ...((calculoBase.reglasCalculoVigentes?.(ramo) || []).some(g => g.type === 'conditional_weights')
+      ? { advertencia: 'Este ramo cambia de fórmula según las notas: con otros supuestos la respuesta puede cambiar más de lo esperado.' } : {}),
+    nota: 'Cálculo con el resto fijo en los supuestos. No se guardó nada.',
+  };
+}
+
 function queNecesitoParaAprobar(ramos, args, tenant) {
   const ramo = buscarRamo(ramos, args.ramo);
   if (!ramo) return { error: 'No encontré ese ramo', ramos: ramos.map(r => r.nombre) };
   const meta = args.meta == null ? 4 : Number(args.meta);
   if (!Number.isFinite(meta) || meta < 1 || meta > 7) return { error: 'La meta debe ser una nota entre 1,0 y 7,0.' };
+  if (args.evaluacion != null) return necesitaEnEvaluacion(ramos, ramo, args, meta, tenant);
 
   const calculo = calculoPara(ramos, tenant);
   const promedioNecesario = calculo.notaNecesaria(ramo, meta);
@@ -233,18 +448,39 @@ function errorPropuesta(valor) {
     : 'No se pudo guardar la propuesta.';
 }
 
+function casillasDeCategoria(c) {
+  return Number.isInteger(c.slots) && c.slots > 1 ? c.slots : 1;
+}
+
+function errorCasilla(c, casilla) {
+  const cantidad = casillasDeCategoria(c);
+  if (casilla == null || casilla <= cantidad) return null;
+  return cantidad === 1
+    ? `«${c.nombre}» tiene una sola casilla. Usa 1 u omite «casilla».`
+    : `«${c.nombre}» tiene ${cantidad} casillas. Usa un número entre 1 y ${cantidad} según ver_ramo.`;
+}
+
+function validarEvaluacionesDePropuesta(ramo, filas) {
+  const categorias = ramo.categorias || [];
+  const destinos = filas.map(fila => ({ fila, categoria: categorias.find(c => norm(c.nombre) === norm(fila.evaluacion)) }));
+  const sinCalce = destinos.filter(d => !d.categoria).map(d => String(d.fila.evaluacion).trim());
+  if (sinCalce.length) {
+    return `No encontré estas evaluaciones en ${ramo.nombre}: ${sinCalce.join(', ')}. Las que tiene son: ${categorias.map(c => c.nombre).join(', ')}.`;
+  }
+  for (const { fila, categoria } of destinos) {
+    const error = errorCasilla(categoria, fila.casilla);
+    if (error) return error;
+  }
+  return null;
+}
+
+const RAMO_NO_ENCONTRADO = 'No encontré ese ramo en el semestre. Revisa listar_ramos por la sigla. Si falta, usa proponer_ramos con la fuente y espera a que la persona lo acepte.';
+
 async function guardarPropuestaFechas(token, estado, args) {
   const ramo = ramoParaPropuesta(estado, args.ramo);
-  if (!ramo) return { error: 'No se encontró ese ramo en el semestre. Pídele a la persona que lo agregue primero.' };
-  const invalida = validarPropuestaFechas(args);
+  if (!ramo) return { error: RAMO_NO_ENCONTRADO };
+  const invalida = validarPropuestaFechas(args) || validarEvaluacionesDePropuesta(ramo, args.fechas);
   if (invalida) return { error: invalida };
-  const declaradas = (ramo.categorias || []).map(c => String(c.nombre || ''));
-  const sinCalce = args.fechas
-    .map(f => String(f.evaluacion || '').trim())
-    .filter(nombre => !declaradas.some(d => norm(d) === norm(nombre)));
-  if (sinCalce.length) {
-    return { error: `No encontré estas evaluaciones en ${ramo.nombre}: ${sinCalce.join(', ')}. Las que tiene son: ${declaradas.join(', ')}.` };
-  }
   const clave = String((ramo.origen && ramo.origen.ramoKey) || norm(ramo.nombre));
   try {
     const r = await rpc('proponer_fechas_agente', {
@@ -267,20 +503,9 @@ async function guardarPropuestaFechas(token, estado, args) {
 
 async function guardarPropuestaNotas(token, estado, args) {
   const ramo = ramoParaPropuesta(estado, args.ramo);
-  if (!ramo) return { error: 'No se encontró ese ramo en el semestre. Pídele a la persona que lo agregue primero.' };
-  const invalida = validarPropuestaNotas(args);
+  if (!ramo) return { error: RAMO_NO_ENCONTRADO };
+  const invalida = validarPropuestaNotas(args) || validarEvaluacionesDePropuesta(ramo, args.notas);
   if (invalida) return { error: invalida };
-  // Se avisa cuando una evaluación propuesta no existe en el ramo, en vez de
-  // guardarla y que aparezca como una fila que no calza con nada. El agente
-  // puede corregir el nombre y reintentar; la lista de las que sí hay es lo que
-  // se lo permite.
-  const declaradas = (ramo.categorias || []).map(c => String(c.nombre || ''));
-  const sinCalce = args.notas
-    .map(n => String(n.evaluacion || '').trim())
-    .filter(nombre => !declaradas.some(d => norm(d) === norm(nombre)));
-  if (sinCalce.length) {
-    return { error: `No encontré estas evaluaciones en ${ramo.nombre}: ${sinCalce.join(', ')}. Las que tiene son: ${declaradas.join(', ')}.` };
-  }
   const clave = String((ramo.origen && ramo.origen.ramoKey) || norm(ramo.nombre));
   try {
     const r = await rpc('proponer_notas_agente', {
@@ -303,7 +528,7 @@ async function guardarPropuestaNotas(token, estado, args) {
 
 async function guardarPropuestaPauta(token, estado, args) {
   const ramo = ramoParaPropuesta(estado, args.ramo);
-  if (!ramo) return { error: 'No se encontró ese ramo en el semestre. Pídele a la persona que lo agregue primero.' };
+  if (!ramo) return { error: RAMO_NO_ENCONTRADO };
   const evaluaciones = args.evaluaciones;
   const invalida = validarPropuestaPauta(args);
   if (invalida) return { error: invalida };
@@ -362,10 +587,47 @@ async function guardarPropuestaRamos(token, estado, args) {
       // Se dicen los que se dejaron fuera: el agente le puede avisar en vez de
       // que la persona note después que faltaba uno.
       yaLosTenia: repetidos,
-      mensaje: 'Ramos propuestos. NO están agregados: la persona los revisa y acepta en GradeHub, y ahí se les carga la pauta oficial si existe.',
+      mensaje: 'Ramos propuestos. NO están agregados: la persona los revisa y acepta en GradeHub, y ahí se les cargan las ponderaciones del programa si existen.',
     };
   } catch {
     return { error: 'No se pudo conectar con GradeHub para guardar la propuesta.' };
+  }
+}
+
+// La bandeja de propuestas vista desde el agente: qué dejó pendiente y cómo
+// sacar una que leyó mal. Antes una propuesta equivocada quedaba viva hasta que
+// la persona la rechazara, y el agente que se dio cuenta no podía ni verla.
+// Retirar solo alcanza propuestas PENDIENTES de la dueña del token (lo decide
+// la RPC, no este archivo): lo aceptado o rechazado ya es decisión de ella.
+const ID_PROPUESTA = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function listarPropuestas(token) {
+  try {
+    const r = await rpc('listar_propuestas_agente', { p_token: token });
+    if (!r.ok) return { error: errorPropuesta(await r.json().catch(() => null)) };
+    const filas = await r.json();
+    const pendientes = (Array.isArray(filas) ? filas : []).map(f => ({
+      id: f.id, tipo: f.tipo, ramo: f.tipo === 'ramos' ? null : f.ramo, creada: f.creada, fuente: f.fuente, contenido: f.contenido,
+    }));
+    return {
+      pendientes,
+      total: pendientes.length,
+      nota: 'Siguen esperando a la persona en la app. retirar_propuesta saca una por su id. Una propuesta nueva de notas o fechas para el mismo ramo, o de ramos, reemplaza sola a la pendiente anterior; una de ponderaciones no: retira la vieja antes de proponer otra.',
+    };
+  } catch {
+    return { error: 'No se pudo conectar con GradeHub para leer las propuestas.' };
+  }
+}
+
+async function retirarPropuesta(token, args) {
+  const id = String(args && args.id || '').trim();
+  if (!ID_PROPUESTA.test(id)) return { error: 'Propuesta inválida: el id es el que devolvió la propuesta o listar_propuestas.' };
+  try {
+    const r = await rpc('retirar_propuesta_agente', { p_token: token, p_id: id });
+    if (!r.ok) return { error: errorPropuesta(await r.json().catch(() => null)) };
+    return { id, retirada: true, mensaje: 'Propuesta retirada: ya no le aparece a la persona. No se tocó nada de su semestre.' };
+  } catch {
+    return { error: 'No se pudo conectar con GradeHub para retirar la propuesta.' };
   }
 }
 
@@ -417,10 +679,12 @@ function fechasDeRamos(ramos) {
   ramos.forEach(r => (r.categorias || []).forEach(c => {
     (c.notas || []).forEach(n => {
       if (!n.fecha) return;
+      const casilla = Number.isInteger(n.slot) && n.slot >= 0 && n.slot < casillasDeCategoria(c) ? n.slot + 1 : null;
       out.push({
         ramo: r.nombre, evaluacion: n.nombre || c.nombre, fecha: n.fecha,
-        hora: n.hora || null, peso: c.peso, grupo: c.nombre,
+        hora: n.hora || null, origenHora: origenDe(n.hora, n.horaOrigen), peso: c.peso, grupo: c.nombre,
         rendida: typeof n.valor === 'number',
+        ...(casilla != null ? { casilla } : {}),
       });
     });
     if (!c.fecha) return;
@@ -429,7 +693,7 @@ function fechasDeRamos(ramos) {
     // como la próxima del ramo, y la app (agendaEvents) ya no la mostraba.
     const conFecha = new Set((c.notas || []).filter(n => n.fecha && Number.isInteger(n.slot)).map(n => n.slot + 1));
     const rendida = !pendientesDeCategoria(c).some(casilla => !conFecha.has(casilla));
-    out.push({ ramo: r.nombre, evaluacion: c.nombre, fecha: c.fecha, hora: c.hora || null, peso: c.peso, rendida });
+    out.push({ ramo: r.nombre, evaluacion: c.nombre, fecha: c.fecha, hora: c.hora || null, origenHora: origenDe(c.hora, c.horaOrigen), peso: c.peso, rendida });
   }));
   // Mismo orden que la Agenda: dos pruebas el mismo día van por hora.
   return out.sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.hora || '').localeCompare(b.hora || ''));
@@ -457,7 +721,8 @@ function promedioGeneral(ramos, calculo) {
 
 function proximaConFecha(ramo, hoy) {
   const f = fechasDeRamos([ramo]).find(x => x.fecha >= hoy && !x.rendida);
-  return f ? { evaluacion: f.evaluacion, fecha: f.fecha, hora: f.hora, peso: f.peso } : null;
+  return f ? { evaluacion: f.evaluacion, fecha: f.fecha, hora: f.hora, origenHora: f.origenHora, peso: f.peso,
+    ...(f.casilla != null ? { grupo: f.grupo, casilla: f.casilla } : {}) } : null;
 }
 
 // Una copia del ramo con notas hipotéticas puestas encima. No toca el original
@@ -465,9 +730,10 @@ function proximaConFecha(ramo, hoy) {
 // el resto de la app, así el motor las cuenta igual que si fueran reales.
 function ramoSimulado(ramo, notas) {
   const clon = { ...ramo, categorias: (ramo.categorias || []).map(c => ({ ...c, notas: (c.notas || []).map(n => ({ ...n })) })) };
-  notas.forEach(({ evaluacion, valor, casilla }) => {
+  notas.forEach(({ evaluacion, valor: entrada, casilla }) => {
     const cat = clon.categorias.find(c => norm(c.nombre) === norm(evaluacion));
     if (!cat) return;
+    const valor = Number(entrada);
     const slots = Number.isInteger(cat.slots) && cat.slots > 1 ? cat.slots : 0;
     if (slots) {
       const slot = (Number.isInteger(casilla) ? casilla : 1) - 1;
@@ -486,7 +752,7 @@ function ramoSimulado(ramo, notas) {
 function errorSimulacion(ramo, notas) {
   if (!Array.isArray(notas)) return 'Las notas tienen que venir en una lista.';
   if (notas.length > 60) return 'Como máximo 60 notas por simulación.';
-  const declaradas = (ramo.categorias || []).map(c => String(c.nombre || ''));
+  const categorias = ramo.categorias || [];
   for (const n of notas) {
     const evaluacion = String(n && n.evaluacion || '').trim();
     const valor = Number(n && n.valor);
@@ -494,9 +760,12 @@ function errorSimulacion(ramo, notas) {
     if (!evaluacion) return 'Cada nota necesita el nombre de su evaluación.';
     if (!Number.isFinite(valor) || valor < 1 || valor > 7) return `"${evaluacion}" tiene una nota fuera de la escala 1,0 a 7,0.`;
     if (casilla != null && (!Number.isInteger(casilla) || casilla < 1 || casilla > 100)) return 'La casilla debe ser un entero entre 1 y 100.';
-    if (!declaradas.some(d => norm(d) === norm(evaluacion))) {
-      return `No encontré "${evaluacion}" en ${ramo.nombre}. Las evaluaciones que tiene son: ${declaradas.join(', ')}.`;
+    const cat = categorias.find(c => norm(c.nombre) === norm(evaluacion));
+    if (!cat) {
+      return `No encontré "${evaluacion}" en ${ramo.nombre}. Las evaluaciones que tiene son: ${categorias.map(c => c.nombre).join(', ')}.`;
     }
+    const error = errorCasilla(cat, casilla);
+    if (error) return error;
   }
   return null;
 }
@@ -516,7 +785,7 @@ function prepararAusenciasSimuladas(ramo, ausencias, notas) {
     if (!nombre) return { error: 'Cada ausencia necesita el nombre de su evaluación.' };
     const encontradas = (ramo.categorias || []).filter(c => norm(c.nombre) === norm(nombre));
     if (!encontradas.length) return { error: `No encontré "${nombre}" en ${ramo.nombre}.` };
-    if (encontradas.length > 1) return { error: `Hay más de una evaluación llamada "${nombre}". Corrige la pauta en la app antes de simular la ausencia.` };
+    if (encontradas.length > 1) return { error: `Hay más de una evaluación llamada "${nombre}". Corrige las ponderaciones en la app antes de simular la ausencia.` };
     const cat = encontradas[0];
     if (vistas.has(cat.id)) return { error: `La ausencia de ${cat.nombre} está repetida.` };
     vistas.add(cat.id);
@@ -547,7 +816,7 @@ function detalleAusenciasSimuladas(ramo, categorias, estado) {
     const pendiente = (estado.pendientes || []).find(x => x.desdeId === cat.id);
     const inactiva = (estado.inactivas || []).find(x => x.desdeId === cat.id);
     if (inactiva || (!aplicada && !pendiente))
-      return { error: `La ausencia de ${cat.nombre} no se puede aplicar a esta pauta; revisa la regla en la app.` };
+      return { error: `La ausencia de ${cat.nombre} no se puede aplicar a estas ponderaciones; revisa la regla en la app.` };
     const movimiento = aplicada || pendiente;
     const destino = (ramo.categorias || []).find(c => c.id === movimiento.haciaId);
     const nuevoDestino = (estado.estructura.children || []).find(c => c.id === movimiento.haciaId);
@@ -588,6 +857,33 @@ function pendientesDeCategoria(cat) {
   const libres = [];
   for (let i = 0; i < slots; i++) if (!ocupados.has(i)) libres.push(i + 1);
   return libres;
+}
+
+function detalleCasillasDeCategoria(cat) {
+  // El conector acepta hasta 100 casillas. Acota también la respuesta si un
+  // respaldo antiguo contiene un número mayor al que permite hoy el editor.
+  const declaradas = casillasDeCategoria(cat);
+  const notasPorCasilla = new Map();
+  let registrosSinCasilla = 0;
+  for (const nota of cat.notas || []) {
+    if (Number.isInteger(nota.slot) && nota.slot >= 0 && nota.slot < declaradas) {
+      // Como al cargar el ramo en la app, la última entrada es la vigente.
+      notasPorCasilla.set(nota.slot, nota);
+    } else {
+      registrosSinCasilla++;
+    }
+  }
+  const detalleCasillas = Array.from({ length: Math.min(100, declaradas) }, (_, slot) => {
+    const registro = notasPorCasilla.get(slot);
+    return {
+      casilla: slot + 1,
+      nombre: registro?.nombre || cat.nombresCasillas?.[slot] || null,
+      nota: Number.isFinite(registro?.valor) ? registro.valor : null,
+      fecha: registro?.fecha || null,
+      hora: registro?.fecha ? registro.hora || null : null,
+    };
+  });
+  return { detalleCasillas, ...(registrosSinCasilla ? { registrosSinCasilla } : {}) };
 }
 
 function impactoPendientes(ramos, ramo, meta, tenant) {
@@ -694,6 +990,38 @@ function simular(ramos, args, tenant) {
   };
 }
 
+// Puntos a nota con la escala de la calculadora pública (gh_notaDesdePuntaje):
+// un agente que convierte a mano los puntos de Canvas se equivoca, y la fórmula
+// ya vive en el motor. Es una herramienta aparte a propósito: ninguna otra pide
+// puntos, cada evaluación pide su nota (#735). Sin exigencia dicha se usa la
+// del ramo; sin ramo ni exigencia, 50 %, y la respuesta lo dice.
+function puntajeANota(ramos, args) {
+  const puntaje = Number(args.puntaje), total = Number(args.total);
+  if (!Number.isFinite(puntaje) || !Number.isFinite(total) || total <= 0 || puntaje < 0 || puntaje > total) {
+    return { error: 'El puntaje tiene que ser un número entre 0 y el total, y el total mayor que 0.' };
+  }
+  let exigencia = null, origen = null;
+  if (args.exigencia != null) {
+    exigencia = Number(args.exigencia);
+    if (!Number.isFinite(exigencia) || exigencia < 1 || exigencia > 99) return { error: 'La exigencia es un porcentaje entre 1 y 99, como 60.' };
+    origen = 'pedida';
+  } else if (args.ramo != null) {
+    const r = buscarRamo(ramos, args.ramo);
+    if (!r) return { error: 'No encontré ese ramo', ramos: ramos.map(x => x.nombre) };
+    const guardada = exigenciaDelRamo(r);
+    if (guardada.porcentaje !== null) { exigencia = guardada.porcentaje; origen = guardada.origen; }
+  }
+  if (exigencia === null) { exigencia = 50; origen = 'por_defecto'; }
+  const convertir = motorCompartido && motorCompartido.gh_notaDesdePuntaje;
+  const r = typeof convertir === 'function' ? convertir(puntaje, total, { exigencia: exigencia / 100 }) : null;
+  if (!r) return { error: 'No se pudo convertir ese puntaje.' };
+  return {
+    puntaje, total, exigencia, origenExigencia: origen,
+    nota: r.nota, notaSinRedondear: Math.round(r.cruda * 1000) / 1000, puntajeAprobacion: Math.round(r.puntajeAprobacion * 100) / 100,
+    ...(origen === 'por_defecto' ? { supuesto: 'No hay exigencia del ramo guardada: se usó 50 %. Si el programa dice otra, vuelve a pedirla con «exigencia».' } : {}),
+  };
+}
+
 function despachar(nombre, estado, args) {
   const ramos = Array.isArray(estado.ramos) ? estado.ramos : [];
   const tenant = typeof estado.tenant === 'string' ? estado.tenant : null;
@@ -733,11 +1061,17 @@ function despachar(nombre, estado, args) {
   if (nombre === 'ver_ramo') {
     const r = buscar(args.ramo);
     if (!r) return { error: 'No encontré ese ramo', ramos: ramos.map(x => x.nombre) };
-    const reglas = reglasDelRamo(r, calculoPara(ramos, tenant));
+    const calculo = calculoPara(ramos, tenant);
+    const reglas = reglasDelRamo(r, calculo);
+    // La casilla se cuenta desde 1, como la dice la persona y como la piden
+    // simular y proponer_notas; `slot` es la posición interna, desde 0.
+    const casillaDe = n => (Number.isInteger(n.slot) ? { casilla: n.slot + 1 } : {});
     return {
       nombre: r.nombre,
       sigla: siglaDeRamo(r),
       ...(Object.keys(reglas).length ? { reglas } : {}),
+      examen: examenDelRamo(r, calculo),
+      exigencia: exigenciaDelRamo(r),
       evaluaciones: (r.categorias || []).map(c => ({
         nombre: c.nombre,
         peso: c.peso,
@@ -745,8 +1079,27 @@ function despachar(nombre, estado, args) {
         // Qué es cada casilla cuando no son la N-ésima de lo mismo: sin esto el
         // agente no sabe si la casilla 1 de "Trabajos de IA" son las Cápsulas.
         ...(Array.isArray(c.nombresCasillas) && c.nombresCasillas.length ? { nombresCasillas: c.nombresCasillas } : {}),
-        notas: (c.notas || []).filter(n => typeof n.valor === 'number').map(n => ({ nombre: n.nombre, valor: n.valor })),
+        fecha: c.fecha || null,
+        hora: c.fecha && c.hora ? c.hora : null,
+        origenFecha: origenDe(c.fecha, c.fechaOrigen),
+        origenHora: origenDe(c.fecha && c.hora, c.horaOrigen),
+        notas: (c.notas || []).filter(n => typeof n.valor === 'number').map(n => ({
+          nombre: n.nombre, valor: n.valor, ...casillaDe(n),
+          // Cuándo cambió el valor por última vez. Las notas anteriores a ese
+          // registro no lo tienen, y eso no se rellena con una fecha inventada.
+          ...(typeof n.editadaEn === 'string' && n.editadaEn ? { editadaEn: n.editadaEn } : {}),
+        })),
+        // Una casilla con fecha propia es una evaluación suelta dentro del
+        // grupo (el Control 2 tres semanas después del 1), tenga o no nota.
+        ...((c.notas || []).some(n => n.fecha) ? {
+          fechasPorCasilla: (c.notas || []).filter(n => n.fecha).map(n => ({
+            nombre: n.nombre, ...casillaDe(n), fecha: n.fecha, hora: n.hora || null,
+            origenFecha: origenDe(n.fecha, n.fechaOrigen), origenHora: origenDe(n.hora, n.horaOrigen),
+          })),
+        } : {}),
+        ...(casillasDeCategoria(c) > 1 ? detalleCasillasDeCategoria(c) : {}),
       })),
+      sinDato: SIN_DATO,
     };
   }
 
@@ -829,6 +1182,10 @@ function despachar(nombre, estado, args) {
     return simular(ramos, args, tenant);
   }
 
+  if (nombre === 'puntaje_a_nota') {
+    return puntajeANota(ramos, args);
+  }
+
   if (nombre === 'que_necesito_para_aprobar') {
     return queNecesitoParaAprobar(ramos, args, tenant);
   }
@@ -847,27 +1204,33 @@ export async function onRequestPost({ request, params }) {
     return error(null, -32700, 'JSON inválido');
   }
 
-  const { id = null, method, params: args = {} } = peticion || {};
-
-  // Una notificación es una petición SIN `id`, y el protocolo prohíbe
-  // contestarla: corresponde un 202 vacío. Importa porque `notifications/
-  // initialized` es lo PRIMERO que manda un cliente después de conectar, y
-  // antes caía en "Método no soportado" —un objeto de error con id null—, que
-  // es justo lo que un cliente estricto trata como servidor roto. El handshake
-  // se cortaba ahí, con las seis herramientas funcionando perfectamente.
-  if (!peticion || !('id' in peticion) || peticion.id === undefined) {
-    return new Response(null, { status: 202, headers: { 'Cache-Control': 'no-store' } });
+  // Se tolera la omisión de jsonrpc de clientes antiguos que ya enviaban 2.0.
+  if (!esObjeto(peticion) || typeof peticion.method !== 'string' || !peticion.method
+    || (peticion.jsonrpc !== undefined && peticion.jsonrpc !== '2.0')) {
+    return error(null, -32600, 'Solicitud MCP inválida');
+  }
+  const { id = null, method, params: args = {} } = peticion;
+  if (id !== null && typeof id !== 'string' && !Number.isFinite(id)) {
+    return error(null, -32600, 'Identificador de solicitud inválido');
   }
 
+  // El handshake sigue con notifications/initialized, una notificación sin
+  // id que el transporte HTTP confirma con 202 y sin cuerpo.
+  if (peticion.id === undefined) {
+    return new Response(null, { status: 202, headers: { 'Cache-Control': 'no-store' } });
+  }
+  if (!esObjeto(args)) return error(id, -32602, 'Los parámetros de MCP tienen que ser un objeto.');
+
+  if (method === 'ping') return respuesta(id, {});
+
   if (method === 'initialize') {
-    // Se devuelve la que pidió el cliente cuando la sabemos hablar, y la más
-    // vieja cuando no: es lo que dice el protocolo y lo que evita que un
-    // conector nuevo se vaya sin explicar por qué.
+    // Conserva el respaldo que usaban los clientes sin una versión admitida.
     const pedida = String(args.protocolVersion || '');
     return respuesta(id, {
       protocolVersion: PROTOCOLOS.includes(pedida) ? pedida : PROTOCOLO,
       capabilities: { tools: {} },
       serverInfo: { name: 'GradeHub', version: '1' },
+      instructions: INSTRUCCIONES,
     });
   }
 
@@ -876,11 +1239,16 @@ export async function onRequestPost({ request, params }) {
   }
 
   if (method === 'tools/call') {
-    const nombre = String(args.name || '');
+    const { name: nombre, arguments: argumentos = {} } = args;
+    if (typeof nombre !== 'string' || !nombre) return error(id, -32602, 'Indica el nombre de la herramienta MCP.');
+    if (nombre === 'agregar_ramo') {
+      return error(id, -32601, 'Para sugerir un ramo, usa proponer_ramos con «ramos» y «fuente». GradeHub lo deja pendiente de revisión.');
+    }
     // Lista blanca: solo lo declarado. Sin esto, cualquier nombre que la RPC
     // llegue a entender mañana quedaría accesible sin haber pasado por la
     // revisión de qué puede hacer un agente.
     if (!NOMBRES.includes(nombre)) return error(id, -32601, `Herramienta desconocida: ${nombre}`);
+    if (!esObjeto(argumentos)) return error(id, -32602, 'Los argumentos de la herramienta tienen que ser un objeto.');
 
     // La base entrega el estado y el despacho se arma acá. Es a propósito: dar
     // forma a cada herramienta en SQL obligaría a reescribir en plpgsql reglas
@@ -898,7 +1266,12 @@ export async function onRequestPost({ request, params }) {
     // Token vencido o revocado: la RPC devuelve null y acá se corta.
     if (!estado) return error(id, -32001, 'Esta conexión ya no es válida. Vuelve a vincular desde Ajustes.');
 
-    const argumentos = args.arguments || {};
+    if (nombre === 'listar_propuestas' || nombre === 'retirar_propuesta') {
+      const resultado = nombre === 'listar_propuestas' ? await listarPropuestas(token) : await retirarPropuesta(token, argumentos);
+      if (resultado.error) return error(id, -32602, resultado.error);
+      return respuesta(id, { content: [{ type: 'text', text: JSON.stringify(resultado) }] });
+    }
+
     if (nombre === 'proponer_fechas') {
       const propuesta = await guardarPropuestaFechas(token, estado, argumentos);
       if (propuesta.error) return error(id, -32602, propuesta.error);

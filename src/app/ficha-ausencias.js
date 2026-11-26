@@ -86,7 +86,7 @@ function declararAusenciaJustificada(catId,slot){
   const declarable=esCasilla?(regla?.reemplazosCasilla||[]).some(x=>x.desdeId===catId&&x.desdeSlot===slot)
     :[...(regla&&regla.reemplazos||[]),...(regla&&regla.traspasos||[]),...(regla&&regla.rezagos||[]),...(regla&&regla.promedios||[])].some(x=>x.desdeId===catId);
   const sinNota=esCasilla?!(cat?.notas||[]).some(n=>n.slot===slot&&n.valor!=null):evaluacionSinNota(cat);
-  if(!declarable||!cat||!sinNota){showToast('Esa ausencia ya no se puede aplicar a tu pauta',true);return;}
+  if(!declarable||!cat||!sinNota){showToast('Esa ausencia ya no se puede aplicar a tus ponderaciones',true);return;}
   const clave=esCasilla?gh_claveAusenciaCasilla(catId,slot):catId;
   if(!Array.isArray(r.ausenciasJustificadas))r.ausenciasJustificadas=[];
   if(!r.ausenciasJustificadas.includes(clave))r.ausenciasJustificadas.push(clave);
@@ -109,10 +109,20 @@ function ausenciaDeEvaluacion(r,cat,slot){
   if(!declarada&&(!pendiente||!(Number(cat.peso)>0)||!!oficial&&!entrada))return null;
   const estado=declarada?estadoAusenciasJustificadas(r):null;
   const aplicada=[...(estado?.activas||[]),...(estado?.pendientes||[])].find(x=>x.desdeId===clave);
-  const bloqueada=(estado?.bloqueadas||[]).find(x=>x.desdeId===clave);
+  // Antes de marcarla, una regla con cupo (Cálculo I y II: solo la primera
+  // interrogación toma el examen) depende de las otras ausencias ya marcadas.
+  // Se simula la declaración para que el aviso diga lo que va a pasar de verdad
+  // y no siempre «se calcula con el Examen». Nada se guarda.
+  let previa=null;
+  if(!declarada&&entrada&&(Number.isInteger(regla?.maxReemplazos)||Number.isInteger(regla?.maxTraspasos))){
+    const simulado=estadoAusenciasJustificadas({...r,ausenciasJustificadas:[...(r.ausenciasJustificadas||[]),clave]});
+    const buscar=lista=>(lista||[]).find(x=>x.desdeId===clave)||null;
+    previa={aplicada:buscar(simulado?.activas)||buscar(simulado?.pendientes),bloqueada:buscar(simulado?.bloqueadas)};
+  }
+  const bloqueada=(estado?.bloqueadas||[]).find(x=>x.desdeId===clave)||previa?.bloqueada;
   const inactiva=(estado?.inactivas||[]).find(x=>x.desdeId===clave)||
     (declarada&&!aplicada&&!bloqueada?{motivo:'pauta_cambio'}:null);
-  const detalle=aplicada||bloqueada||inactiva||entrada;
+  const detalle=aplicada||bloqueada||inactiva||previa?.aplicada||entrada;
   const destino=(r.categorias||[]).find(c=>c.id===detalle?.haciaId);
   const peso=porcentajeAusencia(esCasilla?cat.peso/cat.slots:cat.peso);
   let texto='';
@@ -121,7 +131,7 @@ function ausenciaDeEvaluacion(r,cat,slot){
     :`El traspaso supera el máximo de ${bloqueada.topePesoDestino}% del examen. El resultado queda pendiente hasta resolverlo con el curso.`;
   else if(inactiva)texto=inactiva.motivo==='tiene_nota'
     ?'La declaración se conserva, pero no se aplica porque esta evaluación tiene nota.'
-    :'La declaración se conserva, pero no se aplica porque cambió la pauta.';
+    :'La declaración se conserva, pero no se aplica porque cambiaron las ponderaciones.';
   else if(detalle?.tipo==='rezago')texto=`Su ${peso}% queda pendiente para rendir en rezago.`;
   else if(detalle?.tipo==='reemplazo')texto=`Su ${peso}% se calcula con la nota ${/^Examen\b/i.test(destino?.nombre||'')?'del ':'de '}${destino?.nombre||'la evaluación de reemplazo'}.`;
   else if(detalle?.tipo==='reemplazo_casilla')texto=`Su ${peso}% se calcula con la nota ${Number.isInteger(detalle.haciaSlot)?`de la casilla ${detalle.haciaSlot+1} de `:'de '}${destino?.nombre||'la evaluación de reemplazo'}.`;
@@ -230,7 +240,7 @@ function declararAusenciaJustificadaEstudiante(catId,tipo){
   const destino=document.getElementById('m-ausencia-destino');
   const haciaId=tipo==='traspaso'&&destino?destino.value:null;
   if(!configurarAusenciaJustificadaEstudiante(r,catId,tipo,haciaId)){
-    showToast('No pudimos guardar esa decisión; revisa la pauta',true);return;
+    showToast('No pudimos guardar esa decisión; revisa las ponderaciones',true);return;
   }
   save();track('declarar_ausencia_justificada_estudiante',{tipo});closeModal();renderRamo();
 }
