@@ -218,6 +218,7 @@ create or replace function public.detalles_clase_validos(d jsonb)
 returns boolean
 language sql
 immutable
+set search_path = ''
 as $$
   select case
     when d is null then true
@@ -247,6 +248,7 @@ create or replace function public.linea_datos_clase_valida(l text[])
 returns boolean
 language sql
 immutable
+set search_path = ''
 as $$
   select l is null or (
     cardinality(l) between 1 and 3
@@ -1125,6 +1127,7 @@ create or replace function public.rango_canal_alcance(p_canal text)
 returns integer
 language sql
 immutable
+set search_path = ''
 as $$
   select case p_canal when 'recomendacion' then 3 when 'busqueda' then 2 when 'lista' then 1 else 0 end;
 $$;
@@ -1399,6 +1402,7 @@ create or replace function public.tarifa_campana_clp(p_concepto text)
 returns integer
 language sql
 immutable
+set search_path = ''
 as $$
   select case p_concepto
     when 'dia' then 100 when 'vista' then 10 when 'apertura' then 50 when 'contacto' then 1000
