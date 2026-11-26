@@ -84,7 +84,10 @@ function renderHome(){
 
   const simGlobalBtn=document.getElementById('sim-global-btn');
   if(S.ramos.length===0){
-    gpael.textContent='·';gpael.className='gpa-num empty';
+    // Igual que sin notas (g===null): al archivar, el exacto del semestre
+    // anterior seguía debajo del «·» y tocarlo abría su «Promedio redondeado».
+    gpael.textContent='·';gpael.className='gpa-num empty';gpael.onclick=null;
+    pintarPromedioExacto('home-gpa-exacto',null);
     gpaSub.style.display='none';gpaMethod.style.display='none';emptyHint.style.display='block';
     if(tagsEl)tagsEl.style.display='none';
     if(deltaEl)deltaEl.style.display='none';
