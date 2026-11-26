@@ -119,7 +119,7 @@ function simNotaNecesaria(proyectado,meta=simMeta){
   if(descarteAbierto)return {texto:`No calculamos una nota exacta mientras falte saber cuántas evaluaciones de ${descarteAbierto.nombre} habrá`,
     detalle:'El programa descarta la peor nota, así que su efecto depende de las notas que todavía no existen.'};
   const peso=(proyectado.categorias||[]).reduce((s,c)=>s+(Number(c.peso)||0),0);
-  if(Math.abs(peso-100)>0.05)return {texto:'Completa la pauta para calcularlo'};
+  if(Math.abs(peso-100)>0.05)return {texto:'Completa las ponderaciones para calcularlo'};
   const calculo=calculoRamoConCompuertas(proyectado);
   const motivo=motivoCalculoPendiente(proyectado);
   if(motivo)return {texto:'Resultado pendiente de confirmar con el curso',detalle:motivo};

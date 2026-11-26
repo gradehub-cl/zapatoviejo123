@@ -100,9 +100,9 @@ begin
     from public.amistades a
     join public.amigos_notas n on n.user_id = case when a.de = uid then a.para else a.de end
    where (a.de = uid or a.para = uid) and a.estado = 'aceptada'
-     -- La misma sigla puede ser otro ramo en otra universidad.
-     and (select p.universidad from public.profiles p where p.id = n.user_id)
-         is not distinct from (select p.universidad from public.profiles p where p.id = uid);
+     -- La misma sigla puede ser otro ramo en otra universidad. Dos cuentas sin
+     -- universidad no cuentan como la misma (igual que el resto de Amigos).
+     and public.amigos_misma_u(uid, n.user_id);
 end;
 $$;
 

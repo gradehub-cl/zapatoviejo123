@@ -7,7 +7,7 @@ function abrirImportarHorarioBuscacursos(conservarTexto=false){
   _horarioUCReconocido=null;_horarioClasesUC=[];
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Subir foto de tu horario</div>
-    <p class="modal-desc">Sube un pantallazo de tu horario de ${esc(fuente.donde)}. Lo leemos en tu teléfono: <b>la imagen no sale de tu dispositivo</b>. Después revisas los ramos${fuente.horas?' y sus horas de clase':' y sus clases'} antes de agregarlos.</p>
+    <p class="modal-desc">Sube un pantallazo de tu horario de ${fuente.url?`<a href="${esc(fuente.url)}" target="_blank" rel="noopener" style="color:var(--primary);">${esc(fuente.donde)}</a>`:esc(fuente.donde)}. Lo leemos en tu teléfono: <b>la imagen no sale de tu dispositivo</b>. Después revisas los ramos${fuente.horas?' y sus horas de clase':' y sus clases'} antes de agregarlos.</p>
     <label class="btn-confirm horario-foto-btn" for="m-horario-foto">Elegir foto del horario</label>
     <input type="file" id="m-horario-foto" class="horario-foto-input" accept="image/*" onchange="leerFotoHorario(this)" aria-describedby="m-horario-estado"/>
     <p id="m-horario-estado" class="horario-importar-estado" role="status" aria-live="polite">Solo se reconocerán siglas verificadas en el catálogo ${esc(TENANTS[S.tenant].short)}.</p>
@@ -244,10 +244,10 @@ function pintarRevisionHorarioUC(){
     ${avisos.length?`<p class="horario-importar-estado" role="status">${avisos.join(' ')}</p>`:''}
     ${lista?`<div class="agent-ramo-list">${lista}</div>`:listaSecciones||listaClases?'':'<p class="cat-empty">No hay ramos nuevos para agregar. Puedes probar con otra foto o agregarlos uno por uno.</p>'}
     ${listaSecciones?`<p class="modal-label horario-secciones-titulo">${conHorario?'Completar los que ya tienes':'Ponerle la sección a los que ya tienes'}</p>
-    <p class="horario-importar-estado">${conHorario?'Solo pone la sección y el horario de clases.':'Solo cambia la sección.'} Tus notas y tu pauta quedan igual.${_horarioSeccionesUC.some(r=>r.seccion!=null&&r.antes!=null)?' Los que ya tenían otra sección van desmarcados: márcalos si la foto está bien.':''}</p>
+    <p class="horario-importar-estado">${conHorario?'Solo pone la sección y el horario de clases.':'Solo cambia la sección.'} Tus notas y ponderaciones quedan igual.${_horarioSeccionesUC.some(r=>r.seccion!=null&&r.antes!=null)?' Los que ya tenían otra sección van desmarcados: márcalos si la foto está bien.':''}</p>
     <div class="agent-ramo-list">${listaSecciones}</div>`:''}
     ${listaClases?`<p class="modal-label horario-secciones-titulo">Clases de cada ramo</p>
-    <p class="horario-importar-estado">Días, módulos y tipo salen de tu foto; la sala, de BuscaCursos cuando está. Si algo no calza, tócalo en Corregir. Solo se guarda el horario: tus notas y tu pauta quedan igual.${_horarioClasesUC.some(r=>r.reemplaza)?' Los que ya tenían horario van desmarcados.':''}</p>
+    <p class="horario-importar-estado">Días, módulos y tipo salen de tu foto; la sala, de BuscaCursos cuando está. Si algo no calza, tócalo en Corregir. Solo se guarda el horario: tus notas y ponderaciones quedan igual.${_horarioClasesUC.some(r=>r.reemplaza)?' Los que ya tenían horario van desmarcados.':''}</p>
     <div class="agent-ramo-list">${listaClases}</div>`:''}
     <div class="modal-btns">
       <button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button>

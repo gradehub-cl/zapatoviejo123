@@ -107,7 +107,7 @@ const tool = async (name, args) => JSON.parse((await crudo(name, args)).content[
   console.log('=== examen: el mínimo se dice también cuando no hay ===');
   chk('con compuerta en la pauta: mínimo 3,5 y su origen', c.examen?.minimo === 3.5 && c.examen.reglas?.[0]?.origen === 'pauta' && /mínimo 3,5/.test(c.examen.texto));
   const so = await tool('ver_ramo', { ramo: 'Cálculo Sintético' });
-  chk('pauta oficial sin mínimo: lo dice explícito', so.examen?.minimo === null && so.examen.pautaOficialSinEditar === true && /no tiene nota mínima: la pauta oficial/.test(so.examen.texto));
+  chk('pauta oficial sin mínimo: lo dice explícito', so.examen?.minimo === null && so.examen.pautaOficialSinEditar === true && /no tiene nota mínima: el programa cargado/.test(so.examen.texto));
   const se = await tool('ver_ramo', { ramo: 'Cálculo Sintético Editado' });
   chk('pauta editada sin mínimo: pide confirmarlo con el programa', se.examen?.minimo === null && se.examen.pautaOficialSinEditar === false && /confírmalo con el programa/.test(se.examen.texto));
   const ud = await tool('ver_ramo', { ramo: 'Curso Sintético UDD' });

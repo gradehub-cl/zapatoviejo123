@@ -28,6 +28,8 @@
 // registran tal cual: el dato oficial es 0 y falsearlo para que el promedio
 // funcione sería exactamente lo que este proyecto no hace.
 const CREDITOS_UC={
+  ...Object.fromEntries(Object.values(RAMOS_MALLA_UC_MEDICINA).flat()
+    .map(([nombre,sigla,creditos])=>[nombre,[creditos,sigla]])),
   'Introducción a la Arquitectura':[10,'AQH0000'],
   'Taller de Formación y Representación I':[20,'AQT0000'],
   'Ciudad y Paisaje I: Introducción a la Forma Urbana y Territorial':[10,'AQU0000'],
@@ -387,7 +389,7 @@ const PREFIJO_SIGLA_HORARIO={uc:'',fen:'EN'};
 // Web FEN (Primavera 2026); en la UC la fila dice el módulo y no la hora.
 const HORARIO_FOTO_POR_TENANT={
   uc:{donde:'Mi UC o BuscaCursos',ejemplo:'MAT1610-1'},
-  fen:{donde:'Docencia Web',ejemplo:'ENMEM1505/02',horas:true},
+  fen:{donde:'Docencia Web',url:'https://docenciaweb.fen.uchile.cl/',ejemplo:'ENMEM1505/02',horas:true},
 };
 
 // Siglas de TODOS los ramos UC que hoy se pueden cargar desde una malla.

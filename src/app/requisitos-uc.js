@@ -170,11 +170,13 @@ function requisitosSiglaUC(r,tenantCuenta){
 }
 
 // Lo que ya aprobó, desde los semestres archivados: nota final oficial igual
-// o sobre la de aprobación de la universidad del ramo. Un ramo sin nota final
-// (evaluaciones pendientes) no cuenta. Las convalidaciones que el avance
-// descarta tampoco están: por eso esto avisa y no bloquea.
+// o sobre la de aprobación de la universidad del ramo. Las convalidaciones que
+// el avance descarta no están: por eso esto avisa y no bloquea.
+// Un ramo archivado sin nota final (se archivó antes de la última nota) no
+// está aprobado ni reprobado: va en `pendientes` y se trata como cursando.
+// La toma de ramos llega antes que las últimas notas (Lucas, 2026-11-23).
 function requisitosAprobadasDelHistorial(historial,tenantCuenta){
-  const aprobadas=new Set();
+  const aprobadas=new Set(),pendientes=new Set();
   let conSigla=false;
   for(const h of historial||[]){
     const ramos=(h&&h.ramos)||[];
@@ -183,17 +185,21 @@ function requisitosAprobadasDelHistorial(historial,tenantCuenta){
       if(!sigla)continue;
       conSigla=true;
       const nota=notaRamoParaResumen(r,ramos);
-      if(nota===null||nota===undefined||!Number.isFinite(nota))continue;
+      if(nota===null||nota===undefined||!Number.isFinite(nota)){pendientes.add(sigla);continue;}
       const reglas=gh_reglasNota((r.origen&&r.origen.tenant)||(r.cierre&&r.cierre.tenant)||'uc');
       if(gh_notaOficial(nota,reglas)>=reglas.passing_grade)aprobadas.add(sigla);
     }
   }
-  return {aprobadas,conHistorial:conSigla};
+  aprobadas.forEach(x=>pendientes.delete(x));
+  return {aprobadas,pendientes,conHistorial:conSigla};
 }
 
 function requisitosDesdeEstado(estado){
   const e=estado||S;
-  const {aprobadas,conHistorial}=requisitosAprobadasDelHistorial(e.historial,e.tenant);
-  const cursando=new Set((e.ramos||[]).map(r=>requisitosSiglaUC(r,e.tenant)).filter(Boolean));
-  return {aprobadas,cursando,conHistorial};
+  const {aprobadas,pendientes,conHistorial}=requisitosAprobadasDelHistorial(e.historial,e.tenant);
+  const cursando=new Set([...pendientes,...(e.ramos||[]).map(r=>requisitosSiglaUC(r,e.tenant)).filter(Boolean)]);
+  // En el primer semestre de la carrera no hay semestres pasados que cargar:
+  // lo que cursa basta para decir «cumples si apruebas MAT1610».
+  const primerSemestre=Number(e.careerSemestre)===1&&cursando.size>0;
+  return {aprobadas,cursando,conHistorial:conHistorial||primerSemestre};
 }

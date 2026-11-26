@@ -17,6 +17,7 @@ const PERFIL_ICONOS={
   ficha:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6m-3 3 3 3 3-3"/>',
   horario:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="4"/>',
   apariencia:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  avisos:'<path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   agentes:'<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h.01M8 13h.01M11 9h5M11 13h5M8 17h8"/>',
   sugerencias:'<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/>',
   datos:'<ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v7c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 12v7c0 1.7 3.1 3 7 3s7-1.3 7-3v-7"/>',
@@ -31,6 +32,7 @@ const PERFIL_ACCIONES={
   calendario:()=>openSettings('calendario',{volverA:'Perfil'}),
   canvas:()=>openSettings('canvas',{volverA:'Perfil'}),
   apariencia:()=>openSettings('apariencia',{volverA:'Perfil'}),
+  avisos:()=>openSettings('avisos',{volverA:'Perfil'}),
   agentes:()=>openSettings('agentes',{volverA:'Perfil'}),
   sugerencias:()=>openSettings('sugerencias',{volverA:'Perfil'}),
   datos:()=>openSettings('datos',{volverA:'Perfil'}),
@@ -45,8 +47,54 @@ const PERFIL_ACCIONES={
   horario:()=>abrirImportarHorarioBuscacursos(),
   salir:()=>signOut()
 };
+// Buscador (Lucas, 2026-11-22; solo en la app): cada fila se encuentra por su
+// título y por lo que hay adentro, con las mismas palabras que Ajustes.
+const PERFIL_PALABRAS={
+  academico:'universidad carrera semestre malla cambiar historial cursos',
+  calendario:'apple google outlook importar archivo ics fechas suscripcion url',
+  canvas:'canvas uc token ramos tareas fechas notas programa',
+  archivar:'cerrar terminar semestre nuevo archivar',
+  calculadora:'calculadora nota puntaje escala exigencia',
+  ficha:'avance curricular semestres pasados historial ramos aprobados',
+  horario:'foto horario buscacursos clases salas',
+  apariencia:'tema claro oscuro modo color acento fondo',
+  avisos:'notificaciones avisos push alertas amigos grupos salas evaluaciones pruebas recordatorio',
+  agentes:'chatgpt claude gemini inteligencia artificial agente conectar url',
+  sugerencias:'ayuda problema reportar falla comentario contactar soporte',
+  datos:'exportar importar respaldo copia borrar eliminar cuenta reiniciar privacidad terminos bloqueados',
+  profesor:'profesor particular clases material apoyo anuncio tutor',
+  username:'username usuario arroba amigos nombre',
+  compartir:'compartir perfil link invitar amigos'
+};
+function normPerfil(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
+// Pura: qué claves calzan con la búsqueda. Todas las palabras tienen que estar.
+function filasBuscadasPerfil(grupos,q){
+  const tokens=normPerfil(q).split(/\s+/).filter(t=>t&&!['mi','mis','el','la','los','las','de','del','un','una','y','en'].includes(t));
+  return grupos.flatMap(([,filas])=>filas).filter(([clave,titulo])=>{
+    const texto=normPerfil(titulo+' '+(PERFIL_PALABRAS[clave]||''));
+    return tokens.every(t=>texto.includes(t));
+  }).map(([clave])=>clave);
+}
+let perfilBusqueda='';
+function filtrarPerfil(){
+  const caja=document.getElementById('perfil-body');
+  if(!caja||!caja.querySelector)return;
+  const q=perfilBusqueda.trim();
+  let visibles=0;
+  caja.querySelectorAll('.perfil-grupo').forEach(sec=>{
+    let enGrupo=0;
+    sec.querySelectorAll('li[data-buscar]').forEach(li=>{
+      const ok=!q||filasBuscadasPerfil([['',[[li.dataset.clave,li.dataset.titulo]]]],q).length>0;
+      li.hidden=!ok;if(ok)enGrupo++;
+    });
+    sec.hidden=enGrupo===0;visibles+=enGrupo;
+  });
+  const vacio=caja.querySelector('.perfil-buscar-vacio');if(vacio)vacio.hidden=!q||visibles>0;
+  const estado=caja.querySelector('#perfil-buscar-estado');
+  if(estado)estado.textContent=q?`${visibles} ${visibles===1?'opción':'opciones'}`:'';
+}
 // Qué filas ve esta cuenta. Función pura: recibe lo que necesita y no toca el DOM.
-function gruposPerfil({soloProfesor,tenant,hayRamos,conFicha,conSesion,conCanvas=false,conAmigos=false,conUsername=false}){
+function gruposPerfil({soloProfesor,hayRamos,conFicha,conHorario=false,conSesion,conCanvas=false,conAmigos=false,conUsername=false,conAvisos=false}){
   if(soloProfesor)return [
     ['La app',[['apariencia','Apariencia'],['sugerencias','Sugerencias y comentarios']]],
     ['Tu cuenta',[['datos','Datos y cuenta']]]
@@ -56,14 +104,14 @@ function gruposPerfil({soloProfesor,tenant,hayRamos,conFicha,conSesion,conCanvas
   if(hayRamos)semestre.push(['archivar','Archivar semestre']);
   const herramientas=[['calculadora','Calculadora de nota']];
   if(conFicha)herramientas.push(['ficha','Cargar semestres pasados']);
-  if(tenant==='uc')herramientas.push(['horario','Subir foto de tu horario']);
+  if(conHorario)herramientas.push(['horario','Subir foto de tu horario']);
   // Con username, compartir el perfil va al lado, como en Instagram.
   const cuenta=conAmigos?[['username','Username'],...(conUsername?[['compartir','Compartir perfil']]:[]),['datos','Datos y cuenta']]:[['datos','Datos y cuenta']];
   if(conSesion)cuenta.push(['profesor','Ofrecer clases o material']);
   return [
     ['Tu semestre',semestre],
     ['Herramientas',herramientas],
-    ['La app',[['apariencia','Apariencia'],['agentes','Agentes conectados'],['sugerencias','Sugerencias y comentarios']]],
+    ['La app',[['apariencia','Apariencia'],...(conAvisos?[['avisos','Avisos']]:[]),['agentes','Agentes conectados'],['sugerencias','Sugerencias y comentarios']]],
     ['Tu cuenta',cuenta]
   ];
 }
@@ -80,11 +128,14 @@ function renderPerfil(){
   if(!caja)return;
   const conSesion=typeof currentUser!=='undefined'&&!!currentUser;
   const grupos=gruposPerfil({
-    soloProfesor:esCuentaProfesor(),tenant:S.tenant,hayRamos:S.ramos.length>0,
+    soloProfesor:esCuentaProfesor(),hayRamos:S.ramos.length>0,
+    // Donde sabemos leer la foto (UC y FEN), igual que Agregar ramo y el menú.
+    conHorario:typeof HORARIO_FOTO_POR_TENANT!=='undefined'&&!!HORARIO_FOTO_POR_TENANT[S.tenant],
     conFicha:typeof avanceCurricularDisponible==='function'&&avanceCurricularDisponible(),conSesion,
     conCanvas:typeof canvasSeccionDisponible==='function'&&canvasSeccionDisponible(),
     conAmigos:typeof amigosVisible==='function'&&amigosVisible(),
-    conUsername:!!(typeof amigosEstadoCache!=='undefined'&&amigosEstadoCache&&amigosEstadoCache.username)
+    conUsername:!!(typeof amigosEstadoCache!=='undefined'&&amigosEstadoCache&&amigosEstadoCache.username),
+    conAvisos:typeof avisosSeccionDisponible==='function'&&avisosSeccionDisponible()
   });
   const username=typeof amigosEstadoCache!=='undefined'&&amigosEstadoCache&&amigosEstadoCache.username;
   // Bajo el @: cuántos amigos y grupos, si la lista ya llegó (nunca un «0» inventado).
@@ -92,10 +143,12 @@ function renderPerfil(){
   const cifras=c?[`${c.amigos} ${c.amigos===1?'amigo':'amigos'}`,c.grupos?`${c.grupos} ${c.grupos===1?'grupo':'grupos'}`:''].filter(Boolean).join(' · '):'';
   const valores={username:username?'@'+username:'Elegir'};
   const flecha='<svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
-  const fila=([clave,titulo])=>`<li><button type="button" class="perfil-fila" data-perfil="${clave}">
+  const fila=([clave,titulo])=>`<li data-buscar data-clave="${esc(clave)}" data-titulo="${esc(titulo)}"><button type="button" class="perfil-fila" data-perfil="${clave}">
       <span class="perfil-icono" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24">${PERFIL_ICONOS[clave]||''}</svg></span>
       <span class="perfil-fila-titulo">${esc(titulo)}</span>${valores[clave]?`<span class="perfil-fila-valor">${esc(valores[clave])}</span>`:''}${flecha}</button></li>`;
   const lineas=lineasPerfil();
+  const conBuscador=typeof enAppNativa==='function'&&enAppNativa();
+  const buscando=conBuscador&&document.activeElement&&document.activeElement.id==='perfil-buscar';
   const correo=conSesion&&currentUser.email?currentUser.email:'';
   caja.innerHTML=`
     <button type="button" class="perfil-cabecera" data-perfil="cuenta" aria-label="Editar tu nombre y tu cuenta">
@@ -107,10 +160,22 @@ function renderPerfil(){
         ${correo?`<span class="perfil-correo">${esc(correo)}</span>`:''}
       </span>${flecha}
     </button>
+    ${conBuscador?`<label class="settings-search-label" for="perfil-buscar">Buscar en Perfil y Ajustes</label>
+    <input type="search" class="settings-search perfil-buscar" id="perfil-buscar" value="${esc(perfilBusqueda)}" placeholder="Buscar" autocomplete="off" enterkeyhint="search">
+    <span class="settings-search-status" id="perfil-buscar-estado" role="status"></span>
+    <p class="perfil-buscar-vacio settings-search-empty" hidden>No encontramos esa opción. Prueba con «carrera», «avisos» o «fondo».</p>`:''}
     ${grupos.map(([nombre,filas])=>`<section class="perfil-grupo"><h2>${esc(nombre)}</h2><ul>${filas.map(fila).join('')}</ul></section>`).join('')}
     ${conSesion?'<button type="button" class="perfil-salir" data-perfil="salir">Cerrar sesión</button>':''}
     <p class="perfil-pie">Por estudiantes, para estudiantes.</p>`;
+  if(!conBuscador){perfilBusqueda='';return;}
+  filtrarPerfil();
+  // Si se repinta mientras escribe (llegó la lista de amigos), no pierde el foco.
+  if(buscando){const i=document.getElementById('perfil-buscar');if(i){i.focus({preventScroll:true});i.setSelectionRange(i.value.length,i.value.length);}}
 }
+if(typeof document!=='undefined'&&typeof document.addEventListener==='function')document.addEventListener('input',e=>{
+  if(!e.target||e.target.id!=='perfil-buscar')return;
+  perfilBusqueda=e.target.value;filtrarPerfil();
+});
 // Un solo oyente para toda la pantalla: las filas se repintan y no hay que volver a engancharlas.
 if(typeof document!=='undefined'&&typeof document.addEventListener==='function')document.addEventListener('click',e=>{
   const b=e.target&&e.target.closest&&e.target.closest('#perfil-body [data-perfil]');

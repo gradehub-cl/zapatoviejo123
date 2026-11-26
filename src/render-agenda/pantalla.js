@@ -3,6 +3,9 @@ function renderAgenda(){
   const body=document.getElementById("agenda-body");if(!body)return;
   activarAccionesAgenda(body);
   agendaDetalleAbierto=null;
+  // Las fechas de compañeros llegan una vez por sesión; al llegar, se repinta
+  // una vez (después _fechasCompartidas ya existe y no se vuelve a pedir).
+  if(!_fechasCompartidas)cargarFechasCompartidas().then(hay=>{if(hay)renderAgenda();});
   // Evaluaciones | Horario (horario-semana.js). Evaluaciones es la lista de
   // siempre, con el mes arriba si se pide; el profesor ve solo la lista.
   const vista=typeof pintarVistaAgenda==='function'?pintarVistaAgenda():'lista';

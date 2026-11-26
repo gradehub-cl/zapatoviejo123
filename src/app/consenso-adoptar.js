@@ -93,7 +93,7 @@ async function pintarConsensoDisponible(r){
   if(!hit||currentRamoId!==r.id)return;
   const n=hit.respaldos;
   el.className='weight-setup-nudge';
-  el.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>${n} estudiantes de tu universidad reportan otra pauta.</b><br>Coincidieron entre ellos. No sale del programa del curso: mírala y decide tú.<div style="margin-top:8px;"><button type="button" class="rep-link" style="width:auto;padding:7px 12px;margin:0;" onclick="verConsensoDisponible('${esc(r.id)}')">Ver la que reportan</button></div></div>`;
+  el.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>${n} estudiantes de tu universidad reportan otras ponderaciones.</b><br>Coincidieron entre ellos. No salen del programa del curso: míralas y decide tú.<div style="margin-top:8px;"><button type="button" class="rep-link" style="width:auto;padding:7px 12px;margin:0;" onclick="verConsensoDisponible('${esc(r.id)}')">Ver la que reportan</button></div></div>`;
   el.style.display='flex';
 }
 
@@ -109,11 +109,11 @@ async function verConsensoDisponible(ramoId){
     .filter(c=>!pauta.categorias.some(n=>normName(n.nombre)===normName(c.nombre)))
     .filter(c=>(c.notas||[]).some(x=>typeof x.valor==='number'));
   const aviso=sePierden.length
-    ? `<p class="modal-desc" style="margin-top:10px;">${sePierden.length===1?'Una evaluación tuya':'Algunas evaluaciones tuyas'} con notas no está en esta pauta. <b>No se borran</b>: quedan en tu ficha en 0%, así no mueven tu promedio.</p>`
+    ? `<p class="modal-desc" style="margin-top:10px;">${sePierden.length===1?'Una evaluación tuya':'Algunas evaluaciones tuyas'} con notas no está en estas ponderaciones. <b>No se borran</b>: quedan en tu ficha en 0%, así no mueven tu promedio.</p>`
     : `<p class="modal-desc" style="margin-top:10px;">Tus notas se conservan: se reconocen por el nombre de la evaluación.</p>`;
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">La pauta que reportan tus compañeros</div>
-    <p class="modal-desc">La reportaron <b>${hit.respaldos} estudiantes</b> de tu universidad. <b>No sale del programa del curso</b>: compárala con la tuya.</p>
+    <div class="modal-title">Las ponderaciones que reportan tus compañeros</div>
+    <p class="modal-desc">Las reportaron <b>${hit.respaldos} estudiantes</b> de tu universidad. <b>No salen del programa del curso</b>: compáralas con las tuyas.</p>
     <ul style="margin:10px 0 0;padding-left:18px;font-size:0.875rem;color:var(--fg2);line-height:1.6;">${pauta.categorias.map(fila).join('')}</ul>
     ${aviso}
     <div class="modal-btns" style="margin-top:16px;">
@@ -152,7 +152,7 @@ async function adoptarConsenso(ramoId){
   const hit=await consensoParaRamo(r);
   if(!hit||!adoptarConsensoEnRamo(r,hit))return;
   save();track('consenso_adoptado');closeModal();renderRamo();
-  showToast('Pauta actualizada — tus notas se conservaron');
+  showToast('Ponderaciones actualizadas — tus notas se conservaron');
 }
 
 // Cuántas personas distintas tienen que reportar EXACTAMENTE la misma pauta

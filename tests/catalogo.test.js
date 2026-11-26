@@ -89,7 +89,10 @@ chk('Dinámica llega con su vínculo al laboratorio',
 
 // El nombre de la malla y el de la pauta no siempre coinciden en mayúsculas.
 const filo = cargar([{ id: 'c', nombre: 'Filosofía: ¿Para Qué?', origen: uc, categorias: [], gates: [] }]);
-chk('calza aunque la malla escriba el nombre distinto (¿Para Qué? vs ¿para qué?)', filo[0].categorias.length === 4);
+// Filosofía no es coordinado desde 2026-11-25: calza con su registro (la
+// ficha ofrece su programa como opción), pero no se le carga solo a nadie.
+chk('calza aunque la malla escriba el nombre distinto (¿Para Qué? vs ¿para qué?)', run('claveUc("Filosofía: ¿Para Qué?")') === 'Filosofía: ¿para qué?');
+chk('y no se carga solo: no es coordinado', filo[0].categorias.length === 0);
 
 // Lo que NO puede pasar: pisar lo que el estudiante escribió a mano.
 const conNotas = cargar([{
@@ -230,7 +233,7 @@ const declarables = run('carrerasDeclarables');
 chk('la oferta de pregrado completa de las dos universidades visibles',
   DECL.uc.length > 40 && DECL.fen.length === 3);
 chk('las que tienen malla siguen apuntando a su código',
-  DECL.uc.find(c => c.n === 'Ingeniería').malla === 'ING-PC' &&
+  DECL.uc.find(c => c.n === 'Ingeniería Civil').malla === 'ING-PC' &&
   DECL.fen.find(c => c.n === 'Ingeniería Comercial').malla === 'IC');
 // Contador Auditor conserva su malla en MALLA pero se sacó de la oferta a
 // propósito: se declara, no se carga. Reactivarla sería una decisión, no un
@@ -370,7 +373,7 @@ const appPeriodo = fs.readFileSync(__dirname + '/../app.js', 'utf8') + '\n' +
   fs.readFileSync(__dirname + '/../render-main.js', 'utf8');
 const htmlPeriodo = fs.readFileSync(__dirname + '/../index.html', 'utf8');
 chk('la ficha muestra el período junto a la marca de pauta',
-  /id="pauta-periodo"/.test(htmlPeriodo) && /Pauta del \$\{esc\(info\.periodo\)\}/.test(appPeriodo));
+  /id="pauta-periodo"/.test(htmlPeriodo) && /Programa \$\{esc\(info\.periodo\)\}/.test(appPeriodo));
 // Los otros dos ramos donde el número de controles tampoco es fijo.
 [['Gestión y Empresas', 'Controles de Lectura'], ['Marketing', 'Controles']].forEach(([ramo, ev]) => {
   const c = run('presetRamo')(ramo, 'fen', null).categorias.find(x => x.nombre === ev);

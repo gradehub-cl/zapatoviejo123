@@ -64,7 +64,9 @@ function traduceAuthError(e,contexto){
   if(m.includes('already')||m.includes('exists'))return contexto==='cambio_correo'
     ?'Ese correo ya está asociado a otra cuenta.'
     :MSG_VERIFICA;
-  if(m.includes('invalid login')||m.includes('credentials'))return 'Usuario o contraseña incorrectos.';
+  // Lo más común detrás de este error es una cuenta creada con Google o Apple:
+  // se dice a todos, así que no revela nada sobre el correo (2026-11-23).
+  if(m.includes('invalid login')||m.includes('credentials'))return 'Correo o contraseña incorrectos. Si creaste tu cuenta con Google o Apple, entra con ese botón.';
   // Sin esto caían en "revisa tu internet": el correo de recuperación tiene un
   // límite por hora y quien lo pedía dos veces creía que no tenía conexión.
   if((e&&e.status===429)||code.includes('rate_limit')||m.includes('rate limit')||m.includes('security purposes'))

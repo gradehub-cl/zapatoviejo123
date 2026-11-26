@@ -29,7 +29,7 @@ run(`currentUser={id:'u1'};S.ramos=[{id:'r1',nombre:'Curso de prueba',origen:{ra
   check('las propuestas no se abren como modal al iniciar',get('modal-content').innerHTML==='');
   ctx.openModal=()=>{};
   await run('cargarPropuestasPautaAgente({mostrar:true})');
-  check('el botón de Ajustes sigue abriendo la revisión completa',/Pautas por revisar/.test(get('modal-content').innerHTML));
+  check('el botón de Ajustes sigue abriendo la revisión completa',/Ponderaciones por revisar/.test(get('modal-content').innerHTML));
   await run(`resolverPropuestaPauta('${id}','descartada')`);
   check('resolver quita el aviso',aviso.style.display==='none'&&aviso.innerHTML==='');
   // La misma propuesta, ahora aceptada: solo entonces se manda al consenso.

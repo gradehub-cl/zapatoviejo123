@@ -151,7 +151,9 @@ const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 // nada. El rojo acá NO es el del semáforo —no dice nada sobre la nota— sino el
 // de urgencia que la app ya usa en errores y en "no alcanza".
 const RECORRECCION_DIAS_URGENTE = 2;
-const ORIGENES_FECHA=new Set(['usuario','catalogo','calendario','desconocido']);
+// 'consenso': la persona usó la fecha que pusieron sus compañeros. No es un
+// voto nuevo (ver fechaAportaRespaldo); sí lo es si después la edita.
+const ORIGENES_FECHA=new Set(['usuario','catalogo','calendario','consenso','desconocido']);
 
 function origenFechaSeguro(origen){return ORIGENES_FECHA.has(origen)?origen:null;}
 
@@ -423,6 +425,10 @@ function normalize(data) {
         // Si se pierde `slot` al recargar, Informe 0 sigue guardado pero ya no
         // puede volver a dibujarse en ninguna de las seis casillas.
         ...(Number.isInteger(n.slot) ? {slot:n.slot} : {}),
+        // De qué puntaje salió la nota, si se anotó en puntos. Es un
+        // dato para mostrar: el motor usa `valor`, que ya es la nota.
+        ...(Number.isFinite(n.valor) && n.puntos && [n.puntos.obtenido,n.puntos.total,n.puntos.exigencia].every(Number.isFinite)
+          ? {puntos:{obtenido:n.puntos.obtenido,total:n.puntos.total,exigencia:n.puntos.exigencia}} : {}),
         // Una nota puede tener su propia fecha y todavía no tener valor: es una
         // evaluación que viene. La fecha de la categoría sirve cuando todo el
         // grupo cae el mismo día; no alcanza para "Casos y ensayos", que son
@@ -500,7 +506,7 @@ function normalize(data) {
     if (Array.isArray(corregibles) && corregibles.some(p => huellaPauta(p.map(([nombre, peso]) => ({ nombre, peso }))) === tiene)) {
       r.pautaHuella = tiene;
       const cambio = cambioDePauta(r);
-      if (cambio && !cambio.notasFueraDePauta) aplicarCambioDePauta(r, cambio);
+      if (cambio && !cambio.notasFueraDePauta && !juntaFilasAMedias(r, cambio)) aplicarCambioDePauta(r, cambio);
     }
     // Un mínimo que el catálogo sacó a propósito (`retiraCompuertas`) seguía
     // topando la nota en los ramos creados antes: el aviso de pauta cambiada

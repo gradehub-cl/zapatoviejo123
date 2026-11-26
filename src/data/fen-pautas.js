@@ -127,6 +127,15 @@ const PRESETS_FEN={
       ]}],
       ['Examen Integrativo',10],
     ],
+    // La pauta de antes, con la participación en tres filas, era error nuestro:
+    // quien la tenga tal cual pasa sola a una fila (`corrigePautas` en
+    // normalize()), con sus notas y su promedio. Si solo llenó algunas de las
+    // tres, juntarlas movería su promedio, y ahí se le sigue preguntando.
+    corrigePautas:[[
+      ['Casos y ensayos',40],['Trabajo en grupo: Propuesta',3],['Trabajo en grupo: Experiencia de aprendizaje',18],
+      ['Trabajo en grupo: Informe Final',9],['Participación: Asistencia a ayudantías y reuniones',5],
+      ['Participación: Contribuciones en clases',10],['Participación: Asistencia a clases',5],['Examen Integrativo',10],
+    ]],
     // "Si alguno de los requisitos no se cumple, la nota final será la más baja
     //  entre los dos" → dos compuertas de grupo con tope en su propio promedio.
     grupos:[

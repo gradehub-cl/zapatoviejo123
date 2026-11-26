@@ -91,5 +91,47 @@ const antes=val('JSON.stringify(S)');
 chk('ni un destino forzado puede saltarse fechaQuitada',
   falla(()=>aplicar([{titulo:'I3 Cálculo II',fecha:'2026-09-22',target:'r-calculo|cat-i3|'}]))&&val('JSON.stringify(S)')===antes);
 
+console.log('\n=== Webcursos UAI (Moodle) ===');
+// Sintético, con la forma de calendar/export_execute.php de Moodle 4.5: horas en
+// UTC, el curso en CATEGORIES y el título sin el nombre del ramo.
+const evento=(titulo,inicio,curso)=>['BEGIN:VEVENT','SUMMARY:'+titulo,'DESCRIPTION:Texto largo\\, con','\t coma','CLASS:PUBLIC','DTSTART:'+inicio,'DTEND:'+inicio,...(curso?['CATEGORIES:'+curso]:[]),'END:VEVENT'];
+const archivo=(prodid,...eventos)=>['BEGIN:VCALENDAR','METHOD:PUBLISH','PRODID:'+prodid,'VERSION:2.0',...eventos.flat(),'END:VCALENDAR',''].join('\r\n');
+const MOODLE='-//Moodle Pty Ltd//NONSGML Moodle Version 2024100716//EN';
+const moodle=archivo(MOODLE,
+  evento('Vencimiento de Control 1','20261202T025900Z','CURSO\\, A-1'),
+  evento('Vencimiento de Control 2','20261203T180000Z','CURSO\\, A-1'),
+  evento('Vencimiento de Ensayo','20260601T035900Z','CURSO B-2'),
+  evento('Feriado','20261208T030000Z'));
+val('S='+JSON.stringify({tenant:'uai',ramos:[
+  {id:'a',nombre:'Ramo A',categorias:[{id:'c1',nombre:'Control 1',peso:50,fecha:null,notas:[]},{id:'c2',nombre:'Control 2',peso:50,fecha:null,notas:[]}]},
+  {id:'b',nombre:'Ramo B',categorias:[{id:'e',nombre:'Ensayo',peso:100,fecha:'2026-06-02',notas:[]}]}]}));
+ctx.__moodle=moodle;val('icsImportDraft=prepararImportacionIcs(__moodle)');
+const fila=i=>val('icsImportDraft['+i+']');
+chk('las 23:59 de Chile en verano quedan en su día', fila(0).fecha==='2026-12-01');
+chk('las 23:59 de Chile en invierno también', fila(2).fecha==='2026-05-31');
+chk('una hora lejos de la medianoche no se mueve', fila(1).fecha==='2026-12-03');
+chk('lee el curso y lo desescapa', fila(0).curso==='CURSO, A-1'&&fila(2).curso==='CURSO B-2');
+chk('un evento sin curso no inventa uno', !('curso' in fila(3)));
+chk('el título solo no asigna ramo', [0,1,2,3].every(i=>fila(i).ramoId===null&&fila(i).target===null));
+val("asignarRamoIcs(0,'a')");
+chk('elegir el ramo vale para los otros eventos del curso', fila(1).ramoId==='a'&&fila(1).target===null);
+chk('y no para los de otro curso ni los que no traen', fila(2).ramoId===null&&fila(3).ramoId===null);
+val("asignarRamoIcs(1,'b')");
+chk('cambiar uno después no arrastra al que ya tenía ramo', fila(0).ramoId==='a');
+val("asignarRamoIcs(1,'')");
+chk('quitar el ramo tampoco arrastra', fila(0).ramoId==='a'&&fila(1).ramoId===null);
+chk('nada llega al estado sin elegir evaluación', val('aplicarPropuestasIcs(icsImportDraft)')===0&&val('S.ramos[0].categorias[0].fecha')===null);
+val("asignarDestinoIcs(0,'a|c1|')");
+chk('lo elegido guarda la fecha de Chile', val('aplicarPropuestasIcs(icsImportDraft)')===1&&val('S.ramos[0].categorias[0].fecha')==='2026-12-01');
+chk('y una fecha que ya existía sigue igual', val('S.ramos[1].categorias[0].fecha')==='2026-06-02');
+chk('la categoría de otro calendario no es un curso', !('curso' in parsear(archivo('-//Outlook//ES',evento('Reunión','20261202T120000Z','Personal')))[0]));
+chk('un día inexistente en UTC se sigue rechazando', falla(()=>parsear(archivo(MOODLE,evento('X','20261399T025900Z')))));
+chk('una fecha de día completo no se mueve', parsear(archivo(MOODLE,evento('X','20261202')))[0].fecha==='2026-12-02');
+
+console.log('\n=== Los pasos salen donde hay portal ===');
+const modal=t=>{val("S.tenant='"+t+"'");val('abrirImportarCalendario()');return stub.innerHTML;};
+chk('la UAI ve cómo exportar desde Webcursos', /webc\.uai\.cl\/calendar\/export\.php" target="_blank" rel="noopener"/.test(modal('uai')));
+chk('las demás no', ['uc','fen','uandes','udd'].every(t=>!/Webcursos|avance-pasos/.test(modal(t))));
+
 console.log('\nPASS: '+ok+'   FAIL: '+fail);
 process.exit(fail?1:0);

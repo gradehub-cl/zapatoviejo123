@@ -50,6 +50,20 @@ const dia=n=>{const d=new Date(Date.now()-3*36e5);d.setUTCDate(d.getUTCDate()+n)
   assert.equal(await uno('select public.borrar_reserva_grupo($1)',[r1]),false,'solo quien la anotó la borra');
   paso('reservas: solo miembros, con fecha y hora válidas, filtradas');
 
+  // ─── Código de la sala (UC: llega por mail a quien reservó) ───
+  await db.exec('reset role');
+  assert.equal(await uno("select count(*)::int from pg_proc where proname='agregar_reserva_grupo'"),1,'una sola versión: la llamada de 5 argumentos no es ambigua');
+  await sesion(B);
+  const r2=await uno("select public.agregar_reserva_grupo(p_grupo=>$1,p_lugar=>'Sala 7',p_fecha=>$2,p_inicio=>'10:00',p_fin=>'11:00',p_codigo=>$3)",[g,dia(3),'  ab-48  21 ']);
+  await assert.rejects(q("select public.agregar_reserva_grupo($1,'Sala',$2,'10:00','11:00',$3)",[g,dia(3),'<script>']),/letras y números/);
+  await assert.rejects(q("select public.agregar_reserva_grupo($1,'Sala',$2,'10:00','11:00',$3)",[g,dia(3),'1'.repeat(25)]),/letras y números/);
+  assert.ok(await uno("select public.agregar_reserva_grupo(p_grupo=>$1,p_lugar=>'Sala 8',p_fecha=>$2,p_inicio=>'10:00',p_fin=>'11:00')",[g,dia(4)]),'como lo llama el build 4');
+  await sesion(C);cal=await q('select * from public.grupo_calendario($1,60)',[g]);
+  assert.deepEqual(cal.map(c=>[c.titulo,c.detalle]),[['Sala B-12, Biblioteca',null],['Sala 7','ab-48 21'],['Sala 8',null]],'todo el grupo ve el código');
+  await sesion(B);await uno('select public.borrar_reserva_grupo($1)',[r2]);
+  await db.exec('reset role');await q("delete from public.amigos_grupo_reservas where lugar='Sala 8'");
+  paso('código de la sala: opcional, validado y visible para el grupo');
+
   // ─── Pruebas ───
   await sesion(A);
   assert.equal(await uno('select public.amigos_pruebas_estado()'),false,'parte apagado');

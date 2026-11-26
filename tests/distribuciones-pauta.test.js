@@ -171,7 +171,7 @@ assert.equal(evidencia([fila(A, 4)]), false);
   const deTtf = await run('leerPautaSugerida')(run('contextoPautaSugerida')(rT), rT, []);
   assert.equal(deTtf.length, 1);
   assert.equal(deTtf[0].fuente, 'catalogo', 'sin reportes, se ofrece la del catálogo diciendo de dónde sale');
-  assert.match(run('textoReferenciaSugerida')(deTtf[0]), /Pauta publicada para este ramo; puede no ser la de tu sección/);
+  assert.match(run('textoReferenciaSugerida')(deTtf[0]), /Ponderaciones publicadas para este ramo; pueden no ser las de tu sección/);
   const bio = { id: 'b', nombre: 'Biología de la Célula', origen: { tenant: 'uc', carrera: 'ING-PC' }, periodo: '2026-2', seccion: 5, categorias: [], gates: [] };
   run(`S.ramos=${JSON.stringify([bio])}`);
   const rB = run('S.ramos[0]');
@@ -205,5 +205,23 @@ assert.equal(evidencia([fila(A, 4)]), false);
   assert.equal(run('textoReferenciaSugerida')(run('programaQueCalza')(rev, defRev)), 'Programa oficial de las secciones 1 y 2');
   assert.equal(run('definicionPresetDelRamo')({...rev,seccion:3}),null,'mismos pesos en otra sección no reciben reglas de JP');
   assert.equal(run('definicionPresetDelRamo')({...rev,seccion:null}),null,'sin sección no se infiere el profesor por la pauta');
+
+  // ─── Filosofía: ¿Para Qué? no es coordinado (Lucas, 2026-11-25) ───
+  ctx.filasPrueba = [];
+  const filo = { id: 'f', nombre: 'Filosofía: ¿Para Qué?', origen: { tenant: 'uc', carrera: 'ING-PC' }, periodo: '2026-2', categorias: [], gates: [] };
+  run(`S.ramos=${JSON.stringify([filo])}`);
+  const rF = run('S.ramos[0]');
+  assert.deepEqual(J(run('coordinacionRamo')(rF)), { coordinado: false, fuente: 'programa' });
+  assert.equal(run('presetRamo')(rF.nombre, 'uc', 'ING-PC'), null, 'el programa de una sección no se carga solo a todos');
+  assert.equal(run('elegiblePautaSugerida')(rF), true, 'un ramo vacío recibe sugerencias');
+  const deFilo = await run('leerPautaSugerida')(run('contextoPautaSugerida')(rF), rF, []);
+  assert.equal(deFilo[0].fuente, 'catalogo', 'sin reportes, se ofrece el programa publicado diciendo que puede no ser el de tu sección');
+  // Quien ya lo tenía cargado conserva el mínimo del Podcast y la asistencia.
+  const defFilo = run("PRESETS_UC['Filosofía: ¿para qué?']");
+  const filoCargada = { ...filo, categorias: desdePreset('', defFilo.evalsReferencia), gates: [] };
+  const reglasFilo = run('definicionPresetDelRamo')(filoCargada);
+  assert.ok(reglasFilo && (reglasFilo.reglasDelCurso || []).length === 1, 'con el programa cargado conserva sus reglas');
+  filoCargada.pautaHuella = run('huellaPauta')(filoCargada.categorias);
+  assert.equal(run('cambioDePauta')(filoCargada), null, 'y no se le ofrece cambiar ni borrar nada');
   console.log('distribuciones-pauta: OK');
 })().catch(e => { console.error(e); process.exit(1); });

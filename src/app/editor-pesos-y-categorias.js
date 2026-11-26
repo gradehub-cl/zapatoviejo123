@@ -165,7 +165,7 @@ function confirmAddRamo(){
   const despues=alAgregarRamo;
   alCancelarAgregarRamo=null;
   save();track('add_ramo',{total_ramos:S.ramos.length,preset:!!preset,con_creditos:!!cr});closeModal();renderHome();
-  showToast(preset?'Pauta cargada':'Ramo agregado');
+  showToast(preset?'Ponderaciones cargadas':'Ramo agregado');
   if(despues)despues();
 }
 
@@ -219,7 +219,8 @@ function leerHora(idBase){
 const idReglaModal=clave=>`m-cat-regla-${clave}`;
 function leerReglasEvaluacionModal(r,varias,cantidad){
   const leer=clave=>document.getElementById(idReglaModal(clave))?.value||'';
-  const reglas=validarReglasEvaluacionEditor({descarte:leer('descarte'),min:leer('min'),tope:leer('tope')},
+  const puntaje=document.getElementById(idReglaModal('puntos'))?{puntos:leer('puntos'),exigencia:leer('exigencia')}:{};
+  const reglas=validarReglasEvaluacionEditor({descarte:leer('descarte'),min:leer('min'),tope:leer('tope'),...puntaje},
     varias,cantidad,gh_reglasNota(r.origen?.tenant||S.tenant).grade_scale);
   if(!reglas.error)return reglas;
   const id=idReglaModal(reglas.campo),campo=document.getElementById(id);

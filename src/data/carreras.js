@@ -162,7 +162,33 @@ const CARRERAS_DECLARABLES={
   ],
   uc:[
     // Sinónimos de búsqueda: admision.uc.cl/carreras/ingenieria/ y /actuacion/.
-    {n:'Ingeniería',malla:'ING-PC',alias:['Ingeniería Civil','Ingeniería Plan Común','Ingeniería Civil Plan Común','Plan Común de Ingeniería']},
+    {n:'Ingeniería Civil',malla:'ING-PC',alias:['Ingeniería','Ingeniería Plan Común','Ingeniería Civil Plan Común','Plan Común de Ingeniería']},
+    // Majors de Ingeniería con malla oficial de SIDING (mallas-uc.js). Quien ya
+    // eligió «Ingeniería» (ING-PC) no cambia: puede pasarse a su major en Ajustes.
+    // `soloAjustes`: no aparecen en el onboarding. Quien llega es casi siempre
+    // novato, todavía no tiene major, y ver 21 opciones lo confunde (Lucas,
+    // 2026-11-23). El major se elige después, desde Ajustes.
+    {n:'Ingeniería Civil · Major en Computación (Track Computación)',malla:'UC-ING-COMPUTACION',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Computación (Track Sistemas de Información)',malla:'UC-ING-COMPUTACION-SI',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Geociencias',malla:'UC-ING-GEOCIENCIAS',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Biológica',malla:'UC-ING-BIOLOGICA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Civil',malla:'UC-ING-CIVIL',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Eléctrica',malla:'UC-ING-ELECTRICA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Estructural',malla:'UC-ING-ESTRUCTURAL',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Geotécnica',malla:'UC-ING-GEOTECNICA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Matemática',malla:'UC-ING-MATEMATICA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Mecánica',malla:'UC-ING-MECANICA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Minera',malla:'UC-ING-MINERA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Química',malla:'UC-ING-QUIMICA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería Robótica',malla:'UC-ING-ROBOTICA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería de Construcción',malla:'UC-ING-CONSTRUCCION',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería de Sistemas de Transporte',malla:'UC-ING-TRANSPORTE',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería de Software',malla:'UC-ING-SOFTWARE',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Investigación Operativa',malla:'UC-ING-INVESTIGACION-OPERATIVA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería y Arquitectura',malla:'UC-ING-ARQUITECTURA',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería y Ciencias Ambientales',malla:'UC-ING-AMBIENTAL',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería, Diseño e Innovación (Track Diseño)',malla:'UC-ING-DISENO-TRACK-DISENO',soloAjustes:true},
+    {n:'Ingeniería Civil · Major en Ingeniería, Diseño e Innovación',malla:'UC-ING-DISENO',soloAjustes:true},
     {n:'Actuación',malla:'UC-ACTUACION',alias:['Teatro']},
     {n:'Administración Pública',malla:'UC-ADMINISTRACION-PUBLICA'},
     {n:'Agronomía',malla:'UC-AGRONOMIA'},
@@ -236,7 +262,98 @@ const CARRERAS_DECLARABLES={
   ],
 };
 
-const CARRERAS_UC={'ING-PC':'Ingeniería · Plan Común','COM':'Ingeniería Comercial','OTRA':'Otra carrera'};
+// Cada major de Ingeniería UC cursa el mismo plan común: hereda de ING-PC los
+// programas oficiales y las siglas, y solo cambia la malla que se sugiere.
+// Un código que no está acá se representa a sí mismo.
+const CARRERA_BASE_UC=Object.fromEntries(CARRERAS_DECLARABLES.uc
+  .filter(c=>typeof c.malla==='string'&&c.malla.startsWith('UC-ING-'))
+  .map(c=>[c.malla,'ING-PC']));
+const CARRERAS_UC={'ING-PC':'Ingeniería Civil','COM':'Ingeniería Comercial','UC-MEDICINA':'Medicina','OTRA':'Otra carrera'};
+
+// Medicina UC, resoluciones VRA 035/2019 y 098/2023. Los dos diagramas oficiales
+// (admisión 2018 y 2025) coinciden para los ramos y créditos del cuadro:
+// https://registrosacademicos.uc.cl/wp-content/uploads/2024/04/m_140002_2018.pdf
+// https://registrosacademicos.uc.cl/wp-content/uploads/2024/06/m_140002_2025.pdf
+// Nombres, siglas y créditos cotejados en BuscaCursos UC, 2026-1 y 2026-2.
+// El cuadro abrevia MED612; la resolución y la oferta confirman MED612A.
+// Los paréntesis distinguen homónimos conforme a la convención del catálogo.
+// Los 40 créditos de electivos y Teología se eligen aparte. Los requisitos
+// VRA100C, VRA2000 y (admisión 2025) VRA4000 no son ramos que precargar con nota.
+const RAMOS_MALLA_UC_MEDICINA={
+  1:[
+    ['Bases y Fundamentos de la Medicina I','MED107A',10],
+    ['Química (QIM201M)','QIM201M',10],
+    ['Psicología Médica','MED109A',5],
+    ['Física (FIS119M)','FIS119M',10],
+    ['Razonamiento Matemático','MAT1033',10],
+  ],
+  2:[
+    ['Bases y Fundamentos de la Medicina II','MED108A',10],
+    ['Morfología I','MED111A',5],
+    ['Biología Molecular de la Célula (BIO239M)','BIO239M',15],
+    ['Bioestadística (MED104B)','MED104B',5],
+    ['Integrado Ciencias Médicas I','MED110A',5],
+  ],
+  3:[
+    ['Morfología II (MED212A)','MED212A',15],
+    ['Inmunología y Genética','MED208A',5],
+    ['Antropología y Ética','MED207A',10],
+    ['Salud Pública (MED206A)','MED206A',5],
+    ['Integrado Ciencias Médicas II','MED209A',5],
+  ],
+  4:[
+    ['Morfología III','MED213A',15],
+    ['Bases y Mecanismos de la Enfermedad I','MED214A',30],
+    ['Integrado Ciencias Médicas III','MED210A',5],
+  ],
+  5:[
+    ['Clínica I','MED308A',15],
+    ['Microbiología Médica (MED306B)','MED306B',5],
+    ['Farmacología Médica (MED307B)','MED307B',5],
+    ['Bases y Mecanismos de la Enfermedad II','MED310B',15],
+    ['Integrado Ciencias Médicas IV','MED311A',5],
+  ],
+  6:[
+    ['Clínica II','MED309A',40],
+    ['Integrado Ciencias Médicas V','MED312A',5],
+  ],
+  7:[
+    ['Clínica III','MED404A',40],
+    ['Integrado Ciencias Médicas VI','MED405A',5],
+  ],
+  8:[
+    ['Integrado Quirúrgico','MED407A',15],
+    ['Medicina Adulto','MED409A',15],
+    ['Neurociencias (MED408A)','MED408A',15],
+    ['Integrado Ciencias Médicas VII','MED406A',5],
+  ],
+  9:[
+    ['Pediatría y Cirugía Infantil','MED504B',15],
+    ['Obstetricia y Ginecología (MED505B)','MED505B',15],
+    ['Bases de la Práctica Profesional','MED508A',10],
+    ['Integrado Ciencias Médicas VIII','MED509A',5],
+  ],
+  // Distribución de referencia del diagrama. Las inscripciones de internados
+  // de 10° y 11° se organizan entre ambos semestres según la resolución.
+  10:[
+    ['Internado de Cirugía (MED601B)','MED601B',25],
+    ['Internado de Medicina Interna (MED602B)','MED602B',25],
+    ['Internado de Urgencias (MED606A)','MED606A',15],
+  ],
+  11:[
+    ['Internado de Obstetricia y Ginecología (MED603B)','MED603B',25],
+    ['Internado de Pediatría (MED604B)','MED604B',25],
+    ['Internado de Dermatología','MED611A',5],
+    ['Internado de Otorrinolaringología','MED607A',5],
+  ],
+  12:[
+    ['Internado Medicina Familiar','MED605A',20],
+    ['Internado de Neuropsiquiatría Clínica','MED608A',20],
+    ['Internado de Oftalmología','MED609A',5],
+    ['Internado de Profundización','MED612A',5],
+    ['Internado Electivo (MED610A)','MED610A',5],
+  ],
+};
 // Plan común de Ingeniería UC, currículum C2022. Los nombres y los créditos
 // salen del catálogo oficial vía la API de mallas.ing.uc.cl (la herramienta de
 // la propia Escuela), no de una imagen ni de memoria.
@@ -288,6 +405,8 @@ const MALLA_UC={
     7:['Empresas y Legislación','Macroeconomía II','Contabilidad Gerencial','Dirección de Personas'],
     8:['Práctica Social'],
   },
+  'UC-MEDICINA':Object.fromEntries(Object.entries(RAMOS_MALLA_UC_MEDICINA)
+    .map(([semestre,ramos])=>[semestre,ramos.map(([nombre])=>nombre)])),
 };
 // Carreras UAI — sin mallas verificadas todavía, el estudiante arma sus ramos
 const CARRERAS_UAI={'ING':'Ingeniería Civil','COM-UAI':'Ingeniería Comercial','DER-UAI':'Derecho','PSI':'Psicología','OTRA':'Otra carrera'};
@@ -300,8 +419,15 @@ const CARRERAS_UANDES={'ING-UA':'Ingeniería Civil','COM-UA':'Ingeniería Comerc
 // El link de descarga es un recurso interno que cambia: no sirve como link fijo.
 const AVANCE_CURRICULAR={uc:{portal:'Mi UC',documento:'avance curricular',ficha:'ficha académica acumulada',
   url:'https://seguimientocurricular.uc.cl/avance/avancecurricular.xhtml',sistema:'Sistema de Avance Curricular',
-  pestanaFicha:'Ficha Académica Acumulada',pestanaAvance:'Seguimiento Curricular',archivoFicha:'FAA',
+  pestanaFicha:'Ficha Académica Acumulada',pestanaAvance:'Seguimiento Curricular',
   alternativa:'Mi UC › Información Académica › Avance curricular'}};
+
+// Dónde exportar a .ics las fechas de los cursos. Sin entrada, el importador solo
+// habla de Apple, Google u Outlook. Webcursos es Moodle 4.5: verificado el
+// 2026-11-24 que su exportación está encendida (apagada responde "no export"
+// antes de pedir sesión). Se usa el archivo y no la URL de suscripción, que deja
+// leer el calendario a cualquiera que la tenga y habría que cuidar como clave.
+const CALENDARIO_PORTAL_POR_TENANT={uai:{donde:'Webcursos',url:'https://webc.uai.cl/calendar/export.php'}};
 
 // Portal por universidad: recursos oficiales según el tenant del estudiante.
 const PORTAL_UC=[
@@ -326,7 +452,7 @@ const PORTAL_UC=[
 const PORTAL=[
   {title:'Académico',links:[
     {label:'Canvas',desc:'Plataforma de cursos y tareas',url:'https://uchile.instructure.com',color:'#e84646'},
-    {label:'Docencia Web FEN',desc:'Portal académico de la facultad',url:'https://docencia.fen.uchile.cl',color:'#2563eb'},
+    {label:'Docencia Web FEN',desc:'Portal académico de la facultad',url:'https://docenciaweb.fen.uchile.cl/',color:'#2563eb'},
     {label:'U-Campus',desc:'Inscripción de ramos, horarios y más',url:'https://ucampus.uchile.cl',color:'#16a34a'},
   ]},
   {title:'Facultad',links:[

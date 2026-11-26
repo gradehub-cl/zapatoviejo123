@@ -131,8 +131,17 @@ const PRESETS_UC={
   // es "causal de reprobación del curso, independientemente del promedio";
   // como no dice con qué nota, va el 3,9 de siempre. La asistencia mínima pasa
   // el filtro de reglas visibles: el estudiante puede cumplirla y cambia su nota.
+  //
+  // NO ES COORDINADO (Lucas, 2026-11-25): cada sección arma su programa. Por
+  // eso va en `evalsReferencia` y no en `evals`: no se carga sola a nadie. La
+  // ficha la ofrece como una opción más, diciendo que puede no ser la de tu
+  // sección, junto a lo que reportan los compañeros de cada sección
+  // (distribuciones-pauta.js). Quien ya la tenía cargada conserva sus reglas
+  // (programaQueCalza).
   'Filosofía: ¿para qué?':{
-    evals:[['Prueba 1',30],['Ejercicio de análisis',20],['Prueba 2',30],['Podcast',20,{min:4.0,cap:3.9}]],
+    sigla:'FIL2001',
+    coordinado:false,
+    evalsReferencia:[['Prueba 1',30],['Ejercicio de análisis',20],['Prueba 2',30],['Podcast',20,{min:4.0,cap:3.9}]],
     reglasDelCurso:[
       'Necesitas al menos 75% de asistencia a clases: si no, el curso queda con nota R, que equivale a 3,0. La app no registra asistencia',
     ],
@@ -522,8 +531,13 @@ const PRESETS_UC={
       ['Examen',40], // El 11 de diciembre figura por confirmar.
     ],
     aporta:{ramo:'Laboratorio de Termodinámica',peso:30,min:4.0},
+    // El examen reemplaza UNA interrogación justificada. Con las dos, el
+    // programa exige reprobar: la segunda queda bloqueada y se sigue avisando.
+    ausenciasJustificadas:{maxReemplazos:1,reemplazos:[
+      {desde:'Interrogación 1',hacia:'Examen'},
+      {desde:'Interrogación 2',hacia:'Examen'},
+    ]},
     noCalcula:[
-      'El examen puede reemplazar una sola interrogación con inasistencia justificada. Este ajuste no se aplica automáticamente',
       'Si justificas ambas interrogaciones, el programa exige reprobar el ramo. La app no aplica esa reprobación por inasistencias',
     ],
     reglasDelCurso:[
@@ -544,8 +558,14 @@ const PRESETS_UC={
       ['Examen',40,{fecha:'2026-12-01'}],
     ],
     aporta:{ramo:'Laboratorio de Electricidad y Magnetismo',peso:30,min:4.0},
+    // El examen reemplaza una única interrogación justificada; con dos, el
+    // programa remite a la facultad y la segunda queda bloqueada.
+    ausenciasJustificadas:{maxReemplazos:1,reemplazos:[
+      {desde:'Interrogación 1',hacia:'Examen'},
+      {desde:'Interrogación 2',hacia:'Examen'},
+    ]},
     noCalcula:[
-      'El examen reemplaza una única interrogación con inasistencia justificada. Este ajuste no se aplica automáticamente; con dos o más inasistencias, debes consultar a tu facultad',
+      'Con dos inasistencias justificadas a interrogaciones, el programa no dice cómo se calcula: debes consultar a tu facultad',
     ],
     reglasDelCurso:[
       'Programa 2026-2. El documento indica los mismos criterios para todas las secciones de ese período',
@@ -1387,6 +1407,109 @@ const PRESETS_UC={
         ],
       },
     },
+  },
+  // ── Medicina UC · 4° semestre. Programas recibidos de Martín el 2026-11-25.
+  // Solo llegan a su carrera por PRESETS_UC_MEDICINA (uc-comunicaciones.js).
+  //
+  // MED210A · "ACTIVIDADES 2026", actualizado en julio de 2026 → 2026-2. No
+  // dice cuántas tareas hay ni cómo se reparte Bienestar: van como lista. La
+  // evaluación por pares es "un 10%" dentro de la nota del proyecto y no queda
+  // claro de qué base: no se separa.
+  'Integrado Ciencias Médicas III':{
+    sigla:'MED210A',
+    periodo:'2026-2',
+    creditos:5,
+    evals:[
+      ['Tareas posteriores a clases',20,{lista:true}],
+      ['Módulo de Bienestar',20,{lista:true}],
+      ['Prueba escrita sumativa',30],
+      ['Proyecto grupal final',30],
+    ],
+    reglasDelCurso:[
+      'La nota del Proyecto grupal final ya incluye la evaluación por pares de tu grupo',
+    ],
+  },
+  // MED213A · archivo fechado 25FEB25, sin período declarado. Nota de capítulos
+  // = 55% gymkhanas + 35% globales + 10% minitest; con examen, 70/30. Los pesos
+  // son ese producto exacto. Hay una global y una gymkhana "en cada capítulo" y
+  // el programa enumera cuatro; su promedio simple son cuatro filas iguales
+  // (38,5/4 y 24,5/4). Van separadas y no en casillas porque las compuertas de
+  // grupo pesan la categoría completa aunque falten casillas.
+  //
+  // "Las notas no se aproximan y se trabajan con 1 decimal": 3,5x es 3,5 y
+  // reprueba sin examen (por eso 3,6 exacto), y un 3,95 final es 3,9. El
+  // programa no dice con qué nota queda un examen reprobado: va el 3,9 de siempre.
+  'Morfología III':(()=>{
+    const gymkhanas=['Gymkhana Cabeza 1','Gymkhana Cabeza 2','Gymkhana Cuello','Gymkhana Neuroanatomía'];
+    const globales=['Global Cabeza 1','Global Cabeza 2','Global Cuello','Global Neuroanatomía'];
+    const capitulos=[...gymkhanas,...globales,'Minitest'];
+    return {
+      sigla:'MED213A',
+      creditos:15,
+      evals:[
+        ...gymkhanas.map(n=>[n,9.625]),
+        ...globales.map(n=>[n,6.125]),
+        ['Minitest',7,{lista:true}],
+        ['Examen',30,{min:4.0,cap:3.9,exacto:true}],
+      ],
+      grupos:[
+        {nombre:'Nota de capítulos',evals:capitulos,min:3.6,cap:'self',exacto:true},
+        {nombre:'Nota final',evals:[...capitulos,'Examen'],min:4.0,cap:3.9,exacto:true},
+      ],
+      eximicion:{
+        evaluacion:'Examen',
+        segun:capitulos,
+        min:5.5,
+        ignoraDescartes:true,
+        requierePautaOriginal:true,
+        requiereConfirmacion:true,
+        confirmar:'el curso te informó que tu nota de capítulos es superior a 5,5',
+      },
+      noCalcula:[
+        'El programa exime con nota «superior a 5,5» y manda a examen entre 3,6 y 5,4: no dice qué pasa con un 5,5 justo. Confírmalo con tu profesor',
+        'El curso usa notas con un decimal y sin aproximar (un 4,58 es 4,5). La app redondea a la décima, así que tu nota oficial puede quedar una décima más abajo',
+      ],
+      reglasDelCurso:[
+        'Con nota de capítulos de 3,5 o menos, repruebas sin derecho a examen',
+        'Un minitest que no rindes queda en 1,0, salvo que te acepten formalmente la justificación',
+        'Si faltas a más del 25% de las actividades prácticas, aunque sea con justificación, repites el curso',
+      ],
+    };
+  })(),
+  // MED214A · el archivo dice 2026 y el programa no declara semestre. Cada uno
+  // de los cinco módulos vale 16% de la presentación (90% interrogación, 10%
+  // minitest y seminarios); póster 10% y minitest de anatomía patológica 10%.
+  // Presentación 70%, examen 30%. Los pesos son ese producto exacto:
+  // 5 × 16 × 0,9 × 0,7 = 50,4 y 16 × 0,1 × 0,7 = 1,12. El programa no dice
+  // cuántos minitest lleva cada módulo: van como lista.
+  'Bases y Mecanismos de la Enfermedad I':{
+    sigla:'MED214A',
+    creditos:30,
+    evals:[
+      ['Interrogaciones',50.4,{slots:5,slotLabel:'Interrogación'}],
+      ...[1,2,3,4,5].map(n=>['Minitest y seminarios módulo '+n,1.12,{lista:true}]),
+      ['Trabajo final grupal (póster y escrito)',7],
+      ['Minitest de Anatomía Patológica',7,{lista:true}],
+      ['Examen final',30,{min:4.0,cap:3.9}],
+    ],
+    eximicion:{
+      evaluacion:'Examen final',
+      segun:['Interrogaciones'],
+      min:6,
+      ignoraDescartes:true,
+      requierePautaOriginal:true,
+      requiereConfirmacion:true,
+      confirmar:'tu promedio de las cinco interrogaciones es superior a 6,0, presentaste el 100% de los minitest y seminarios y no perdiste el derecho a eximirte',
+      ayuda:'La nota que se compara es el promedio de las cinco interrogaciones, ninguna bajo 4,0, y tiene que ser superior a 6,0: un 6,0 justo no alcanza',
+      minimos:[{evaluacion:'Interrogaciones',min:4,cadaNota:true}],
+    },
+    noCalcula:[
+      'El programa dice que repruebas con un examen «inferior a 4,0», pero también que apruebas con uno «superior a 4,0». La app cuenta el 4,0 como aprobado: confírmalo con tu profesor',
+    ],
+    reglasDelCurso:[
+      'Faltar sin justificación a un seminario o a la presentación final te quita el derecho a eximirte',
+      'Una interrogación no rendida y sin justificar a tiempo queda en 1,0 y te obliga a dar el examen',
+    ],
   },
 };
 

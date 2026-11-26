@@ -153,7 +153,7 @@ function esListaSinCantidad(c){
 function pautaConReglasNoCompartibles(r){
   const vigentes=catsDePauta(r.categorias).filter(c=>Number(c.peso)>0);
   return vigentes.some(c=>c.dropLowest?.count>0||c.dropLowest?.fraction>0)||
-    (r.gates||[]).some(g=>g.origen==='editor'&&vigentes.some(c=>c.id===g.catId));
+    (r.gates||[]).some(g=>g.origen==='editor'&&(g.catIds||[g.catId]).some(id=>vigentes.some(c=>c.id===id)));
 }
 function pautaPropiaParaConsenso(r){
   if(!r||!Array.isArray(r.categorias)||!r.categorias.length)return false;

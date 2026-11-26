@@ -42,7 +42,10 @@ for(const [nombre,e] of Object.entries(esperadas)){
  const misma=ctx.normalize({tenant:'uc',carrera:'ING-PC',ramos:[coincidente]}).ramos[0];
  cerca(ctx.ramoAvg(misma),promedioAntes);
  assert.deepEqual(firma(misma.categorias),previa);
- assert.ok(misma.reemplazosOptativos==null&&misma.reglasAusenciaJustificada==null);
+ assert.ok(misma.reemplazosOptativos==null);
+ // La regla de inasistencias del programa llega al ramo existente, pero no
+ // activa nada sola: el promedio de arriba no cambió.
+ assert.ok(def.ausenciasJustificadas?misma.reglasAusenciaJustificada!=null:misma.reglasAusenciaJustificada==null);
  assert.ok(misma.categorias.every(c=>!c.dropLowest),'no añade descartes a una pauta anterior');
  const vacio=ctx.normalize({tenant:'uc',carrera:'ING-PC',ramos:[{id:'vacio',nombre,sigla:e.sigla,origen:{tenant:'uc',carrera:'ING-PC',ramoKey:e.sigla},categorias:[],gates:[]}]}).ramos[0];
  assert.deepEqual(plain(vacio.categorias.map(c=>c.peso)),e.pesos,'ramo del catálogo sin evaluaciones recibe la pauta');
@@ -63,7 +66,30 @@ for(const nombre of ['Termodinámica','Electricidad y Magnetismo']){
  const fuente=registro.programas.find(x=>x.nombre_catalogo===nombre);
  assert.deepEqual(plain(defs[nombre].aporta),fuente.aporte_laboratorio);
  assert.ok(fuente.faltantes_y_ambiguedades.some(x=>x.includes('2026-10-28')));
- assert.ok(defs[nombre].noCalcula.some(x=>x.includes('justificada')));
+ // El examen reemplaza UNA interrogación justificada: el ajuste ya se calcula
+ // y su texto salió de noCalcula. Lo de la segunda se sigue advirtiendo.
+ assert.equal(defs[nombre].ausenciasJustificadas.maxReemplazos,1);
+ assert.ok(!defs[nombre].noCalcula.some(x=>/no se aplica automáticamente/.test(x)));
+ assert.ok(defs[nombre].noCalcula.some(x=>/ambas interrogaciones|dos inasistencias/.test(x)));
+ const p=ctx.presetRamo(nombre,'uc','ING-PC',fecha);
+ const id=n=>p.categorias.find(c=>c.nombre===n).id;
+ const ramo={id:'r-'+nombre,nombre,color:'#000',origen:{tenant:'uc',carrera:'ING-PC'},...plain(p)};
+ const conNotas=(i1,i2,ex,justificadas)=>{
+  const r=plain(ramo);
+  const pon=(n,v)=>{r.categorias.find(c=>c.nombre===n).notas=v===null?[]:[{id:'n-'+n,valor:v,peso:1}];};
+  pon('Interrogación 1',i1);pon('Interrogación 2',i2);pon('Examen',ex);
+  r.ausenciasJustificadas=justificadas.map(id);return r;
+ };
+ // Sin justificar: 0,3·3,0 + 0,3·4,0 + 0,4·5,0 = 4,1.
+ cerca(ctx.ramoAvg(conNotas(3,4,5,[])),4.1);
+ // I1 justificada con examen 5,0: 0,3·5,0 + 0,3·4,0 + 0,4·5,0 = 4,7.
+ cerca(ctx.ramoAvg(conNotas(null,4,5,['Interrogación 1'])),4.7);
+ // Tope: examen 7,0 reemplazando I2 con I1 en 7,0 da 7,0, nunca más.
+ cerca(ctx.ramoAvg(conNotas(7,null,7,['Interrogación 2'])),7);
+ // Las dos justificadas: la segunda no tiene regla, no se inventa una nota.
+ const ambas=ctx.calculoRamoConCompuertas(conNotas(null,null,5,['Interrogación 1','Interrogación 2']));
+ assert.equal(ambas.ausencias.bloqueadas.length,1);
+ assert.equal(ctx.notaNecesaria(conNotas(null,null,null,['Interrogación 1','Interrogación 2'])),null);
 }
 assert.equal(defs['Laboratorio de Termodinámica'],undefined,'sin programa no inventa su pauta interna');
 assert.equal(defs['Laboratorio de Electricidad y Magnetismo'],undefined);
