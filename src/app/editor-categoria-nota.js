@@ -49,7 +49,7 @@ function confirmEditCat(catId){
   const cantidad=varias&&!(cat.slots>1)?leerCantidadVarias(cat,listaAbiertaPermitida(r,cat)):null;if(cantidad===false)return false;
   const reglas=leerReglasEvaluacionModal(r,varias,cantidad||cat.slots);if(!reglas)return false;
   guardarReglasEvaluacionEditor(r,cat,reglas);
-  cat.nombre=name;cat.peso=peso;marcarFechaUsuario(cat,fecha,leerHora('m-cat'));marcarOrigenCompartido(cat,'m-cat');
+  cat.nombre=name;cat.peso=peso;marcarFechaUsuarioSiCambio(cat,fecha,leerHora('m-cat'));marcarOrigenCompartido(cat,'m-cat');
   const notaDirecta=(cat.notas||[])[0];
   aplicarRecorreccion(notaDirecta);
   // La casilla no existe en las de casillas fijas (`slots`), y viene desactivada
@@ -145,7 +145,7 @@ function guardarFechasCasillas(r,cat){
     const campo=document.getElementById(`m-casilla-${i}-fecha`);if(!campo)continue;
     const fecha=campo.value||null,hora=fecha?leerHora('m-casilla-'+i):null;
     let n=cat.notas.find(x=>x.slot===i);
-    if((n&&n.fecha||null)===fecha&&(n&&n.hora||null)===hora)continue;
+    if(fechaHoraSinCambio(n,fecha,hora))continue;
     if(!n){
       if(!fecha)continue;
       n=asignarCalificacionNota({id:uid(),nombre:etiquetaCasilla(r,cat,i),peso:1,slot:i},'',null);
@@ -251,7 +251,7 @@ function confirmEditNota(catId,notaId){
   const n=cat.notas.find(x=>x.id===notaId);
   n.nombre=name;n.peso=peso;
   asignarCalificacionNota(n,rawNota,val);
-  marcarFechaUsuario(n,fechaNota,leerHora('m-nota'));
+  marcarFechaUsuarioSiCambio(n,fechaNota,leerHora('m-nota'));
   aplicarRecorreccion(n);
   save();track('edit_nota',{pendiente:val===null});closeModal();renderRamo();
   if(val!==null)vibrar('nota');
