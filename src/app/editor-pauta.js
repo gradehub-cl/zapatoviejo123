@@ -7,7 +7,7 @@ let pautaDraft=[];
 // Solo el borrador: aceptar una lectura Canvas no escribe el ramo hasta Guardar.
 let pautaProgramaCanvasDraft=null,reglasAlAbrirEditor=null;
 function firmaReglasAlEditar(r){
-  return JSON.stringify([r.categorias.map(c=>[c.id,c.dropLowest,c.descarteOrigen]),r.gates,r.eximicion,r.reemplazosOptativos]);
+  return JSON.stringify([r.categorias.map(c=>[c.id,c.dropLowest,c.descarteOrigen]),r.gates,r.eximicion,r.eximicionPropia,r.reemplazosOptativos]);
 }
 // Evaluaciones con notas que la persona decidió quitar en el editor: {id, hacia}.
 // `hacia` es otra evaluación con el mismo nombre, a la que pasan sus notas.

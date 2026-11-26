@@ -324,6 +324,13 @@ function diferenciaReglaCanvas(p,r){
       return 'Se conserva tu requisito'+(min?' de '+String(min).replace('.',','):'')+(cap?', con tope '+(cap==='self'?'del grupo':String(cap).replace('.',',')):'')+'.';
     }
   }
+  if(p.tipo==='eximicion'){
+    // La eximición que la persona escribió en el editor (guardada o en el
+    // borrador) manda sobre la propuesta del programa: nunca quedan dos.
+    const borrador=pautaEximicionDraft?.activa?Number(String(pautaEximicionDraft.min||'').replace(',','.')):null;
+    const propia=borrador??(r.eximicionPropia?r.eximicionPropia.min:undefined);
+    if(propia!==undefined)return 'Se conserva tu eximición'+(Number.isFinite(propia)?' desde '+String(propia).replace('.',','):'')+'.';
+  }
   if(p.tipo==='eximicion'||p.tipo==='reemplazo'){
     const original=pautaProgramaCanvasDraft.lectura.resultado.filas;
     if(original.length!==pautaDraft.length||!original.every(o=>pautaDraft.some(f=>f.nombre===o.nombre&&f.peso===o.peso&&(f.cantidad||1)===(o.cantidad||1))))

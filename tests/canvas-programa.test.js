@@ -178,6 +178,23 @@ const conTabla=[
   assert.match(run('pautaDraftError'),/cambiaron mientras editabas/);
   assert.equal(run('r.categorias.length'),0);
   assert.equal(run('r.gates.find(g=>g.catId==="externa").min'),4);
+  // La eximición escrita en el editor manda sobre la del programa: nunca dos.
+  await preparar('04-eximicion-simple');
+  run("pautaEximicionDraft=Object.assign(pautaEximicionDraft,{activa:true,min:'5,8',examen:claveFilaPauta(pautaDraft.find(f=>f.nombre==='Examen')),segun:[claveFilaPauta(pautaDraft.find(f=>f.nombre==='Prueba'))]})");
+  assert.match(run('canvasProgramaEditorHTML()'),/Se conserva tu eximición desde 5,8/,'eximición propia en el borrador');
+  run('guardarPautaManual()');
+  assert.equal(run('pautaDraftError'),'');
+  assert.equal(run('r.eximicion'),undefined,'la del programa no se aplica');
+  assert.equal(run('r.eximicionPropia.min'),5.8);
+  run('openPautaManualModal()');await run('leerProgramaCanvas()');run('usarProgramaCanvas()');run('pautaEximicionDraft=null');
+  assert.equal(run("diferenciaReglaCanvas(pautaProgramaCanvasDraft.lectura.resultado.propuestas.find(p=>p.tipo==='eximicion'),r)"),
+    'Se conserva tu eximición desde 5,8.','eximición propia guardada');
+  // Otra eximición propia guardada mientras se editaba también frena el Guardar.
+  await preparar('04-eximicion-simple');
+  run("r.eximicionPropia={examenId:'externa',segun:['otra'],min:5};guardarPautaManual()");
+  assert.match(run('pautaDraftError'),/cambiaron mientras editabas/);
+  assert.equal(run('r.categorias.length'),0);
+  assert.equal(run('r.eximicionPropia.min'),5);
   // Un corte puede ocultar una segunda fórmula incluso si el prefijo suma 100.
   assert.equal(leerPrograma({texto:fixture('01-tabla-descarte'),recortado:true}).estado,'incompleto');
   const anteriores=llamadasArchivos.length;
