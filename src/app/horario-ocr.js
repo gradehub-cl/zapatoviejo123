@@ -582,7 +582,7 @@ async function leerFotoHorario(input,alLeer=reconocerHorarioBuscacursos){
     // no puede abrir el archivo: un HEIC o una imagen dañada. No es la conexión.
     if(document.getElementById('m-horario-estado')===estado)
       estado.textContent=/read image/i.test(String(e&&e.message||e))
-        ?'No pudimos abrir esa imagen. Prueba con un pantallazo de tu horario.'
+        ?'Esa imagen no se pudo abrir. Prueba con un pantallazo de tu horario.'
         :'No pudimos leer la foto. Revisa tu conexión e intenta de nuevo.';
     return false;
   }finally{_horarioLeyendoFoto=false;input.disabled=false;input.value='';}

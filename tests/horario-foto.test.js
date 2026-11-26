@@ -131,7 +131,7 @@ const codigos=t=>run(`extraerCodigosHorarioBuscacursos(normalizarTextoOcrHorario
   ctx.window.Tesseract={createWorker:async(l,o,op)=>{ctx.__op=op;return {setParameters:async()=>{},recognize:()=>Promise.reject('Error: Error attempting to read image.'),terminate:async()=>{}};}};
   ctx.__input={files:[{type:'image/heic',size:1000}],value:'x'};
   await run('leerFotoHorario(__input)');
-  chk('una imagen que el lector no abre lo dice, sin culpar a la conexión',/No pudimos abrir esa imagen/.test(get('m-horario-estado').textContent)&&!/conexión/.test(get('m-horario-estado').textContent));
+  chk('una imagen que el lector no abre lo dice, sin culpar a la conexión',/Esa imagen no se pudo abrir/.test(get('m-horario-estado').textContent)&&!/conexión/.test(get('m-horario-estado').textContent));
   chk('y el error del lector no queda suelto en la página',typeof ctx.__op.errorHandler==='function'&&ctx.__op.errorHandler('x')===undefined);
   chk('después de fallar se puede elegir otra foto',ctx.__input.disabled===false&&ctx.__input.value==='');
   run("leerFotoOcr=async()=>{throw new Error('ocr-no-carga')}");
