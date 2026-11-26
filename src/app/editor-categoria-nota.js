@@ -15,7 +15,7 @@ function openEditCatModal(catId){
       <span>Son varias notas que se promedian ${(cat.notas||[]).length>1?'<span style="color:var(--fg3);">(ya tiene varias notas: para volver a una sola, bórralas)</span>':'<span style="color:var(--fg3);">(controles, laboratorios, tareas)</span>'}</span>
     </label>
     ${cantidadVariasHTML(cat,comoLista||(cat.notas||[]).length>1,listaAbiertaPermitida(r,cat))}`}
-    <div id="m-cat-fecha-grupo" ${cat.slots>1&&!cat.fecha?'hidden':''}>${campoFechaHoraHTML('m-cat',cat.fecha,cat.hora,true)}</div>
+    <div id="m-cat-fecha-grupo" ${cat.slots>1&&!cat.fecha?'hidden':''}>${campoFechaHoraHTML('m-cat',cat.fecha,cat.hora,true)}${sugerenciaFechaHTML('m-cat',fechaCompartida(r,cat,null,cat))}</div>
     <div id="m-cat-fechas-casillas">${cat.slots>1?fechasCasillasHTML(r,cat,cat.slots):''}</div>
     ${cat.directNota===true&&!(Number.isInteger(cat.slots)&&cat.slots>1)?controlRecorreccionHTML((cat.notas||[])[0],cat.fecha):''}
     ${cat.fecha?enlaceGoogleCalHTML(r,cat):''}
@@ -49,7 +49,7 @@ function confirmEditCat(catId){
   const cantidad=varias&&!(cat.slots>1)?leerCantidadVarias(cat,listaAbiertaPermitida(r,cat)):null;if(cantidad===false)return false;
   const reglas=leerReglasEvaluacionModal(r,varias,cantidad||cat.slots);if(!reglas)return false;
   guardarReglasEvaluacionEditor(r,cat,reglas);
-  cat.nombre=name;cat.peso=peso;marcarFechaUsuario(cat,fecha,leerHora('m-cat'));
+  cat.nombre=name;cat.peso=peso;marcarFechaUsuario(cat,fecha,leerHora('m-cat'));marcarOrigenCompartido(cat,'m-cat');
   const notaDirecta=(cat.notas||[])[0];
   aplicarRecorreccion(notaDirecta);
   // La casilla no existe en las de casillas fijas (`slots`), y viene desactivada
@@ -118,7 +118,7 @@ function fechasCasillasHTML(r,cat,cantidad){
         <span style="flex:1 1 100%;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;margin-bottom:-8px;font-size:0.8125rem;color:var(--fg2);"><span>${esc(nombre)}</span>${cat.slots>1&&n&&n.fecha?`<a href="${esc(googleCalUrl(r,cat,n))}" target="_blank" rel="noopener noreferrer" aria-label="Agregar ${esc(nombre)} a Google Calendar" style="display:inline-flex;align-items:center;min-height:44px;padding:0 4px;color:var(--fg2);font-size:0.75rem;">Google Calendar</a>`:''}</span>
         <input type="date" id="${id}-fecha" value="${f}" autocomplete="off" aria-label="Fecha de ${esc(nombre)}" style="flex:1 1 9.5rem;min-width:9rem;" oninput="sincronizarHora('${id}')" onfocus="sembrarFechaHoy('${id}')"/>
         <input type="time" id="${id}-hora" value="${h}" autocomplete="off" aria-label="Hora de ${esc(nombre)} (opcional)" style="flex:1 1 7rem;min-width:6.5rem;" ${f?'':'disabled'}/>
-      </div>`;}).join('')}</div>
+      </div>${sugerenciaFechaHTML(id,fechaCompartida(r,cat,n?n.nombre:etiquetaCasilla(r,cat,i),n))}`;}).join('')}</div>
     <p style="margin:-6px 0 14px;font-size:0.8125rem;color:var(--fg3);line-height:1.35;">Para pasarlas todas a tu calendario de una vez: Agenda → Calendario.</p>`;
 }
 function enlaceGoogleCalHTML(r,cat,nota=null){
@@ -151,7 +151,7 @@ function guardarFechasCasillas(r,cat){
       n=asignarCalificacionNota({id:uid(),nombre:etiquetaCasilla(r,cat,i),peso:1,slot:i},'',null);
       cat.notas.push(n);
     }
-    marcarFechaUsuario(n,fecha,hora);
+    marcarFechaUsuario(n,fecha,hora);marcarOrigenCompartido(n,'m-casilla-'+i);
   }
 }
 // Las notas que ya tenía pasan a las primeras casillas, en el orden en que se
