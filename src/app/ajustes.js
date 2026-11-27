@@ -544,7 +544,7 @@ function abrirCambioClaveCuenta(){
   const campo=(id,etiqueta,autocomplete,ayuda='')=>`
     <div class="clave-campo">
       <label for="${id}">${etiqueta}</label>
-      <input id="${id}" name="${id}" type="password" autocomplete="${autocomplete}" autocorrect="off"
+      <input id="${id}" name="${id}" type="password" maxlength="72" autocomplete="${autocomplete}" autocorrect="off"
         autocapitalize="none" spellcheck="false" required aria-describedby="${id}-error${ayuda?' '+id+'-ayuda':''}">
       ${ayuda?`<small id="${id}-ayuda">${ayuda}</small>`:''}
       <span id="${id}-error" aria-live="polite"></span>
