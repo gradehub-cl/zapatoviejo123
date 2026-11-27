@@ -187,10 +187,10 @@ Lo que hay que saber antes de usar esto:
   catálogo: existen, con sesión. **Cerrado a agentes de IA por robots.**
 - **UCN, Escuela de Ingeniería (Coquimbo)** —
   [listado de documentos](https://losvilos.ucn.cl/InstructivosEscuelaIngenieria/)
-  abierto, con carpetas navegables por `?path=`: «E. Mallas y programas de
-  estudios» (programas por carrera ICCI, ICI e ITI y por semestre, y las mallas),
-  «D. Electivos» y **«B. Calendarios», con el calendario de evaluaciones del
-  semestre en PDF**, que sirve para Agenda.
+  abierto, navegable por `?path=`. **Ya se leyó completo:** 154 programas de tres
+  carreras (ICCI, ICI e ITI) por semestre, sus mallas, el calendario de
+  evaluaciones del semestre y el reglamento de docencia. Detalle en
+  [`ucn/`](ucn/README.md).
 - **UACh, Derecho** — programas por semestre y año bajo
   `www.derecho.uach.cl/images/<año>/Programas/<SEMESTRE>/`, con versiones de 2019
   a 2025 según el buscador.
@@ -283,8 +283,9 @@ Santo Tomás (`www.ust.cl/web/wp-content/uploads/sites/6/`) y Silva Henríquez
    secciones y programa. Hay que escribirle a Ucampus o a cada universidad, o que
    lo recorra una persona; no con un agente de IA.
 3. **UCSC:** confirmar que el catálogo por sigla responde y si tiene índice.
-4. **Facultades con carpeta ordenada:** UCN Coquimbo (incluye calendario de
-   evaluaciones), UACh Derecho, USACH FAE y PUCV Ingeniería Civil.
+4. **UCN Coquimbo ya está leída** ([detalle](ucn/README.md)): es la primera con la
+   que se podrían armar carreras completas. Quedan con carpeta ordenada UACh
+   Derecho, USACH FAE y PUCV Ingeniería Civil.
 5. **Reglamentos:** leer el artículo de aproximación y de aprobación de cada
    universidad antes de tocar `GH_REGLAS_NOTA_POR_TENANT`. Parte por la USS.
 6. **Para el resto**, la vía es la que ya usa la UAI: que cada estudiante le pase
@@ -298,5 +299,6 @@ Santo Tomás (`www.ust.cl/web/wp-content/uploads/sites/6/`) y Silva Henríquez
   portada, los hosts cerrados o detenidos, y cuántas páginas de carrera y mallas
   vio el recorrido.
 - [`udla/`](udla/README.md): lo que se alcanzó a leer del catálogo de la UDLA.
+- [`ucn/`](ucn/README.md): los 154 programas de Ingeniería UCN en Coquimbo.
 - [`herramientas/`](herramientas/): el lector, el verificador, el extractor de
   texto y las herramientas de la UDLA. No se bajó ni se guardó en el repo ningún PDF de terceros.
