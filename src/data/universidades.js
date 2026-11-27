@@ -26,6 +26,10 @@ const TENANTS={
   // inventan. La sigla toma el acento de la app hasta tenerlo (tenantBadge).
   // Carreras, reglamento y fuentes: docs/mallas-udp.md.
   udp:{name:'U. Diego Portales', nombreCompleto:'Universidad Diego Portales', short:'UDP', conArticulo:'la UDP', mono:'UDP', sub:'Todas las carreras'},
+  // Fondo: Pantone 296 del manual de marca UNAB (enero 2026,
+  // institucional.unab.cl), en su equivalente sRGB. Carreras, reglamento y
+  // fuentes: docs/mallas-unab.md.
+  unab:{name:'U. Andrés Bello', nombreCompleto:'Universidad Andrés Bello', colores:{fondo:'#051C2C',texto:'#FFFFFF'}, short:'UNAB', conArticulo:'la UNAB', mono:'UNAB', sub:'Todas las carreras'},
 };
 
 // El dominio del correo institucional de los estudiantes, por universidad. Al
@@ -38,6 +42,8 @@ const DOMINIOS_CORREO_POR_TENANT={
   // estudiantes.udp.cl/servicios-academicos/webmail: cuenta Gmail @mail.udp.cl
   // que se crea al matricularse.
   udp:['mail.udp.cl'],
+  // Infografía oficial de la Intranet UNAB (servicioestudiante, abril 2026).
+  unab:['uandresbello.edu'],
 };
 
 // Equivalencias institucionales para calificaciones que sí participan del
