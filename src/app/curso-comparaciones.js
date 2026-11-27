@@ -37,7 +37,7 @@ function siglaParaCurso(r,tenant){
 function claveRamoCurso(r,tenant){
   const sigla=siglaParaCurso(r,tenant);
   if(sigla)return sigla;
-  if(!['uai','uandes','udd','udp'].includes(tenant))return null;
+  if(!['uai','uandes','udd','udp','unab'].includes(tenant))return null;
   const origen=r&&r.origen;
   const clave=origen&&origen.tenant===tenant&&origen.ramoKey||ramoKey(r&&r.nombre,tenant,origen&&origen.carrera);
   return typeof clave==='string'&&clave.trim()?normName(clave):null;
