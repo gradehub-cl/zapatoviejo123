@@ -82,11 +82,11 @@ create policy encuestas_activas on public.encuestas for select to authenticated 
   and (publico='todos' or publico=public.encuestas_universidad())
 );
 drop policy if exists encuesta_respuesta_propia on public.encuesta_respuestas;
-create policy encuesta_respuesta_propia on public.encuesta_respuestas for select to authenticated using(user_id=auth.uid());
+create policy encuesta_respuesta_propia on public.encuesta_respuestas for select to authenticated using(user_id=(select auth.uid()));
 drop policy if exists encuesta_visita_propia on public.encuesta_visitas;
-create policy encuesta_visita_propia on public.encuesta_visitas for select to authenticated using(user_id=auth.uid());
+create policy encuesta_visita_propia on public.encuesta_visitas for select to authenticated using(user_id=(select auth.uid()));
 drop policy if exists encuestas_cuenta_propia on public.encuestas_cuentas;
-create policy encuestas_cuenta_propia on public.encuestas_cuentas for select to authenticated using(user_id=auth.uid());
+create policy encuestas_cuenta_propia on public.encuestas_cuentas for select to authenticated using(user_id=(select auth.uid()));
 grant select(id,pregunta,tipo,opciones,publico,inicio,termino,estado) on public.encuestas to authenticated;
 grant select on public.encuesta_respuestas,public.encuesta_visitas,public.encuestas_cuentas to authenticated;
 
