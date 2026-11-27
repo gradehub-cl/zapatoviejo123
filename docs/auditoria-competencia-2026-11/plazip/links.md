@@ -1,0 +1,11 @@
+# URLs revisadas (auditoría Plazip, 26-11-2026)
+- https://plazip.cl/ — landing (modal V1.6, `Explora la malla de tu carrera`, 5 tarjetas de carrera, `Suma tu carrera a Plazip`, CREADORES).
+- https://plazip.cl/home — home logueado (`Hola, [usuario]`, `Mis mallas`, `Elige una carrera`).
+- https://plazip.cl/plan/[id] — malla real del usuario (Major M295 Investigación Operativa + Minor N242 Innovación Tecnológica). Restaurada y verificada.
+- https://plazip.cl/plan/[id-prueba] — copia de prueba `TEST UX GradeHub (borrar)`, usada para probar ediciones; **eliminada** al final.
+- https://plazip.cl/changelog — Historial de versiones v1.1–v1.6 (sin v1.5).
+- https://plazip.cl/contributors — Conoce al equipo (link del footer).
+- https://plazip.cl/pricing — 404 (no hay página de planes/precios).
+- https://plazip.cl/pro — 404.
+- https://plazip.cl/join#… y https://plazip.cl/shared#… — enlaces de compartir generados automáticamente por el diálogo (no copiados, no compartidos, no invalidados).
+- Login: Google OAuth (popup), cuenta [correo].
