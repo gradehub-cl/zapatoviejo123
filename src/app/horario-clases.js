@@ -95,7 +95,7 @@ function resumenHorarioClases(ramos,ahora=new Date()){
     const civil=new Date(Date.UTC(a,m-1,d+offset,12)),fecha=civil.toISOString().slice(0,10);
     const dia=['D','L','M','W','J','V','S'][civil.getUTCDay()];
     for(const r of ramos||[])for(const b of copiarHorario(r.horario)){
-      // Una clase a la que no va no sale en Hoy, en el widget ni en los avisos.
+      // Una clase a la que no va no sale en el widget ni en los avisos.
       if(b.noVoy||!b.dias.includes(dia))continue;
       const inicioAt=instanteHorarioChile(fecha,b.inicio),finAt=instanteHorarioChile(fecha,b.fin);
       if(!inicioAt||!finAt)continue;

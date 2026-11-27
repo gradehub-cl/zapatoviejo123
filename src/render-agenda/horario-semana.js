@@ -89,7 +89,7 @@ function abrirClaseHorario(ramoId,bloqueId,alCambiar){
     caja.innerHTML=`<div class="horario-clase-hoja"><h2 class="modal-title" id="modal-titulo">${esc(r.nombre)}</h2>
       <p class="modal-desc">${esc(detalle)}</p>
       <label class="horario-voy horario-voy-grande"><span>Voy a esta clase</span><input type="checkbox" role="switch" data-voy${b.noVoy?'':' checked'}></label>
-      <p class="horario-voy-ayuda">Si no vas, queda apagada en tu semana y no sale en Hoy, en el widget ni en los avisos.</p>
+      <p class="horario-voy-ayuda">Si no vas, queda apagada en tu semana y no sale en el widget ni en los avisos.</p>
       ${esAyudantiaHorario(b)&&ayudantias.length>1?`<button type="button" class="horario-accion" data-ayudantias="${todasNoVoy?'voy':'no-voy'}">${todasNoVoy?'Voy a todas las ayudantías':'No voy a ninguna ayudantía'}</button>`:''}
       <div class="modal-btns"><button type="button" class="btn-cancel" data-editar-ramo>Editar horario</button><button type="button" class="btn-confirm" data-listo>Listo</button></div></div>`;
     caja.querySelector('[data-voy]').addEventListener('change',e=>{
@@ -202,7 +202,7 @@ function renderHorarioSemana(body,ahora=new Date()){
   // Sin horario no hay grilla: la lista dice qué se rinde esa semana.
   const lista=deLaSemana.length?`<h2 class="section-hd-title agenda-dia-seccion">Evaluaciones de la semana</h2>${deLaSemana.map(e=>eventoAgendaFilaHTML(e,{conFecha:true})).join('')}`:'';
   const repintar=()=>{if(typeof currentTab==='undefined'||currentTab==='agenda')renderAgenda();};
-  // Marcar «no voy» repinta la semana detrás de la hoja e Inicio (Hoy).
+  // Marcar «no voy» repinta la semana detrás de la hoja e Inicio.
   const alCambiarClase=()=>{repintar();if(typeof renderHome==='function')renderHome();};
   if(!conHorario.length){
     const hayRamos=ramos.length>0;
