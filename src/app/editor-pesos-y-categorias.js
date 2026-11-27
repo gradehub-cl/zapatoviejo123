@@ -178,7 +178,7 @@ function campoFechaHoraHTML(idBase,fecha,hora,conQuitar){
     <div class="modal-input" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <input type="date" id="${idBase}-fecha" value="${f}" autocomplete="off" style="flex:1 1 9.5rem;min-width:9rem;" oninput="sincronizarHora('${idBase}')" onfocus="sembrarFechaHoy('${idBase}')"/>
       <input type="time" id="${idBase}-hora" value="${h}" autocomplete="off" aria-label="Hora (opcional)" style="flex:1 1 7rem;min-width:6.5rem;" ${fecha?'':'disabled'}/>
-      ${conQuitar&&fecha?`<button type="button" onclick="limpiarFechaHora('${idBase}')" style="flex:0 0 auto;padding:10px 12px;background:var(--muted);border:none;border-radius:8px;color:var(--fg2);font-size:0.75rem;font-weight:600;cursor:pointer;">Quitar</button>`:''}
+      ${conQuitar&&fecha?`<button type="button" onclick="limpiarFechaHora('${idBase}')" style="flex:0 0 auto;min-height:44px;padding:10px 12px;background:var(--muted);border:none;border-radius:8px;color:var(--fg2);font-size:0.75rem;font-weight:600;cursor:pointer;">Quitar</button>`:''}
     </div>`;
 }
 // El campo nativo parte vacío y obliga a escribir el año completo cada vez, aunque
@@ -250,7 +250,7 @@ function openAddCatModal(prefillDate){
     <div class="modal-input"><input type="text" id="m-cat-name" placeholder="Ej: Prueba 1, Tarea 2, Laboratorio" maxlength="${NOMBRE_MAX}" autocomplete="off" aria-describedby="m-cat-error"/></div>
     <p id="m-cat-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
     ${pesoControlHTML(30,null)}
-    <label class="modal-label" style="display:flex;align-items:center;gap:10px;text-transform:none;font-weight:500;letter-spacing:0;cursor:pointer;margin:2px 0 14px;line-height:1.35;">
+    <label class="modal-label" style="display:flex;min-height:44px;align-items:center;gap:10px;text-transform:none;font-weight:500;letter-spacing:0;cursor:pointer;margin:2px 0 14px;line-height:1.35;">
       <input type="checkbox" id="m-cat-varias" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--primary);"/>
       <span>Son varias notas que se promedian <span style="color:var(--fg3);">(controles, laboratorios, tareas)</span></span>
     </label>

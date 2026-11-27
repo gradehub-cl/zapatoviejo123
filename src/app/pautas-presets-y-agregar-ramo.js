@@ -107,7 +107,7 @@ function openAddRamoModal(despuesDeAgregar,despuesDeCancelar){
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Agregar ramo</div>
     <label class="modal-label">${etiquetaRamo}${hayCatalogo&&uni?` <span style="text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;">· lo buscamos en la malla ${esc(uni)}</span>`:''}</label>
-    <div class="modal-input"><input type="text" id="m-ramo-search" placeholder="${ejemploRamo}" maxlength="${NOMBRE_MAX}" autocomplete="off" autocapitalize="none" aria-describedby="m-ramo-error"/></div>
+    <div class="modal-input"><input type="text" id="m-ramo-search" placeholder="${ejemploRamo}" maxlength="${NOMBRE_MAX}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="m-ramo-error"/></div>
     <p id="m-ramo-error" role="alert" hidden style="margin:7px 0 0;font-size:0.75rem;line-height:1.4;color:var(--red);"></p>
     ${hayCatalogo?'<div id="m-ramo-results" class="cat-results"></div>':''}
     ${HORARIO_FOTO_POR_TENANT[S.tenant]?'<button type="button" class="horario-importar-link" onclick="abrirImportarHorarioBuscacursos()">Subir foto de tu horario</button>':''}

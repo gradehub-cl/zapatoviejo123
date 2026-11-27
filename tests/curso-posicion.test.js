@@ -30,7 +30,7 @@ chk('bajo cinco participantes no se devuelve nada', /if n < 5 then\s*\n\s*return
 // Un 7 entre muchos 7 salía "por sobre el 44%" (2026-09-24): los empates no
 // contaban y se leía como que la mitad le ganaba. Ahora cuentan a favor, y
 // como `<=` incluye a quien pregunta, se le resta a sí mismo.
-chk('los empates cuentan a favor', /count\(\*\) - 1 into debajo_o_igual[\s\S]*?promedio <= mi;/.test(sql));
+chk('los empates cuentan a favor', /count\(\*\) filter \(where promedio <= mi\) - 1\s+into n, debajo_o_igual/.test(sql));
 chk('ya no cuenta solo a los estrictamente menores', !/promedio < mi;/.test(sql));
 // Decir "te faltan 2 para ver la comparación" también informa sobre cuántos
 // hay, y de ahí sobre quiénes son.
@@ -45,8 +45,8 @@ console.log('\n=== Identidad del ramo antes de subir ===');
 // subía nada y la sección no aparecía nunca.
 chk('la sigla se deriva, no se asume guardada en el ramo',
   /function siglaParaCurso[\s\S]{0,200}siglaDeRamo\(r,tenant\)/.test(app));
-chk('UC/FEN sin sigla se omiten; UAI/UAndes/UDD/UNAB usan nombre normalizado',
-  /if\(!\['uai','uandes','udd','unab'\]\.includes\(tenant\)\)return null/.test(app)&&
+chk('UC/FEN sin sigla se omiten; UAI/UAndes/UDD/UDP/UNAB usan nombre normalizado',
+  /if\(!\['uai','uandes','udd','udp','unab'\]\.includes\(tenant\)\)return null/.test(app)&&
   /const sigla=claveRamoCurso\(r,S\.tenant\);\s*\n\s*if\(!sigla\)continue;/.test(app));
 chk('y el servidor descarta la fila sin clave de ramo', /v_sigla is null or v_tenant is null/.test(sqlCodigo));
 // Las variables se llamaban `tenant` y `sigla`, igual que las columnas, y

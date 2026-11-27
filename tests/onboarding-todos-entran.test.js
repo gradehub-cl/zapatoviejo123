@@ -77,6 +77,10 @@ chk('una carrera declarada a mano entra', intentar('uc', null, 'Programa nuevo q
 // guardado no tiene malla propia, pero sí el buscador de toda la universidad.
 console.log('\n=== UAndes con una carrera antigua sin malla sigue teniendo salida ===');
 chk('UAndes aparece al elegir universidad', run('tenantsVisibles().some(([codigo])=>codigo==="uandes")'));
+// Las de registro básico también se ofrecen en la web (Martín, 2026-11-26),
+// con el mismo buscador que en la app.
+chk('la USACH se ofrece también fuera de la app', run('tenantsVisibles().some(([codigo])=>codigo==="usach")'));
+chk('buscar «santiago» deja solo la USACH', run('tenantsVisibles(null,"santiago").map(([codigo])=>codigo).join()')==='usach');
 run('selectedTenant="uandes"'); run('selectedCarrera="ING-UA"');
 run('selectedCarreraNombre="Ingeniería Civil"'); run('selectedSem=1'); run('obRamos=[]'); run('obManualOpen=false');
 const introUandes=run('obCoursePickerIntro([])');

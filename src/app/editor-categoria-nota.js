@@ -10,7 +10,7 @@ function openEditCatModal(catId){
     <div class="modal-input"><input type="text" id="m-cat-name" value="${esc(cat.nombre)}" maxlength="${NOMBRE_MAX}" autocomplete="off" aria-describedby="m-cat-error"/></div>
     <p id="m-cat-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
     ${pesoControlHTML(cat.peso,catId)}
-    ${cat.slots>1?'':`<label class="modal-label" style="display:flex;align-items:center;gap:10px;text-transform:none;font-weight:500;letter-spacing:0;cursor:pointer;margin:2px 0 14px;line-height:1.35;${(cat.notas||[]).length>1?'opacity:.55;cursor:not-allowed;':''}">
+    ${cat.slots>1?'':`<label class="modal-label" style="display:flex;min-height:44px;align-items:center;gap:10px;text-transform:none;font-weight:500;letter-spacing:0;cursor:pointer;margin:2px 0 14px;line-height:1.35;${(cat.notas||[]).length>1?'opacity:.55;cursor:not-allowed;':''}">
       <input type="checkbox" id="m-cat-varias" ${comoLista?'checked':''} ${(cat.notas||[]).length>1?'disabled':''} style="width:18px;height:18px;flex-shrink:0;accent-color:var(--primary);"/>
       <span>Son varias notas que se promedian ${(cat.notas||[]).length>1?'<span style="color:var(--fg3);">(ya tiene varias notas: para volver a una sola, bórralas)</span>':'<span style="color:var(--fg3);">(controles, laboratorios, tareas)</span>'}</span>
     </label>

@@ -506,7 +506,9 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .tenant-badge.lg{width:46px;height:46px;border-radius:8px;}
 .tenant-badge.lg .tenant-mono{font-size:1.0625rem;}
 .tenant-badge.lg .tenant-mono[data-len="3"]{font-size:0.875rem;}
-.tenant-badge.lg .tenant-mono[data-len="4"]{font-size:0.75rem;}
+.tenant-badge.lg .tenant-mono[data-len="4"]{font-size:0.8125rem;}
+.tenant-badge.lg .tenant-mono[data-len="5"]{font-size:0.625rem;}
+.tenant-badge.lg .tenant-mono[data-len="6"]{font-size:0.5625rem;}
 /* Marca de universidad junto al wordmark de GradeHub */
 .brand-lockup{display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
 .brand-glyph-slot{display:flex;align-items:center;flex-shrink:0;}
@@ -573,6 +575,9 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
    completa se puede recorrer: no recortamos opciones ni exigimos buscarlas. */
 #carrera-grid{max-height:clamp(168px,36dvh,360px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:2px;}
 #carrera-grid .carrera-opt{flex-shrink:0;min-height:44px;}
+.carrera-manual{margin-bottom:10px;}
+.carrera-manual>summary{box-sizing:border-box;min-height:44px;padding:12px 0;font-size:0.9375rem;font-weight:600;color:var(--fg);cursor:pointer;}
+.carrera-manual.sola>summary{display:none;}
 .ob-nav{display:flex;align-items:center;gap:10px;width:100%;max-width:640px;margin-top:24px;}
 .ob-back{background:none;border:none;padding:14px 16px;font-family:var(--font-ui);font-size:0.875rem;font-weight:600;color:var(--fg3);cursor:pointer;border-radius:11px;transition:color var(--motion-fast),background var(--motion-fast),transform var(--motion-press) var(--ease-standard);flex-shrink:0;}
 @media(hover:hover) and (pointer:fine){.ob-back:hover{color:var(--fg);background:var(--muted);}}
@@ -1241,7 +1246,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .pauta-peso input[type=text]{width:2.8em;padding:6px 0;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--fg);font:inherit;font-size:1rem;font-variant-numeric:tabular-nums;text-align:right;}
 .pauta-peso span{font-size:.875rem;color:var(--fg3);}
 .pauta-peso:focus-within{box-shadow:0 0 0 2px color-mix(in srgb,var(--primary),transparent 60%);}
-.pauta-mas{display:flex;flex:none;align-items:center;justify-content:center;width:40px;height:44px;border:0;border-radius:10px;background:none;color:var(--fg3);cursor:pointer;}
+.pauta-mas{display:flex;flex:none;align-items:center;justify-content:center;width:44px;height:44px;border:0;border-radius:10px;background:none;color:var(--fg3);cursor:pointer;}
 .pauta-mas .ic{width:20px;height:20px;}
 .pauta-fila-extra{display:flex;align-items:center;gap:10px;min-height:32px;margin:-4px 46px 4px 0;font-size:.75rem;color:var(--fg2);}
 .pauta-cantidad{display:flex;align-items:center;gap:5px;}
@@ -1954,7 +1959,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .horario-foto-btn:has(+ .horario-foto-input:disabled){opacity:.35;cursor:default;}
 .horario-texto-alt{margin:0 0 12px;}
 .horario-secciones-titulo{margin:16px 0 0;}
-.horario-texto-alt summary{cursor:pointer;color:var(--fg2);font-size:.8125rem;font-weight:600;padding:4px 0 8px;}
+.horario-texto-alt summary{box-sizing:border-box;min-height:44px;cursor:pointer;color:var(--fg2);font-size:.8125rem;font-weight:600;padding:13px 0;}
 .horario-texto-alt .btn-cancel{display:block;width:100%;margin-top:8px;}
 .horario-importar-estado{margin:9px 0 13px;color:var(--fg2);font-size:.78125rem;line-height:1.45;overflow-wrap:anywhere;}
 .agent-proposal-list{margin:11px 0 0;padding:0;list-style:none;border-top:1px solid var(--border);}
@@ -2329,8 +2334,11 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
    teléfono salta y el estudiante pierde el contexto. */
 .course-picker-search{display:flex;align-items:center;gap:8px;padding:11px 13px;
   border:1.5px solid var(--border);background:var(--bg2);border-radius:8px;
-  transition:border-color var(--motion-fast);}
-.course-picker-search:focus-within{border-color:var(--primary);}
+  transition:border-color var(--motion-fast),box-shadow var(--motion-fast);}
+.course-picker-search:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 85%);}
+/* El halo lo pone la caja. Sin esto, la regla general input:focus le dibujaba
+   otro al campo de adentro y se veían dos marcos. */
+.course-picker-search input:focus{box-shadow:none;}
 .course-picker-search input{flex:1;min-width:0;border:none;background:none;outline:none;
   font-family:var(--font-ui);font-size:1rem;color:var(--fg);letter-spacing:-.01em;}
 .course-picker-search input::placeholder{color:var(--fg3);}
@@ -2358,7 +2366,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 
 /* Crear un ramo a mano no es el plan B escondido: hay electivos y cursos de
    formación general que no están en ninguna malla. Visible, sin competir. */
-.course-picker-manual{display:block;width:100%;margin-top:12px;padding:11px;
+.course-picker-manual{display:block;width:100%;min-height:44px;margin-top:12px;padding:11px;
   border:1px dashed var(--border2);background:none;border-radius:8px;cursor:pointer;
   font-family:var(--font-ui);font-size:0.8125rem;font-weight:600;color:var(--fg2);
   letter-spacing:-.005em;transition:border-color var(--motion-fast),color var(--motion-fast);}
@@ -3061,13 +3069,13 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
    reconocerla para volver a encenderla. */
 .sec-row.oculta .sec-nombre{color:var(--fg3);}
 .sec-nombre{flex:1;min-width:0;font-size:0.875rem;font-weight:600;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.sec-mover{display:flex;flex-direction:column;gap:1px;flex-shrink:0;}
-.sec-mover button{display:flex;align-items:center;justify-content:center;width:30px;height:22px;padding:0;border:0;border-radius:6px;background:none;color:var(--fg2);cursor:pointer;transition:background var(--motion-fast),color var(--motion-fast);}
+.sec-mover{display:flex;flex-shrink:0;}
+.sec-mover button{display:flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border:0;border-radius:6px;background:none;color:var(--fg2);cursor:pointer;transition:background var(--motion-fast),color var(--motion-fast);}
 @media(hover:hover) and (pointer:fine){.sec-mover button:hover:not(:disabled){background:var(--muted);color:var(--fg);}}
 /* Deshabilitado y no escondido: el primero de la lista no puede subir, y
    quitar el botón haría saltar la fila entera al reordenar. */
 .sec-mover button:disabled{opacity:.25;cursor:default;}
-.sec-mover .ic{width:15px;height:15px;}
+.sec-mover .ic{width:18px;height:18px;}
 
 /* La URL de conexión del agente. El aviso va DENTRO del cuadro y antes del
    valor: si se lee después de copiar, ya no sirve de nada. */
@@ -4937,11 +4945,11 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .eval-group-hd{min-height:44px;}
 #screen-ramo .eval-group-body{margin-top:12px;padding-top:0;border:0;}
 #screen-ramo .eval-sub{min-height:60px;padding:10px 0;border:0;border-top:1px solid var(--border2);border-radius:0;background:none;box-shadow:none;}
-#screen-ramo .eval-sub-open{min-width:0;overflow-wrap:anywhere;}
+#screen-ramo .eval-sub-open{min-width:0;min-height:44px;justify-content:center;overflow-wrap:anywhere;}
 #screen-ramo .eval-sub-name{font-weight:550;color:var(--fg);}
 #screen-ramo .eval-sub-fecha{color:var(--fg2);font-size:.75rem;}
 #screen-ramo .eval-row{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 14px;padding:18px;border:1px solid var(--border);border-radius:8px;background:var(--card);}
-#screen-ramo .eval-row-info{flex:1;min-width:0;}
+#screen-ramo .eval-row-info{flex:1;min-width:0;min-height:44px;display:flex;flex-direction:column;justify-content:center;}
 #screen-ramo .eval-row-weight{color:var(--fg2);}
 #screen-ramo .ficha-peso{width:100%;height:6px;margin-top:14px;overflow:hidden;border-radius:999px;background:var(--border2);}
 #screen-ramo .eval-row>.ficha-peso{flex-basis:100%;margin-top:0;}

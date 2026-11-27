@@ -35,5 +35,39 @@ chk('el esqueleto trae las tres etiquetas', /ETIQUETAS_ESTADISTICAS=\['estudiant
 chk('si la consulta falla o no alcanza el mínimo, la banda se esconde',
   (app.match(/el\.hidden=true;el\.innerHTML='';/g)||[]).length >= 2);
 
-console.log(`\n${ok} ok, ${fail} fail`);
-if (fail) process.exit(1);
+// ─── SQL real: la función pública lee una fila precalculada ───
+// Contar recorre todas las cuentas, y esta RPC la llama cualquiera sin sesión.
+// Por eso el conteo lo hace pg_cron una vez por hora y la función solo lee.
+const assert = require('node:assert/strict');
+const { PGlite } = require('@electric-sql/pglite');
+(async () => {
+  const db = new PGlite(), u = i => `00000000-0000-0000-0000-${String(i).padStart(12, '0')}`;
+  await db.exec(leer('bin/supabase-stubs.sql'));
+  await db.exec('alter table auth.users add column last_sign_in_at timestamptz;' +
+    'create table public.user_ramos(user_id uuid primary key references auth.users(id) on delete cascade, data jsonb);');
+  await db.exec(sql);
+  await db.exec(sql); // se puede correr de nuevo
+  const comoAnon = async () => {
+    await db.exec('set role anon');
+    const d = (await db.query('select public.estadisticas_publicas() as d')).rows[0].d;
+    await db.exec('reset role');
+    return d;
+  };
+  chk('recién aplicada ya responde (en cero, sin cuentas)', (await comoAnon()).cuentas === 0);
+  for (const i of [1, 2]) {
+    await db.query('insert into auth.users(id,email,last_sign_in_at) values($1,$2,now())', [u(i), `sintetico${i}@example.invalid`]);
+    await db.query('insert into public.user_ramos values($1,$2)', [u(i), JSON.stringify({ ramos: [{ categorias: [{ notas: [{ valor: 5.5 }, { valor: null }] }] }] })]);
+  }
+  chk('sin refresco sigue mostrando lo anterior', (await comoAnon()).cuentas === 0);
+  await db.exec('select public.estadisticas_publicas_refrescar(); select public.estadisticas_publicas_refrescar();');
+  const d = await comoAnon();
+  chk('tras el refresco cuenta cuentas, ramos y solo las notas con valor', d.cuentas === 2 && d.activas_7d === 2 && d.ramos === 2 && d.notas === 2);
+  chk('refrescar no acumula filas', (await db.query('select count(*)::int n from public.estadisticas_publicas_cache')).rows[0].n === 1);
+  await db.exec('set role anon');
+  for (const s of ['select * from public.estadisticas_publicas_cache', 'select public.estadisticas_publicas_refrescar()', 'select public.estadisticas_publicas_calcular()'])
+    await assert.rejects(db.query(s), /permission denied/);
+  chk('sin sesión solo se entra por estadisticas_publicas: ni la tabla, ni el conteo, ni el refresco', true);
+
+  console.log(`\n${ok} ok, ${fail} fail`);
+  if (fail) process.exit(1);
+})().catch(e => { console.error(e); process.exit(1); });

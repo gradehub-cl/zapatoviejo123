@@ -173,8 +173,7 @@ function repintarAlCargarMallas(tenant,repintar){
 // Volver a tocar la misma universidad no borra lo que ya eligió.
 function selectTenant(t){
   if(t!==selectedTenant){
-    selectedCarrera=null;selectedCarreraNombre=null;carreraFiltro='';
-    const buscar=document.getElementById('ob-carrera-buscar');if(buscar)buscar.value='';
+    resetCarreraOnboarding();
   }
   selectedTenant=t;applyTheme();renderTenantPick();initCarreraGrid();checkOb();
   // En onboarding avanzamos solo: el usuario ve la selección y pasa al siguiente paso
@@ -184,9 +183,17 @@ function selectTenant(t){
 }
 function renderTenantPick(){
   const g=document.getElementById('tenant-grid');if(!g)return;g.innerHTML='';
-  tenantsVisibles(selectedTenant).forEach(([code,cfg])=>{
+  const consulta=document.getElementById('ob-tenant-buscar')?.value||'';
+  const opciones=tenantsVisibles(selectedTenant,consulta);
+  const estado=document.getElementById('ob-tenant-estado');
+  if(estado)estado.textContent=consulta.trim()?(opciones.length
+    ?(opciones.length===1?'1 universidad encontrada':opciones.length+' universidades encontradas')
+    :'No encontramos universidades. Prueba con otro nombre o sigla.'):'';
+  opciones.forEach(([code,cfg])=>{
     const b=document.createElement('button');
+    b.type='button';
     b.className='tenant-opt'+(code===selectedTenant?' sel':'');
+    b.setAttribute('aria-pressed',code===selectedTenant?'true':'false');
     b.style.setProperty('--tb','var(--primary)');
     b.innerHTML=`${tenantBadge(code,'lg')}
       <span class="tenant-opt-info">

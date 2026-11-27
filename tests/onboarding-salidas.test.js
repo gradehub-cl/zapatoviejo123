@@ -59,7 +59,9 @@ chk('plan común y acentos también encuentran la misma opción',run('coincideBu
 run('carreraFiltro="teatro";initCarreraGrid();');
 chk('Teatro encuentra Actuación sin duplicar la carrera',grid.children.filter(b=>b.textContent==='Actuación').length===1);
 chk('un diploma no declarado no se convierte en el plan común',run('!coincideBusquedaCarrera(carrerasDeclarables("uc").find(c=>c.malla==="ING-PC"),"Ingeniería Civil Industrial")'));
-chk('los alias UC no aparecen en otra universidad',run('!carrerasDeclarables("fen").some(c=>coincideBusquedaCarrera(c,"Teatro"))'));
+// La Chile tiene su propia Actuación Teatral con el alias Teatro: lo que no
+// puede pasar es que aparezca la Actuación de la UC.
+chk('los alias UC no aparecen en otra universidad',run('carrerasDeclarables("fen").filter(c=>coincideBusquedaCarrera(c,"Teatro")).map(c=>c.n).join()==="Actuación Teatral"'));
 chk('Ajustes usa la misma búsqueda por nombre y alias',fs.readFileSync(raiz+'src/app/ajustes.js','utf8').includes('todas.filter(c=>coincideBusquedaCarrera(c,q))'));
 
 console.log('\nPASS: '+ok+'   FAIL: '+fail);process.exit(fail?1:0);

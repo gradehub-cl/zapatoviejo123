@@ -127,6 +127,13 @@ $$;
 
 revoke all on function public.agente_datos(text) from public;
 grant execute on function public.agente_datos(text) to anon, authenticated;
+-- Supabase le da EXECUTE a anon por defecto en cada función nueva, y quitárselo
+-- a `public` no alcanza: son permisos separados. Estas piden sesión por dentro
+-- (auth.uid()), así que sin sesión no devolvían nada, pero no hay razón para
+-- que alguien sin cuenta pueda siquiera llamarlas.
+revoke all on function public.crear_codigo_agente() from public, anon;
+revoke all on function public.listar_agentes() from public, anon;
+revoke all on function public.revocar_agente(uuid) from public, anon;
 grant execute on function public.crear_codigo_agente() to authenticated;
 grant execute on function public.canjear_codigo_agente(text, text) to anon, authenticated;
 grant execute on function public.listar_agentes() to authenticated;

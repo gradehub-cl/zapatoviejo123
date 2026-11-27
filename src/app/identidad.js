@@ -35,8 +35,17 @@ let selectedTenant='fen';
 
 // Universidades que se ofrecen al elegir. Una oculta sigue apareciendo si el
 // estudiante ya la tiene seleccionada, para no dejarlo sin su opción actual.
-function tenantsVisibles(actual){
-  return Object.entries(TENANTS).filter(([code,cfg])=>!cfg.oculto||code===actual);
+function tenantsVisibles(actual,consulta=''){
+  const palabras=normalizarBusquedaUniversidad(consulta).split(' ').filter(Boolean);
+  return Object.entries(TENANTS).filter(([code,cfg])=>{
+    if(code!==actual&&cfg.oculto)return false;
+    if(!palabras.length)return true;
+    const nombres=normalizarBusquedaUniversidad([code,cfg.short,cfg.name,cfg.nombreCompleto,...(cfg.alias||[])].join(' '));
+    return palabras.every(p=>nombres.includes(p));
+  });
+}
+function normalizarBusquedaUniversidad(texto){
+  return normName(texto).replace(/[’']/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 }
 
 // Escribe la identidad como CSS custom properties en :root. Todos los

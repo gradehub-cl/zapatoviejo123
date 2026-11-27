@@ -42,7 +42,7 @@ function pasoRamosSemestreAnterior(){
     <label class="modal-label">Qu\u00e9 semestre fue</label>
     <div class="sem-picker" id="m-hist-sem">${selectorSemestreHTML(histManual.anio,histManual.periodo,'setAnioSemestreAnterior','setPeriodoSemestreAnterior')}</div>
     <label class="modal-label" for="m-hist-buscar">Busca tus ramos</label>
-    <div class="course-picker-search"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg><input id="m-hist-buscar" type="text" placeholder="Nombre o sigla" maxlength="${NOMBRE_MAX}" autocomplete="off"/></div>
+    <div class="course-picker-search"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg><input id="m-hist-buscar" type="text" placeholder="Nombre o sigla" maxlength="${NOMBRE_MAX}" autocomplete="off" spellcheck="false"/></div>
     <div id="m-hist-resultados"></div>
     ${filas?`<label class="modal-label" style="margin-top:14px;">Tus ramos de ese semestre</label><div class="rep-box">${filas}</div>`:''}
     ${avanceCurricularDisponible()?`<button type="button" class="course-picker-manual" onclick="openAvanceCurricular()">Cargar desde mi ficha académica</button>`:''}
