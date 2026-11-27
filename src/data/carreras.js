@@ -292,6 +292,13 @@ const CARRERAS_DECLARABLES={
   ],
   // La U. de Chile completa. El código del tenant sigue siendo `fen` porque
   // así está guardado en profiles y en gradehub_v1; lo visible dice UChile.
+  // PUCV: por ahora solo Ingeniería Civil, que es la única escuela que publica
+  // su plan ramo por ramo. No confundir con Civil Industrial, Civil Informática
+  // y las demás ingenierías civiles de la PUCV, que son otras carreras: quien
+  // las estudia escribe su nombre, como hasta ahora. Fuentes: docs/mallas-pucv.md.
+  pucv:[
+    {n:'Ingeniería Civil',malla:'PUCV-INGENIERIA-CIVIL',alias:['Obras Civiles']},
+  ],
   // UCN: por ahora solo las tres carreras de la Escuela de Ingeniería en
   // Coquimbo, que es la única unidad que publica malla y programas en un
   // listado abierto. Llevan la sede porque Antofagasta dicta carreras del mismo
