@@ -66,7 +66,6 @@ const captura=async nombre=>fs.writeFileSync(path.join(dir,nombre),Buffer.from((
    ],historial:[]});S.modo=${JSON.stringify(modo)};aplicarModo();ocultarCargaInicial();showMainApp();
    window.fechaQA=fechaHorarioChile(new Date());window.ahoraQA=new Date(instanteHorarioChile(fechaQA,'10:15'));
    window.diaQA=['D','L','M','W','J','V','S'][new Date(fechaQA+'T12:00:00Z').getUTCDay()];`);
-  assert.equal(await evaluar("!!document.querySelector('.clases-hoy')"),false,'estado antiguo no muestra tarjeta vacía');
   await evaluar("openRamo('sintetico-a')");await esperar("!!document.querySelector('[data-editar-horario]')");await click('[data-editar-horario]');
   await esperar("!!document.querySelector('.horario-editor')");
   assert.equal(await evaluar("document.querySelector('input[name=inicio]').type"),'time');
@@ -98,16 +97,7 @@ const captura=async nombre=>fs.writeFileSync(path.join(dir,nombre),Buffer.from((
   await evaluar("document.documentElement.style.fontSize='200%'");
   assert.equal(await evaluar("document.querySelector('.modal-sheet').scrollWidth>document.querySelector('.modal-sheet').clientWidth+1"),false);
   assert.equal(await evaluar("[...document.querySelectorAll('.horario-editor button,.horario-editor input[type=time],.horario-dias label')].every(n=>n.getBoundingClientRect().height>=44)"),true);
-  await evaluar("document.documentElement.style.fontSize='';document.querySelector('[data-cancelar-horario]').click();showTab('home');renderClasesHoy(ahoraQA)");await delay(350);
-  assert.match(await text('.clases-hoy'),/Hasta las 10:50/);assert.match(await text('.clases-hoy'),/12:20/);assert.match(await text('.clases-hoy'),/K201/);
-  await evaluar("document.querySelector('.clases-hoy').scrollIntoView({block:'center'})");await delay(150);
-  assert.equal(await evaluar('document.documentElement.scrollWidth>innerWidth'),false);
-  await captura('clases-hoy-inicio-'+ancho+'-'+modo+'.png');
-  await evaluar("document.documentElement.style.fontSize='200%'");
-  assert.equal(await evaluar('document.documentElement.scrollWidth>innerWidth'),false);
-  assert.equal(await evaluar("[...document.querySelectorAll('.clases-hoy button')].every(n=>n.getBoundingClientRect().height>=44)"),true);
-  await evaluar("document.documentElement.style.fontSize='';document.querySelector('[data-clase-ramo]').click()");
-  assert.equal(await evaluar('currentRamoId'),'sintetico-a');
+  await evaluar("document.documentElement.style.fontSize='';document.querySelector('[data-cancelar-horario]').click()");await delay(350);
   // Un cambio remoto mientras edita no se pisa al guardar.
   await click('[data-editar-horario]');await evaluar("S.ramos[0].horario[0].sala='Cambio de otro dispositivo';document.querySelector('.horario-editor').requestSubmit()");assert.match(await text('.horario-error'),/cambió/);
   await click('[data-cancelar-horario]');

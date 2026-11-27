@@ -41,7 +41,6 @@ function renderRecorreccionesHome(){
 }
 function renderHome(){
   if(typeof pintarHerramientasInicio==="function")pintarHerramientasInicio();
-  renderClasesHoy();
   renderPropuestasPautaHome();
   renderRecorreccionesHome();
   renderNotaPendienteInicio();

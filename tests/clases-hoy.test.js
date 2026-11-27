@@ -18,14 +18,12 @@ const resumen=(rs,ahora)=>js(run('resumenHorarioClases')(rs,new Date(ahora)));
 const horarios=[ramo('uno',[bloque(['L','W'])]),ramo('dos',[bloque(['L'],'10:00','11:00',{tipo:'LAB',sala:''})]),ramo('sin')];
 let r=resumen(horarios,'2026-11-09T11:30:00Z'); // Lunes 08:30 Chile.
 assert.equal(r.proximaClase.ramoId,'uno');assert.equal(r.clasesHoy.length,2);assert.equal(r.proximaClase.inicioAt,'2026-11-09T11:20:00.000Z');
-assert.match(run('clasesHoyHTML')(r,new Date('2026-11-09T11:30:00Z')),/Hasta las 09:30/);
 assert.equal(resumen(horarios,'2026-11-09T12:30:00Z').proximaClase.ramoId,'dos','el fin exacto deja de ser clase actual');
 assert.equal(resumen(horarios,'2026-11-10T02:59:59Z').fechaHoy,'2026-11-09');
 assert.equal(resumen(horarios,'2026-11-10T03:00:00Z').fechaHoy,'2026-11-10');
 assert.equal(resumen(horarios,'2026-11-14T15:00:00Z').proximaClase.fecha,'2026-11-16','sábado busca lunes');
 assert.equal(resumen(horarios,'2026-11-15T15:00:00Z').proximaClase.fecha,'2026-11-16','domingo busca lunes');
 assert.equal(resumen([ramo('sin')],'2026-11-09T11:00:00Z').proximaClase,null);
-assert.equal(run('clasesHoyHTML')(resumen(horarios,'2026-11-10T12:00:00Z'),new Date('2026-11-10T12:00:00Z')),'','no tarjeta vacía ni próxima clase de otro día bajo Hoy');
 assert.equal(run('instanteHorarioChile')( '2026-08-31','08:20'),'2026-08-31T12:20:00.000Z');
 assert.equal(run('instanteHorarioChile')( '2026-09-07','08:20'),'2026-09-07T11:20:00.000Z');
 assert.equal(run('instanteHorarioChile')( '2026-09-06','00:30'),null,'hora inexistente de verano no se inventa');

@@ -6318,16 +6318,12 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .pfe [data-pf-ramos-editor]:has([data-pf-ramos-uni]){gap:16px;}
 .pfe [data-pf-ramos-uni]{display:grid;gap:6px;min-width:0;padding-top:12px;border-top:1px solid var(--pfe-linea);}
 .pfe [data-pf-ramos-editor] select{width:100%;max-width:100%;margin:6px 0;}
-/* ─── Horario por ramo y clases de hoy ─────────────────────────────────── */
-.clases-hoy,.horario-ficha{font-family:var(--font-ui);color:var(--fg);font-variant-numeric:tabular-nums;}
-.clases-hoy{margin:16px 20px 4px;border:1px solid var(--border);border-radius:8px;background:var(--card);overflow:hidden;}
-.clases-hoy header,.horario-ficha header{display:flex;align-items:center;justify-content:space-between;gap:12px;}
-.clases-hoy header{padding:16px 18px 0;}.clases-hoy h2,.horario-ficha h2{font-size:1rem;font-weight:650;margin:0;}.clases-hoy header>span{font-size:.8125rem;color:var(--fg2);}
-.clases-hoy button{width:100%;min-height:44px;border:0;background:none;color:var(--fg);font:inherit;text-align:left;display:flex;align-items:center;gap:18px;padding:14px 18px;cursor:pointer;}
-.clases-hoy button:focus-visible,.horario-accion:focus-visible{outline:2px solid var(--primary);outline-offset:-3px;}
-.clases-hoy-hora{font-size:1.5rem;font-weight:650;flex-shrink:0;line-height:1.25;}.clases-hoy small{display:block;color:var(--fg2);font-size:.8125rem;font-weight:400;line-height:1.5;}.clases-hoy-hora small{margin-top:4px;}
-.clases-hoy-nombre,.clases-hoy li button>span:first-of-type{flex:1;min-width:0;overflow-wrap:anywhere;}.clases-hoy-nombre b{font-size:1.125rem;line-height:1.35;}.clases-hoy-nombre small{margin-top:4px;}
-.clases-hoy ul,.horario-ficha ul{list-style:none;margin:0;padding:0;}.clases-hoy li{border-top:1px solid var(--border);}.clases-hoy time{font-weight:600;}.clases-hoy li b{font-size:.875rem;font-weight:500;}
+/* ─── Horario por ramo ─────────────────────────────────────────────── */
+.horario-ficha{font-family:var(--font-ui);color:var(--fg);font-variant-numeric:tabular-nums;}
+.horario-ficha header{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.horario-ficha h2{font-size:1rem;font-weight:650;margin:0;}
+.horario-accion:focus-visible{outline:2px solid var(--primary);outline-offset:-3px;}
+.horario-ficha ul{list-style:none;margin:0;padding:0;}
 .horario-ficha{margin:24px 20px;padding:16px 0;border-top:1px solid var(--border);}.horario-ficha p{color:var(--fg2);font-size:.875rem;}.horario-ficha li{display:flex;flex-wrap:wrap;gap:6px 14px;padding:8px 0;font-size:.875rem;}.horario-ficha li>span:last-child{color:var(--fg2);}
 .horario-accion{min-height:44px;min-width:44px;padding:8px 12px;border:1px solid var(--border2);border-radius:8px;background:transparent;color:var(--fg);font:500 .875rem var(--font-ui);cursor:pointer;}
 .horario-editor{container-type:inline-size;}
@@ -6510,7 +6506,7 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 #agenda-body .agenda-mes-vacio{margin:0;padding:8px 0 12px;color:var(--fg2);font-size:.875rem;}
 @media(hover:hover){#agenda-body .agenda-mes-dia:hover,#agenda-body .agenda-nav-flecha:hover{background:var(--muted);}}
 @media(prefers-reduced-motion:no-preference){#agenda-body :is(.agenda-mes-dia,.agenda-nav-flecha){transition:background var(--motion-fast) var(--ease-out);}}
-@media(max-width:480px){.clases-hoy-principal{flex-wrap:wrap;}.clases-hoy-hora{flex-basis:100%;}.clases-hoy-hora small{display:inline;margin-left:10px;font-size:.8125rem;}.horario-campos small{display:block;}}
+@media(max-width:480px){.horario-campos small{display:block;}}
 
 /* ─── Pestaña Perfil ───────────────────────────────────────────────────────
    Lista agrupada (HIG: Lists and tables). Filas de 52 px, una línea fina entre
