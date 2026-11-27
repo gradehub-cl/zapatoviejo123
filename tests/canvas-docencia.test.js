@@ -26,7 +26,7 @@ function seleccionar(){checks.clear();for(const m of nodo('modal-content').inner
  assert.equal(sync,1);assert.deepEqual(publicaciones,[],'aceptar no informa un profesor ni aporta votos');
  assert(!/Docente Sintético|Ayudante Sintética/.test(almacen.get('gradehub_v1')),'el respaldo no contiene el equipo');
  assert.equal(run('r.docenciaCanvas'),undefined,'ningún campo nuevo en el ramo');
- ctx.__subidas=[];ctx.__nube={from:tabla=>({upsert:async fila=>{assert.equal(tabla,'user_ramos');ctx.__subidas.push(JSON.parse(JSON.stringify(fila)));return {error:null}}})};
+ ctx.__subidas=[];ctx.__nube={from:tabla=>({insert:async fila=>{assert.equal(tabla,'user_ramos');ctx.__subidas.push(JSON.parse(JSON.stringify(fila)));return {error:null}}})};
  run('supabaseClient=__nube;guardarBaseSync(currentUser.id,null)');
  assert.equal(await run('subirConVersion(currentUser.id)'),true);
  const subida=ctx.__subidas.find(f=>f.user_id==='00000000-0000-0000-0000-000000000001').data;
