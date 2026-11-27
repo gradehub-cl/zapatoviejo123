@@ -13,7 +13,7 @@ mallas en PDF y los reglamentos que aparecieron.
 ## Resumen
 
 - **6 universidades tienen un catálogo que cubre toda la universidad**: UDLA y UCSC
-  publican un PDF por sigla; O'Higgins, Aysén y Antofagasta tienen el catálogo de
+  publican un PDF por sigla (sin índice: hay que conocer la sigla); O'Higgins, Aysén y Antofagasta tienen el catálogo de
   Ucampus abierto (programa, créditos, requisitos, secciones y horario por
   semestre); la Alberto Hurtado tiene Ucampus con sesión, pero sus programas
   aparecen indexados.
@@ -171,11 +171,10 @@ Lo que hay que saber antes de usar esto:
 ### Detalle de las fuentes más útiles
 
 - **UDLA** — `https://programas.udla.cl/<período><SIGLA>.pdf`. El período es año
-  más dos dígitos (`202610`, `202420`; en los antiguos lleva un dígito más,
-  `2020103MAT140`). El programa leído (CBI302, publicado el 13-02-2026 por la
-  Dirección de Catálogo Curricular) tiene 10 páginas y una tabla «7.1
-  Ponderaciones» por componente y subcomponente. La raíz del sitio responde 200
-  vacía: no hay índice, así que hacen falta las siglas, que salen de las mallas.
+  más dos dígitos (`202610`, `202620`). Los programas son vigentes y traen una
+  tabla «7.1 Ponderaciones» regular, pero **el sitio no tiene índice y las mallas
+  públicas no traen siglas**. Se alcanzaron 188 programas siguiendo
+  prerrequisitos; el detalle y el límite están en [`udla/`](udla/README.md).
 - **UCSC** — `https://catalogoasignatura.ucsc.cl/pdfs/<SIGLA>.pdf`. Apareció en
   el buscador (LEE097), pero esta noche el host no aceptó conexiones desde este
   equipo. Falta confirmar que sigue arriba y si tiene índice.
@@ -276,9 +275,10 @@ Santo Tomás (`www.ust.cl/web/wp-content/uploads/sites/6/`) y Silva Henríquez
 
 ## Qué haría después
 
-1. **UDLA primero.** Es el único catálogo completo, vigente (2026) y con una tabla
-   de ponderaciones regular. Falta la lista de siglas: sale de las mallas de sus
-   carreras.
+1. **UDLA, ramo por ramo.** Se intentó armarla completa y no se puede: faltan
+   las siglas ([detalle](udla/README.md)). Lo que sí funciona es que cada
+   estudiante entregue su sigla, porque de ahí el programa oficial es directo. La
+   lista completa habría que pedírsela a la UDLA.
 2. **Ucampus (UOH, UAysén, UA) con permiso.** Trae malla, créditos, requisitos,
    secciones y programa. Hay que escribirle a Ucampus o a cada universidad, o que
    lo recorra una persona; no con un agente de IA.
@@ -297,5 +297,6 @@ Santo Tomás (`www.ust.cl/web/wp-content/uploads/sites/6/`) y Silva Henríquez
 - [`sitios.tsv`](sitios.tsv): una fila por universidad, con el estado de la
   portada, los hosts cerrados o detenidos, y cuántas páginas de carrera y mallas
   vio el recorrido.
-- [`herramientas/`](herramientas/): el lector, el verificador y el extractor de
-  texto. No se bajó ni se guardó en el repo ningún PDF de terceros.
+- [`udla/`](udla/README.md): lo que se alcanzó a leer del catálogo de la UDLA.
+- [`herramientas/`](herramientas/): el lector, el verificador, el extractor de
+  texto y las herramientas de la UDLA. No se bajó ni se guardó en el repo ningún PDF de terceros.
