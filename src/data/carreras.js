@@ -292,6 +292,16 @@ const CARRERAS_DECLARABLES={
   ],
   // La U. de Chile completa. El código del tenant sigue siendo `fen` porque
   // así está guardado en profiles y en gradehub_v1; lo visible dice UChile.
+  // UCN: por ahora solo las tres carreras de la Escuela de Ingeniería en
+  // Coquimbo, que es la única unidad que publica malla y programas en un
+  // listado abierto. Llevan la sede porque Antofagasta dicta carreras del mismo
+  // nombre con otro plan. Quien estudia otra carrera de la UCN la escribe, como
+  // hasta ahora. Fuentes y decisiones: docs/mallas-ucn.md.
+  ucn:[
+    {n:'Ingeniería Civil en Computación e Informática (Coquimbo)',malla:'UCN-COQ-ICCI',alias:['ICCI','Informática','Computación']},
+    {n:'Ingeniería Civil Industrial (Coquimbo)',malla:'UCN-COQ-ICI',alias:['ICI','Industrial']},
+    {n:'Ingeniería en Tecnologías de Información (Coquimbo)',malla:'UCN-COQ-ITI',alias:['ITI','Informática']},
+  ],
   // Las tres de la FEN no cambian: son las que ya eligieron cientos de cuentas.
   // El resto sale de admisionuchile.cl (sitemap de carreras y nombre de cada
   // ficha, leídos el 2026-11-26), salvo el Plan Común, que admisión no lista

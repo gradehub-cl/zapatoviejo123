@@ -4218,6 +4218,17 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 .alumnos-editorial .profesor-hig-vacio{padding:20px 0;border:0;border-top:1px solid var(--border);border-radius:0;}
 .alumnos-editorial .panel-alumnos-ejemplo{font-size:.875rem;line-height:1.5;border-style:solid;border-radius:6px;padding:12px 16px;}
 .alumnos-editorial .panel-alumnos-ejemplo b{font-size:.75rem;}
+/* Carga: la forma del Resumen con las piezas `.esq` de Amigos. */
+.panel-alumnos-carga{display:grid;gap:1rem;padding-top:20px;}
+.panel-alumnos-carga .pac-titulo{width:9rem;height:2rem;}
+.panel-alumnos-carga .pac-tarjeta{height:9.5rem;border-radius:22px;}
+.panel-alumnos-carga .pac-alta{height:16rem;}
+/* Con la barra de vistas a la vista, el título repetía la pestaña elegida.
+   Queda para lectores de pantalla; en pantalla ancha (barra lateral) se ve. */
+@media(max-width:1023px){
+  .alumnos-editorial .panel-alumnos-cabecera{margin:4px 0 12px;}
+  .alumnos-editorial .panel-alumnos-cabecera h2{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+}
 .alumnos-editorial .panel-alumnos-estado{padding:24px 0;border-top:1px solid var(--border);}
 .alumnos-editorial .panel-alumnos-estado h2{font-size:1.5rem;line-height:1.3;margin:0 0 12px;}
 .alumnos-editorial .panel-alumnos-estado p{font-size:1rem;color:var(--fg2);margin:0;}
@@ -5620,7 +5631,9 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
   .est-ramos{padding:18px 6px 6px;}.est-ramos-lista{grid-template-columns:minmax(0,1fr);}
   .est-lista{padding:6px 0;}
   .est-lista-cabeza{padding:12px 14px 8px;}.est input.est-buscar{width:100%;margin:0;}
-  .est-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;}.est .est-tabs button{padding:0 4px;font-size:13px;white-space:nowrap;}
+  /* Una sola fila que se desliza: en dos líneas quedaba una pestaña suelta. */
+  .est-tabs{flex-wrap:nowrap;max-width:100%;overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain;}.est-tabs::-webkit-scrollbar{display:none;}
+  .est .est-tabs button{flex:none;padding:0 9px;font-size:13.5px;white-space:nowrap;}
   .est-columnas{display:block;padding:2px 16px 0;}.est-columnas>:not(.est-leyenda){display:none;}.est-leyenda-ref{display:inline;}
   .est-grupo{padding:14px 16px 4px;}
   .est .est-fila{grid-template-columns:minmax(0,1fr) 84px;gap:6px 10px;padding:10px 16px;}
@@ -5678,6 +5691,11 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .fap-pie{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1.25rem .25rem;color:var(--fg2);font-size:.75rem}.fap-pie details{max-width:100%}.fap .pe-quitar{margin-top:1rem}
 @container(max-width:50rem){.fap-grilla{grid-template-columns:minmax(0,1fr)}.fap-comparacion{gap:.75rem}.fap-cambio{padding-top:.5rem}.fap-columnas{display:none}.fap-fila{grid-template-columns:minmax(0,1fr) auto;gap:.5rem 1rem}.fap-ref{text-align:left;font-size:.75rem}.fap-ref::before{content:'Referencia: '}.fap-delta{text-align:right;font-size:.75rem}.fap-marca{grid-column:1/-1}.fap .est-tarjeta-grande{padding:1.25rem}}
 @media(max-width:30rem){.fap .est-tarjeta-grande{padding:1rem;border-radius:20px}.fap-promedio strong{font-size:2.5rem}.fap-navegacion{justify-content:flex-start}.fap-leyenda{font-size:.6875rem}.fap .evolucion-marco{height:12rem;--evolucion-alto:12rem}.fap-comparacion .est-seg{flex-wrap:wrap}.fap-lados strong{font-size:1.375rem}}
+/* Una evaluación que aún no se rinde no tiene nota ni referencia: no se llena de rayas. */
+.fap-pendiente :is(.fap-ref,.fap-delta){visibility:hidden}.fap-pendiente .fap-nota{color:var(--fg3);font-weight:400}
+@container(max-width:50rem){.fap-pendiente :is(.fap-ref,.fap-delta){display:none}}
+/* Celular: primero de qué alumno se trata, después sus ramos, pegados a lo que cambian. */
+@media(max-width:30rem){.fap-herramientas{flex-direction:column-reverse;align-items:stretch;gap:.5rem}.fap-navegacion .fap-paginacion{width:100%}.fap-paginacion span{margin-right:auto}}
 @media(prefers-reduced-motion:reduce){.fap *{animation:none;transition:none;scroll-behavior:auto}}
 
 /* Comparación opcional al final de la ficha alumno–ramo. */
@@ -5867,6 +5885,19 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
   .al-necesita small{display:none;}
   .al-abrir{grid-column:3;grid-row:1/4;align-self:center;}
   .al-columnas{padding:8px 16px;}
+  /* Sin encabezados de columna, el nombre manda y la cifra suelta dice qué es. */
+  .al-nombre b{font-weight:600;}
+  .al-ramo>b{color:var(--fg2);font-size:13.5px;}
+  .est .al-necesita b:not([class])::before{content:"Necesita ";color:var(--fg3);font-weight:400;}
+}
+@media(max-width:600px){
+  .al-barra{gap:8px;}
+  .al-acciones:has(select){display:grid;grid-template-columns:minmax(0,1fr) auto;}
+  .est .al-acciones:has(select) input.est-buscar{grid-area:1/1;width:100%;min-width:0;padding:0 12px;}
+  .est .al-acciones:has(select) input.est-buscar::placeholder{font-size:.9375rem;}
+  .est .al-acciones:has(select) .al-invitar{grid-area:1/2;padding:0 12px;}
+  .al-lista .al-acciones:has(select) select{grid-area:2/1;width:100%;max-width:none;}
+  .al-acciones:has(select) .est-control{grid-area:2/2;justify-content:center;}
 }
 /* ─── Invitar alumnos: el mensaje tal como llega, y si está funcionando ───── */
 .inv{display:grid;gap:12px;max-width:68rem;}
@@ -5928,7 +5959,9 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .ramos-panel .ramos-sube strong{color:var(--est-sube);}
 .ramos-panel .ramos-baja strong{color:var(--est-baja);}
 .ramos-panel .ramos-gris strong,.ramos-panel .ramos-muestra-chica .adm-metrica:nth-child(2) strong{color:var(--fg2);}
-.profesor-hig .ramos-panel .ramos-ver{min-width:44px;min-height:44px;font-size:.8125rem;margin:0;padding:0 14px;border-radius:12px;background:var(--est-tile);white-space:normal;color:var(--fg);}
+/* Acciones de fila compactas (Lucas, 2026-11-20): 32 a la vista, 44 de área. */
+.profesor-hig .ramos-panel button.ramos-ver{position:relative;min-width:0;min-height:32px;font-size:.8125rem;font-weight:550;margin:0;padding:0 12px;border-radius:8px;background:var(--est-tile);white-space:nowrap;color:var(--fg);}
+.ramos-panel .ramos-ver::after{content:"";position:absolute;inset:-6px -2px;}
 @media(hover:hover){.profesor-hig .ramos-panel .ramos-ver:hover,.ramos-panel .ramos-filtros summary:hover,.est .est-control:hover{background:var(--est-linea);}}
 .ramos-panel :is(button,summary):focus-visible{outline:2px solid var(--est-sel);outline-offset:2px;}
 .ramos-panel .ramos-detalle{padding:.75rem 1rem 1rem;background:var(--est-tile);}
@@ -5960,7 +5993,16 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
   .ramos-panel .ramos-eval .est-pista{grid-column:1/-1;grid-row:2;}
 }
 
-@container(max-width:23rem){
+/* Celular: el nombre a todo el ancho; con los botones al lado se cortaba por sílabas. */
+@container(max-width:30rem){
+  .ramos-panel .ramos-fila-resumen{grid-template-columns:minmax(0,1fr);gap:.5rem;}
+  .profesor-hig .ramos-panel .ramos-nombre{width:100%;justify-content:space-between;}
+  .ramos-panel .ramos-nombre :is(b,small){overflow-wrap:break-word;}
+  .ramos-panel .ramos-flecha{margin-right:.4rem;}
+  .ramos-panel .ramos-cifras{grid-column:1;}
+  .ramos-panel .ramos-acciones{padding:.15rem 0 .2rem;}
+}
+@container(max-width:18rem){
   .ramos-panel .ramos-cifras{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
 @container(max-width:15rem){
@@ -6050,7 +6092,7 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .ras-dia{padding-top:.75rem;border-top:1px solid var(--est-linea);}
 .ras-lista{list-style:none;padding:0;margin:0;}
 .ras-lista li+li{border-top:1px solid var(--border);}
-:where(.profesor-hig,#modal-content) .ras-lista .ras-fila{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr) auto;align-items:center;gap:.55rem;width:100%;min-height:52px;padding:.5rem .2rem;border:0;border-radius:8px;background:none;color:var(--fg);font:inherit;text-align:left;cursor:pointer;}
+:where(.profesor-hig,#modal-content) .ras-lista .ras-fila{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:.55rem;width:100%;min-height:52px;padding:.5rem .2rem;border:0;border-radius:8px;background:none;color:var(--fg);font:inherit;text-align:left;cursor:pointer;}
 @media(hover:hover) and (pointer:fine){.ras-lista .ras-fila:hover{background:var(--muted);}}
 .ras-lista .ras-fila :is(b,small){display:block;overflow-wrap:anywhere;}
 .ras-razon{text-align:right;}
@@ -6069,12 +6111,33 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .ras-metodo summary{min-height:44px;width:fit-content;align-content:center;cursor:pointer;}
 .ras-metodo p{max-width:65ch;}
 .ras :is(button,summary,select):focus-visible{outline:2px solid var(--est-sel);outline-offset:2px;}
-@container(max-width:52rem){.ras-grid{grid-template-columns:minmax(0,1fr);}}
+/* «Cómo van»: los casos en el semáforo, con las cifras al lado. Comparten
+   columnas con la grilla de abajo para que los bordes calcen. */
+.ras-arriba{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:1rem;}
+.ras-arriba>.ras-cifras:only-child{grid-column:1/-1;}
+.ras-arriba .ras-cifras{align-content:center;border-radius:22px;}
+.ras-como{display:grid;gap:.7rem;align-content:start;}
+.ras-como .ras-cabeza{margin:0;}
+.ras-titular{color:var(--fg2);font-size:.9375rem;}
+.ras-titular strong{margin-right:.2rem;color:var(--fg);font-size:2.5rem;font-weight:650;line-height:1;letter-spacing:-.035em;}
+.ras [data-nivel=bad]{--ras-nivel:var(--red);}
+.ras [data-nivel=warn]{--ras-nivel:var(--yellow);}
+.ras [data-nivel=good]{--ras-nivel:var(--green);}
+.ras [data-nivel=neutral]{--ras-nivel:var(--est-gris);}
+.ras-semaforo{display:flex;gap:3px;height:.75rem;}
+.ras-semaforo i{flex:1 1 0;min-width:.75rem;border-radius:99px;background:var(--ras-nivel);}
+.ras-leyenda{display:flex;flex-wrap:wrap;gap:.35rem 1.1rem;list-style:none;padding:0;margin:0;color:var(--fg2);font-size:.8125rem;}
+.ras-leyenda b{color:var(--fg);font-weight:650;}
+.ras-leyenda .ras-cero,.ras-leyenda .ras-cero b{color:var(--fg3);font-weight:400;}
+:is(.ras-leyenda li,.ras-estado)::before{content:"";display:inline-block;width:.5rem;height:.5rem;margin-right:.4rem;border-radius:50%;background:var(--ras-nivel);vertical-align:.05em;}
+.ras-leyenda .ras-cero::before{background:none;box-shadow:inset 0 0 0 1.5px var(--est-linea2);}
+.ras-razon small{white-space:nowrap;}
+@container(max-width:52rem){.ras-grid,.ras-arriba{grid-template-columns:minmax(0,1fr);}}
 @container(max-width:28rem){
-  .ras-cifras{grid-template-columns:minmax(0,1fr);}
-  .ras .ras-cifras .adm-metrica{grid-template-columns:1fr auto;align-items:center;}
-  .ras .ras-cifras .adm-metrica+.adm-metrica{border-left:0;border-top:1px solid var(--est-linea);}
+  .ras .ras-cifras .adm-metrica{padding:.65rem .7rem;align-content:start;}
+  .ras-cifras span{font-size:.75rem;line-height:1.3;}
   .ras-cifras strong{font-size:1.5rem;}
+  .ras-titular strong{font-size:2.25rem;}
 }
 @container(max-width:16rem){
   .profesor-hig .ras .ras-lista .ras-fila{grid-template-columns:minmax(0,1fr) auto;}

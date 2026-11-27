@@ -6,7 +6,9 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   const cabeceraPantalla=typeof raiz.closest==='function'&&raiz.closest('#screen-alumnos')?.querySelector('.topbar h1');
   if(cabeceraPantalla){cabeceraPantalla.textContent='Alumnos';cabeceraPantalla.parentElement?.classList.remove('pe-alumno-cabecera');}
   raiz.innerHTML='<div class="profesor-hig alumnos-editorial">'+
-    '<div class="panel-alumnos-estado" role="status"><h2>Cargando tus alumnos</h2><p>Estamos preparando sus ramos y evaluaciones.</p></div></div>';
+    // Se muestra la forma de lo que viene mientras baja (HIG: Loading); el
+    // texto queda para los lectores de pantalla.
+    '<div class="panel-alumnos-carga" role="status" aria-label="Cargando tus alumnos"><span class="esq pac-titulo"></span><span class="esq pac-tarjeta"></span><span class="esq pac-tarjeta pac-alta"></span></div></div>';
   // Con alumnos de ejemplo, lo de los alumnos se responde en memoria. El link
   // de invitación y su renovación siguen siendo los reales del profesor.
   // Se pregunta en paralelo con la carga real, para no sumar una espera.
@@ -169,7 +171,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   const opcionesEst=()=>({seccion:porSeccion,sinSeccion:porSeccion?sinSeccionDe(alumnos):0,soloPruebas:alumnos.some(al=>al.soloPruebasPanel)});
   const repintarEstadisticas=()=>pintarEstadisticasPanel(paneles.estadisticas,estadoEst,opcionesEst());
   const pintarEstadisticas=()=>{estadoEst.datos=datosEstadisticasPanel(alumnos,compDe);if(!estadoEst.datos.hayPercentil)estadoEst.unidad='puntos';repintarEstadisticas();};
-  const resumenEstado={ramo:'',orden:'urgencia',dia:0,limite:0};
+  const resumenEstado={ramo:'',orden:'urgencia',dia:null,limite:0};
   const paginaResumen=()=>typeof matchMedia==='function'&&matchMedia('(max-width:600px)').matches?3:6;
   let datosResumen=null,alcanceResumen=null;
   const pintarResumen=(foco='',desplazar=false)=>{
@@ -177,6 +179,10 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     if(datosResumen?.dias[0].fecha!==hoy)
       datosResumen=datosResumenAlumnosPanel(alumnos,datosResumen?filasListaPanel(alumnos,ahora):filasIniciales,ahora);
     alcanceResumen=alcanceResumenAlumnosPanel(datosResumen,resumenEstado);
+    // Sin nada hoy, la agenda parte en el primer día que tenga evaluaciones: lo
+    // que viene sirve más que un «Sin evaluaciones este día». Una vez que el
+    // profesor elige un día, se respeta.
+    if(resumenEstado.dia===null)resumenEstado.dia=diaInicialResumenPanel(alcanceResumen.dias);
     paneles.resumen.innerHTML=resumenInicioAlumnosHTML(alcanceResumen,{...resumenEstado,limite:resumenEstado.limite||paginaResumen()});
     if(foco)paneles.resumen.querySelector(foco)?.focus({preventScroll:!desplazar});
   };
