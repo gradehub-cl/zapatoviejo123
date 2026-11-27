@@ -17,6 +17,13 @@ chk('y nadie le pasa el correo',
 chk('los dos únicos valores son los dos métodos',
   /recordarMetodoLogin\('correo'\)/.test(ses) && /recordarMetodoLogin\(provider\)/.test(ses));
 
+// Quien crea su cuenta con correo y después cierra sesión volvía a ver «Crear
+// cuenta», porque solo se recordaba el método al iniciar sesión (auditoría #1376).
+chk('crear la cuenta con correo también recuerda el método',
+  /recordarMetodoLogin\('correo'\);\s*currentUser=data\.user;\s*await registrarAceptacionLegal\(\);\s*await afterSignup\(\)/.test(ses));
+chk('y con eso la pantalla de entrada vuelve en «Iniciar sesión»',
+  /function modoAuthInicial\(\)\{return typeof ultimoMetodoLogin==='function'&&ultimoMetodoLogin\(\)\?'login':'signup';\}/.test(ses));
+
 console.log('\n=== Sobrevive al cierre de sesión, que es cuando sirve ===');
 // Guardado dentro del estado de la app se iría junto con la sesión, justo
 // cuando hace falta. Va en su propia clave.
