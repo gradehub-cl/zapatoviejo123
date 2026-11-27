@@ -174,5 +174,19 @@ otro.value='abc';caso.ctx.escribirPasoCalculadoraApp(otro);
 chk('uno inválido se marca y vuelve a 1',otro.attributes['aria-invalid']==='true'&&filas()===5);
 chk('la tabla parte abierta en la hoja',/<details id="calc-app-tabla-det" class="calc-tabla" open>/.test(app));
 
+// «Corrige el dato marcado para ver tu nota»: el campo ya llevaba aria-invalid,
+// pero ningún estilo lo mostraba y el texto hablaba de una marca que no existía
+// (auditoría #1376).
+caso=escenarioCalculadora();
+caso.el('calc-app-puntaje').value='60';caso.el('calc-app-total').value='50';caso.ctx.calcularNotaApp();
+chk('un puntaje sobre el total marca ese campo y lo asocia al error',
+  caso.el('calc-app-puntaje').attributes['aria-invalid']==='true'&&caso.el('calc-app-puntaje').attributes['aria-describedby']==='calc-app-error'&&
+  caso.el('calc-app-error').textContent==='Tu puntaje no puede superar el total.'&&!('aria-invalid' in caso.el('calc-app-total').attributes));
+caso.el('calc-app-puntaje').value='40';caso.ctx.calcularNotaApp();
+chk('al corregirlo se quita la marca',!('aria-invalid' in caso.el('calc-app-puntaje').attributes)&&!('aria-describedby' in caso.el('calc-app-puntaje').attributes)&&caso.el('calc-app-error').textContent==='');
+const reglaMarca=leer('styles.css').match(/input\.modal-input\[id\^="calc-app-"\]\[aria-invalid="true"\]\{([^}]*)\}/);
+chk('el campo marcado se ve: borde rojo con un selector que le gana a input[type=text]',!!reglaMarca&&/border-color:var\(--red\)/.test(reglaMarca[1])&&!/!important/.test(reglaMarca[1]));
+chk('los campos de la calculadora son input.modal-input con id calc-app-',/<input class="modal-input" id="calc-app-puntaje"/.test(app));
+
 console.log(`\n${ok} OK, ${fail} FAIL`);
 if (fail) process.exit(1);

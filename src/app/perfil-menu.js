@@ -156,7 +156,7 @@ function calcularNotaApp(){
   const e=numeroCalculadoraApp(campo('exigencia').value);
   const nmin=numeroCalculadoraApp(campo('nmin').value),naprob=numeroCalculadoraApp(campo('naprob').value),nmax=numeroCalculadoraApp(campo('nmax').value);
   const datos={puntaje:p,total:t,exigencia:e,nmin,naprob,nmax};
-  for(const id of Object.keys(datos))campo(id).removeAttribute('aria-invalid');
+  for(const id of Object.keys(datos)){campo(id).removeAttribute('aria-invalid');campo(id).removeAttribute('aria-describedby');}
   let error='',mal=[];
   const hayP=campo('puntaje').value.trim()!=='',hayT=campo('total').value.trim()!=='';
   if(!(e>=1&&e<=99)){error='La exigencia va entre 1 % y 99 %.';mal=['exigencia'];}
@@ -165,7 +165,7 @@ function calcularNotaApp(){
   }else if(hayT&&!(t>0)){error='El puntaje total debe ser mayor que cero.';mal=['total'];}
   else if(hayP&&!(p>=0)){error='Escribe un puntaje válido, por ejemplo 23,5.';mal=['puntaje'];}
   else if(hayP&&hayT&&p>t){error='Tu puntaje no puede superar el total.';mal=['puntaje'];}
-  for(const id of mal)campo(id).setAttribute('aria-invalid','true');
+  for(const id of mal){campo(id).setAttribute('aria-invalid','true');campo(id).setAttribute('aria-describedby','calc-app-error');}
   const resultado=!error&&hayP&&hayT?gh_notaDesdePuntaje(p,t,{exigencia:e/100,nmin,naprob,nmax,truncar:campo('truncar').checked}):null;
   _resultadoCalculadoraApp=resultado;
   campo('error').textContent=error;
