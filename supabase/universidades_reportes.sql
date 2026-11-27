@@ -1,11 +1,27 @@
 -- Universidad = tenant, no facultad/carrera. Aplicar antes del merge.
 -- Reaplicable. No reescribe reportes existentes ni cambia el consenso.
 begin;
+-- Universidades sin malla ni pautas en la app (`registroBasico` en
+-- src/data/universidades.js): el perfil guarda su código y nada más. Esta es la
+-- única lista en SQL; universidades_chile.sql la lleva igual a producción.
+create or replace function public.universidades_basicas()
+returns text[] language sql immutable set search_path='' as $$
+ select array[
+  'pucv','uac','uach','uah','uahc','uantof','uautonoma','uay',
+  'ubio','ubo','ubolivariana','ucen','ucm','ucn','ucsc','ucsh',
+  'uct','uda','udalba','udec','udla','ufro','uft','ugm',
+  'ula','ulaleones','ulrep','umag','umayor','umc','umce','unach',
+  'unap','uniacc','uoh','upla','usach','usek','userena','usm',
+  'uss','ust','uta','utal','utem','uv','uvm'];
+$$;
+revoke all on function public.universidades_basicas() from public,anon;
+grant execute on function public.universidades_basicas() to authenticated;
 create or replace function public.codigo_universidad_perfil(p_valor text)
 returns text language plpgsql immutable set search_path='' as $$
 declare valor text:=lower(nullif(btrim(p_valor),''));
 begin
  if valor is null then return null; end if;
+ if valor=any(public.universidades_basicas()) then return valor; end if;
  case valor
   when 'uc','u. católica · ingeniería','u. católica' then return 'uc';
   when 'fen','u. de chile · fen','u. de chile' then return 'fen';
@@ -32,7 +48,8 @@ update public.profiles set universidad=public.codigo_universidad_perfil(universi
  where universidad is distinct from public.codigo_universidad_perfil(universidad);
 alter table public.profiles drop constraint if exists profiles_universidad_tenant_check;
 alter table public.profiles add constraint profiles_universidad_tenant_check
- check(universidad is null or universidad in ('uc','fen','uai','uandes','udd','udp','unab'));
+ check(universidad is null or universidad in ('uc','fen','uai','uandes','udd','udp','unab')
+  or universidad=any(public.universidades_basicas()));
 drop trigger if exists profiles_universidad_codigo on public.profiles;
 create trigger profiles_universidad_codigo before insert or update of universidad on public.profiles
  for each row execute function public.normalizar_universidad_perfil();
