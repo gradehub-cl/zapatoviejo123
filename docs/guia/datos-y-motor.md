@@ -191,7 +191,7 @@ Lo que las separa no es el selector sino cuánto contenido tienen detrás:
 | | Carreras declarables | Mallas | Ramos únicos | Con pauta |
 |---|---|---|---|---|
 | UC | 71 | 2 (ING-PC, COM) | 49 en malla + catálogo completo | 45 |
-| FEN | 3 | 3 | 88 | 12 |
+| FEN | 3 | 3 | 88 | 26 |
 | UAI | 23, todas con malla | 23 | 530 | 6 |
 | UAndes | 34, todas menos Arquitectura con malla | 33 | 869 | 44 (cursos PEG) |
 | UDD | 46 (una por mención o sede donde la malla cambia), 42 con malla | 42 | 1.175 | 23 (Psicología y Arquitectura) |

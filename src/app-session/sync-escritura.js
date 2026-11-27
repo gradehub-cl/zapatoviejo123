@@ -3,16 +3,15 @@ async function subirConVersion(uid){
   try{
     for(let intento=0;intento<3;intento++){
       const base=leerBaseSync(uid);
-      const enviado={...S,_rev:(revSync(base)||0)+1};
+      // Las ediciones durante el envío deben seguir pendientes frente a esta copia.
+      const enviado={...clonarSync(S),_rev:(revSync(base)||0)+1};
       let escrito;
       if(!base){
-        // No conocemos ninguna copia en la nube: cuenta nueva o lectura sin fila.
-        const {error}=await supabaseClient.from('user_ramos').upsert({user_id:uid,data:enviado},{onConflict:'user_id'});
-        // Supabase normalmente resuelve la promesa y entrega el fallo acá; el
-        // catch por sí solo no lo ve. Marcar la caché como alineada en ese caso
-        // deja a la app creyendo que existe un respaldo que nunca se escribió.
-        if(error)throw error;
-        escrito=true;
+        // Sin base, solo podemos crear el respaldo. Si otro dispositivo ya
+        // creó la fila, el conflicto abre la misma fusión que un cambio de rev.
+        const {error}=await supabaseClient.from('user_ramos').insert({user_id:uid,data:enviado});
+        if(error&&error.code!=='23505')throw error;
+        escrito=!error;
       }else{
         // Solo si la nube sigue en la versión que este dispositivo conoce. Una
         // copia de antes de este cambio no tiene `_rev`: se compara con null.

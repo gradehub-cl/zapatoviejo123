@@ -449,13 +449,18 @@ function abrirAgregarAmigo(prefill){
   form.addEventListener('submit',ev=>{ev.preventDefault();buscarAmigo(document.getElementById('amigos-buscar').value);});
   if(prefill)buscarAmigo(prefill);else setTimeout(()=>document.getElementById('amigos-buscar')?.focus(),60);
 }
+let amigosBusquedaActual=0;
 async function buscarAmigo(valor){
   const caja=document.getElementById('amigos-resultado');if(!caja)return;
+  const busqueda=++amigosBusquedaActual,v=amigosVersion,cuenta=currentUser?.id;
+  const vigente=()=>busqueda===amigosBusquedaActual&&v===amigosVersion&&currentUser?.id===cuenta
+    &&document.getElementById('amigos-resultado')===caja;
   const n=String(valor||'').trim().replace(/^@+/,'');
   if(!(n.length>=3)){caja.innerHTML='<p class="amigos-vacio-texto">Escribe su username completo.</p>';return;}
   caja.innerHTML='<p class="amigos-vacio-texto">Buscando…</p>';
   try{
     const r=(await rpcAmigos('buscar_usuario',{p_username:n}))||[];
+    if(!vigente())return;
     if(!r.length){caja.innerHTML='<p class="amigos-vacio-texto">No encontramos a nadie de tu universidad con ese username.</p>';return;}
     const p=r[0],uni=p.universidad&&TENANTS[p.universidad]?TENANTS[p.universidad].short:'';
     const accion={yo:'<span class="amigo-estado">Eres tú</span>',amigos:'<span class="amigo-estado">Ya son amigos</span>',
@@ -465,7 +470,7 @@ async function buscarAmigo(valor){
     caja.innerHTML=`<div class="amigo-solicitud amigos-encontrado"><span class="amigo-avatar" aria-hidden="true">${inicialAmigo(p)}</span>
       <span class="amigo-texto"><b>${esc(nombreAmigo(p))}</b><small>${esc(['@'+p.username,uni].filter(Boolean).join(' · '))}</small></span>
       <span class="amigo-acciones">${accion}</span></div>`;
-  }catch(e){caja.innerHTML=`<p class="amigos-vacio-texto">${esc(mensajeErrorAmigos(e))}</p>`;}
+  }catch(e){if(vigente())caja.innerHTML=`<p class="amigos-vacio-texto">${esc(mensajeErrorAmigos(e))}</p>`;}
 }
 // El link gradehub.cl/?amigo=usuario abre la app si está instalada (Universal
 // Link, ver .well-known/apple-app-site-association en main). Se guarda igual

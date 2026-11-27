@@ -4,7 +4,11 @@ function mallaFaltantes(){
   if(!S.carrera) return [];
   // En TAV no hay ramos de malla que sugerir.
   const ramos=enVerano()?[]:((mallaFor(S.tenant)[S.carrera]||{})[S.careerSemestre]||[]);
-  return ramos.filter(n=>!S.ramos.some(r=>r.nombre.toLowerCase()===n.toLowerCase()));
+  return ramos.filter(nombre=>{
+    if(S.ramos.some(r=>normName(r.nombre)===normName(nombre)))return false;
+    // Un curso ya inscrito puede tener un nombre anterior al de la malla.
+    return S.tenant!=='uc'||!ramoConSigla(siglaCatalogoUC(nombre));
+  });
 }
 let _mallaSel={}, _mallaList=[];
 function openMallaModal(){
@@ -16,6 +20,10 @@ function openMallaModal(){
     return;
   }
   _mallaSel={};_mallaList.forEach(n=>_mallaSel[n]=true);
+  const internados=S.tenant==='uc'&&S.carrera==='UC-MEDICINA'&&S.careerSemestre>=10;
+  const indicacion=internados
+    ?'Confirma cuáles internados inscribiste. La malla muestra el orden de referencia.'
+    :'Desmarca los que no estés tomando. Los electivos los agregas aparte.';
   const rows=_mallaList.map((n,i)=>`
     <label style="display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px solid var(--border);cursor:pointer;">
       <input type="checkbox" checked onchange="toggleMalla(${i},this.checked)" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--primary);"/>
@@ -24,7 +32,7 @@ function openMallaModal(){
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17A2.5 2.5 0 0 1 6.5 2z"/></svg> Ramos de tu ${S.careerSemestre}° semestre</div>
     <p style="font-size:0.8125rem;color:var(--fg2);margin-bottom:4px;">${esc(carrerasFor(S.tenant)[S.carrera]||'')}</p>
-    <p style="font-size:0.75rem;color:var(--fg3);margin-bottom:10px;">Desmarca los que no estés tomando. Los electivos los agregas aparte.</p>
+    <p style="font-size:0.75rem;color:var(--fg3);margin-bottom:10px;">${esc(indicacion)}</p>
     <div style="max-height:42vh;overflow-y:auto;margin-bottom:12px;">${rows}</div>
     <p id="malla-error" role="alert" hidden style="margin:0 0 10px;font-size:0.75rem;line-height:1.4;color:var(--red);"></p>
     <div class="modal-btns">

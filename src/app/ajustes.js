@@ -55,7 +55,7 @@ function openSettings(){
     ['Tu cuenta','profesor','Apoyo','Ofrece clases, material o tu app','profesor particular clases particulares apoyo material app plataforma ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
     ['Tu semestre','academico','Información académica','Universidad, carrera y semestre','cambiar carrera universidad agregar semestre anterior historial ramos malla cursos obligatorios'],
     ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion'],
-    ...(canvasSeccionDisponible()?[['Tu semestre','canvas','Canvas','Ramos, fechas y notas de Canvas UC','canvas uc token ramos tareas fechas notas programa pesos']]:[]),
+    ...(canvasSeccionDisponible()?[['Tu semestre','canvas','Canvas',canvasDisponible()?'Ramos, fechas y notas de Canvas UC':'Fechas de '+canvasIcsTenant().nombre,'canvas uc fen token ramos tareas fechas notas programa pesos calendario']]:[]),
     ['La app','apariencia','Apariencia','Modo, acento y fondo','tema claro oscuro sistema color cambiar fondo'],
     // Lucas, 2026-11-22: los avisos de Amigos salen de su Privacidad y se juntan
     // acá con los de evaluaciones. Solo en la app: en la web no hay avisos.
@@ -135,7 +135,7 @@ function openSettings(){
       <div id="s-tenant-grid" class="s-tenant-grid"></div>
       <p class="settings-help">Cambia tu catálogo disponible. Tus ramos y notas no se tocan.</p>
       <label class="modal-label" for="s-carrera-buscar">Carrera</label>
-      <div class="modal-input" style="margin-bottom:10px;"><input type="text" id="s-carrera-buscar" placeholder="Busca tu carrera" autocomplete="off" oninput="filtrarCarrerasAjustes(this.value)"/></div>
+      <div class="modal-input" style="margin-bottom:10px;"><input type="text" id="s-carrera-buscar" placeholder="Busca tu carrera" autocomplete="off" spellcheck="false" oninput="filtrarCarrerasAjustes(this.value)"/></div>
       <div id="s-carrera-grid" class="settings-carrera-grid"></div>
       <label class="modal-label">Semestre de carrera</label>
       <div class="sem-grid" id="s-sem-grid"></div>
@@ -157,7 +157,7 @@ function openSettings(){
     if(section==='canvas')return canvasDisponible()?`
       <p class="settings-help settings-help-top">Nada se agrega sin que lo revises antes.</p>
       <div id="s-canvas"><p class="settings-help">Revisando…</p></div>`
-      :canvasIcsDisponible()?'<div id="s-canvas-ics"></div>':'<p class="settings-help settings-help-top">Canvas está disponible para la UC.</p>';
+      :canvasIcsDisponible()?'<div id="s-canvas-ics"></div>':'<p class="settings-help settings-help-top">Canvas está disponible para '+new Intl.ListFormat('es',{type:'conjunction'}).format(Object.values(CANVAS_ICS_POR_TENANT).map(c=>c.universidad))+'.</p>';
     if(section==='calendario')return `
       <p class="settings-help settings-help-top">Tus evaluaciones en Google Calendar, Apple Calendar u Outlook. Se agrega una vez y se actualiza sola cada algunas horas.</p>
       ${currentUser?`
@@ -500,8 +500,9 @@ function openSettings(){
       g.appendChild(b);
     });
     // Misma salida que en el onboarding: la lista oficial envejece y nadie puede
-    // quedarse sin poder declarar lo que estudia.
-    if(q){
+    // quedarse sin poder declarar lo que estudia. Salvo que el texto sea el
+    // nombre exacto de una de la lista: sería la misma, pero sin su malla.
+    if(q&&!vistas.some(c=>normName(c.n)===q)){
       const b=document.createElement('button');
       b.className='carrera-opt'+(!settingsCarrera&&settingsCarreraFiltro.trim()===settingsCarreraNombre?' sel':'');
       b.innerHTML='Usar «'+esc(settingsCarreraFiltro.trim())+'»';

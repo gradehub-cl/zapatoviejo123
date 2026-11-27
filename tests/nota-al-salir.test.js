@@ -27,7 +27,7 @@ function dispositivo(){
   // Un campo de nota como el de «+ Nota»: guarda al soltarlo (setSlotNota → save → syncToCloud).
   ctx.campoNota=(valor,clase='eval-row-input nota-campo')=>{
     const clases=new Set(clase.split(' '));
-    const el={valor,classList:{contains:c=>clases.has(c)},
+    const el={valor,value:valor,classList:{contains:c=>clases.has(c)},
       blur(){if(ctx.document.activeElement!==el)return;ctx.document.activeElement=null;ctx.guardadas.push(el.valor);ctx.syncToCloud();}};
     ctx.document.activeElement=el;
     return el;
@@ -55,6 +55,13 @@ console.log('\n=== Nota a medio escribir al salir de la app ===');
   d.esconder();
   chk('un campo que no es de notas no se toca',d.guardadas.length===0&&d.document.activeElement===otro);
   chk('sin nada pendiente no sube',d.subidas===0);
+}
+{
+  // Borró el 5,5 para escribir otro y cambió de app: el vacío no se confirma.
+  const d=dispositivo();
+  const vacio=d.campoNota('','eval-row-input sm');
+  d.esconder();
+  chk('un campo vaciado no se suelta al salir',d.guardadas.length===0&&d.document.activeElement===vacio&&d.subidas===0);
 }
 {
   const d=dispositivo();

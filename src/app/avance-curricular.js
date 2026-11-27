@@ -113,14 +113,14 @@ function openAvanceCurricular(){
     <ol class="avance-pasos">
       <li>Abre el <a href="${esc(fuente.url)}" target="_blank" rel="noopener">${esc(fuente.sistema)}</a> con tu cuenta UC y toca «Consultar».</li>
       <li>Elige la pestaña «${esc(fuente.pestanaFicha)}».</li>
-      <li>Toca «Descargar». El archivo empieza con ${esc(fuente.archivoFicha)}.</li>
+      <li>Descarga el PDF y vuelve a GradeHub.</li>
     </ol>
     <p class="settings-help">También llegas desde ${esc(fuente.alternativa)}. Si el portal muestra un error, entra de nuevo por ahí.</p>
     <label class="btn-confirm horario-foto-btn" for="m-avance-ficha">Subir ficha en PDF</label>
     <input type="file" id="m-avance-ficha" class="horario-foto-input" accept="application/pdf,.pdf" onchange="subirFichaAcademica(this)" aria-describedby="m-avance-aviso"/>
     <p class="settings-help" id="m-avance-aviso" role="status" aria-live="polite">Solo leemos siglas, créditos, notas y semestres.</p>
     <details class="horario-texto-alt">
-      <summary>¿No tienes el PDF? Pega tu ${esc(fuente.documento)}</summary>
+      <summary>Pegar el avance curricular como alternativa</summary>
       <p class="settings-help">En el mismo sistema, abre la pestaña «${esc(fuente.pestanaAvance)}», selecciona toda la página, cópiala y pégala acá. Da lo mismo si viene texto de más.</p>
       <textarea id="m-avance-texto" class="horario-importar-texto" rows="5" maxlength="200000" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Tu ${esc(fuente.documento)} copiado" oninput="document.getElementById('m-avance-leer').disabled=!this.value.trim()"></textarea>
       <button type="button" class="btn-cancel" id="m-avance-leer" disabled onclick="leerAvancePegado()">Revisar texto</button>

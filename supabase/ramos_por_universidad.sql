@@ -15,7 +15,7 @@ begin
   if p is null then return true; end if;
   if jsonb_typeof(p)<>'object' then return false; end if;
   for fila in select * from jsonb_each(p) loop
-    if not (fila.key=any(array['uc','fen','uai','uandes','udd']))
+    if not (fila.key=any(array['uc','fen','uai','uandes','udd','udp','unab']))
       or not coalesce(fila.key=any(unis),false) or jsonb_typeof(fila.value)<>'array' then return false; end if;
     total:=total+jsonb_array_length(fila.value);
     if total>20 then return false; end if;

@@ -84,7 +84,10 @@ function renderHome(){
 
   const simGlobalBtn=document.getElementById('sim-global-btn');
   if(S.ramos.length===0){
-    gpael.textContent='·';gpael.className='gpa-num empty';
+    // Igual que sin notas (g===null): al archivar, el exacto del semestre
+    // anterior seguía debajo del «·» y tocarlo abría su «Promedio redondeado».
+    gpael.textContent='·';gpael.className='gpa-num empty';gpael.onclick=null;
+    pintarPromedioExacto('home-gpa-exacto',null);
     gpaSub.style.display='none';gpaMethod.style.display='none';emptyHint.style.display='block';
     if(tagsEl)tagsEl.style.display='none';
     if(deltaEl)deltaEl.style.display='none';
@@ -157,8 +160,12 @@ function renderHome(){
       else if(nivel==='good'){
         if(ramoCompletamenteEvaluado(r))good++;
         else goodEnCurso++;
-      }else if(nivel==='warn')warn++;
-      else bad++;
+      // Un ramo cerrado entre 4,0 y 4,9 ya aprobó, como dice su ficha («✓
+      // Aprobado»): contarlo «en riesgo» contradecía a la otra pantalla (#1376).
+      }else if(nivel==='warn'){
+        if(ramoCompletamenteEvaluado(r))good++;
+        else warn++;
+      }else bad++;
     });
     const parts=[];
     if(good)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot good"></span>${good} aprobado${good!==1?'s':''}</span>`);

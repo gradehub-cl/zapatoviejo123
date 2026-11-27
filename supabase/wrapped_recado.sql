@@ -18,7 +18,7 @@ begin;
 -- y dónde está su archivo. Sin acceso directo; se lee por las funciones.
 create table if not exists public.wrapped_videos (
   id uuid primary key default gen_random_uuid(),
-  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd')),
+  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd','udp','unab')),
   profesor text not null check (char_length(profesor) between 3 and 100),
   archivo text not null unique check (archivo ~ '^[a-z0-9][a-z0-9/_.-]{2,150}\.(mp4|webm)$'),
   poster text check (poster is null or poster ~ '^[a-z0-9][a-z0-9/_.-]{2,150}\.(jpg|jpeg|png|webp)$'),

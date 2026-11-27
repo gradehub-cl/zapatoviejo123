@@ -1,9 +1,10 @@
-// Calendario Canvas UC: sesión verificada, host/ruta cerrados, sin registros.
+// Calendario de Canvas: sesión verificada, hosts/ruta cerrados, sin registros.
 const SUPABASE_URL='https://lsulsnswzesyekpsvlql.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_JwBMAOR7iHW-gcRdLMGrYw_eCOISwqA';
 const MAX_BYTES=512*1024,MAX_CUERPO=2000,ESPERA_MS=8000;
+// Lista cerrada: los hosts de CANVAS_ICS_POR_TENANT (src/data/creditos.js).
 export function urlCanvasValida(url){
-  return typeof url==='string'&&/^https:\/\/cursos\.canvas\.uc\.cl\/feeds\/calendars\/user_[A-Za-z0-9]{20,80}\.ics$/.test(url);
+  return typeof url==='string'&&/^https:\/\/(?:cursos\.canvas\.uc\.cl|canvas\.fen\.uchile\.cl)\/feeds\/calendars\/user_[A-Za-z0-9]{20,80}\.ics$/.test(url);
 }
 const respuesta=(body,status,tipo='application/json')=>new Response(tipo==='application/json'?JSON.stringify(body):body,{status,headers:{'Content-Type':tipo,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const error=(mensaje,status)=>respuesta({error:mensaje},status);
@@ -27,7 +28,18 @@ async function leerAcotado(r,limite,signal){
     return new TextDecoder().decode(bytes);
   }finally{signal.removeEventListener('abort',cancelar);reader.releaseLock();}
 }
+// La app de iPhone vive en capacitor://localhost y llama a gradehub.cl: se le
+// contesta con CORS. La web y Android llaman desde gradehub.cl, el mismo origen.
+// Lo que protege es la sesión, no el origen.
+const ORIGEN_APP='capacitor://localhost';
+const CORS={'Access-Control-Allow-Origin':ORIGEN_APP,'Vary':'Origin','Access-Control-Allow-Methods':'POST, OPTIONS',
+  'Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Max-Age':'600'};
 export async function traerCalendarioCanvas(request,pedir=fetch){
+  const r=request.method==='OPTIONS'?new Response(null,{status:204,headers:{'Cache-Control':'no-store'}}):await leerCalendario(request,pedir);
+  if(request.headers.get('Origin')===ORIGEN_APP)for(const k in CORS)r.headers.set(k,CORS[k]);
+  return r;
+}
+async function leerCalendario(request,pedir){
   if(request.method!=='POST')return error('Método no permitido.',405);
   const auth=/^Bearer ([A-Za-z0-9._-]{20,4096})$/.exec(request.headers.get('Authorization')||'');
   if(!auth)return error('Inicia sesión en GradeHub.',401);
@@ -39,7 +51,7 @@ export async function traerCalendarioCanvas(request,pedir=fetch){
     const crudo=await leerAcotado(request,MAX_CUERPO,corte.signal);
     if(crudo===null)return error('Pedido inválido.',400);
     let url;try{url=JSON.parse(crudo)?.url;}catch{return error('Pedido inválido.',400);}
-    if(!urlCanvasValida(url))return error('Esa no es la URL de la fuente de calendario de Canvas UC.',400);
+    if(!urlCanvasValida(url))return error('Esa no es la URL de la fuente de calendario de Canvas.',400);
     const r=await pedir(url,{redirect:'manual',signal:corte.signal,headers:{Accept:'text/calendar'}});
     if(r.status!==200){if(r.body)await r.body.cancel();return error('Canvas no reconoce esa URL o no respondió bien. Cópiala de nuevo desde Fuente de calendario.',502);}
     const texto=await leerAcotado(r,MAX_BYTES,corte.signal);
@@ -49,4 +61,4 @@ export async function traerCalendarioCanvas(request,pedir=fetch){
   }catch{return error('No pudimos leer Canvas a tiempo. Intenta de nuevo.',504);}
   finally{clearTimeout(reloj);}
 }
-export async function onRequestPost({request}){return traerCalendarioCanvas(request);}
+export async function onRequest({request}){return traerCalendarioCanvas(request);}

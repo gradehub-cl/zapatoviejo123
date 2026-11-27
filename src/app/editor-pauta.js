@@ -653,7 +653,7 @@ function soltarCategoria(r,cat,destino){
   r.gates=destino?unificarCategoriaEnReglas(r.gates,cat.id,destino.id)
     :(r.gates||[]).filter(g=>g.catId!==cat.id).map(g=>Array.isArray(g.catIds)?{...g,catIds:g.catIds.filter(id=>id!==cat.id)}:g);
 }
-function guardarPautaManual(){
+function guardarPautaManual(sobreCienConfirmado){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const filas=pautaDraft.filter(f=>f.nombre.trim());
   const escala=gh_reglasNota(r.origen?.tenant||S.tenant).grade_scale;
@@ -689,6 +689,18 @@ function guardarPautaManual(){
     const id=requisitos.campo==='evals'?`m-req-nombre-${requisitos.i}`:null;
     mostrarErrorPauta(null,requisitos.error,`req-${requisitos.campo}-${requisitos.i}`);
     if(id)setTimeout(()=>{const c=document.getElementById(id);if(c)c.focus();},0);
+    return;
+  }
+  // Faltar para el 100% se guarda (se completa después). Pasarse casi siempre
+  // es un porcentaje mal escrito y se guardaba sin decir nada: el aviso recién
+  // salía en la ficha (#1376). Se pregunta, no se bloquea: el programa de
+  // Canvas puede dejar una evaluación con regla que suma de más. Y solo si este
+  // cambio sube la suma: una pauta que ya venía sobre 100 se edita sin preguntar.
+  const suma=estadoPauta(filas);
+  if(sobreCienConfirmado!==true&&suma.total>100.05&&suma.total>estadoPauta(r.categorias).total+0.05){
+    showConfirm(`Tus ponderaciones suman ${r2(suma.total)}%`,
+      `Te pasas por ${r2(Math.abs(suma.diferencia))}%. Revisa que ninguna esté de más o con un porcentaje mal escrito.`,
+      ()=>guardarPautaManual(true),{label:'Guardar igual',danger:false,focusCancel:true});
     return;
   }
   const ids=new Set(filas.filter(f=>f.id).map(f=>f.id));
@@ -740,7 +752,7 @@ function guardarPautaManual(){
     pautaProgramaCanvasDraft=null;
   }
   const estado=estadoPauta(r.categorias);save();track('configurar_pauta',{evaluaciones:filas.length,total:estado.total});closeModal();renderRamo();
-  showToast(estado.lista?'✓ Listo, ya suma 100%':'Guardado · puedes completar el resto después');
+  showToast(estado.lista?'✓ Listo, ya suma 100%':estado.diferencia>0?'Guardado · puedes completar el resto después':`Guardado · tus ponderaciones suman ${r2(estado.total)}%`);
   // Aviso informativo de una sola vez por cuenta, sin pedir una decisión ni
   // interrumpir cada edición. También informa si todavía faltan porcentajes:
   // el aporte esperará a que la pauta cumpla sus filtros de siempre.

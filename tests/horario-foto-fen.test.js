@@ -59,7 +59,7 @@ const grilla=[
   const tercero=grilla.map(p=>p.texto==='ENABC1234/04'&&p.x0===293?{...p,texto:'ENQRS4321/01'}:p);
   run('abrirImportarHorarioBuscacursos()');
   const modal=get('modal-content').innerHTML;
-  chk('el modal habla de Docencia Web y de las horas',/Docencia Web/.test(modal)&&/horas de clase/.test(modal)&&/catálogo FEN/.test(modal));
+  chk('el modal habla de Docencia Web y de las horas',/Docencia Web/.test(modal)&&/horas de clase/.test(modal)&&/catálogo UChile/.test(modal));
   chk('el ejemplo es un código FEN',/Ej\.: ENMEM1505\/02/.test(modal));
   ctx.__lect=[{texto:'',palabras:tercero}];
   run('leerFotoOcr=async()=>__lect');
