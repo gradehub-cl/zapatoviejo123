@@ -7,11 +7,11 @@ motor con una pauta propia, sin `presetRamo()`. Se conserva el flujo web previo.
 
 ## Plazos confirmados por Lucas
 
-UC: desde 14 días después de la fecha, sin vencimiento, hasta guardar la nota o
-«Ahora no». Antes del día 14 no aparece. Las otras universidades conservan los
-últimos 14 días, desde el día siguiente a la fecha. Se declara en
+Todas las universidades, UC incluida (Martín, 27-11-2026): pregunta desde 7 días
+después de la fecha y hasta el día 14, mientras no esté la nota ni «Ahora no».
+Antes la UC esperaba 14 días y no vencía. Se declara en
 `RECORDATORIO_NOTAS_POR_TENANT`, sin condicionales por universidad ni reglas
-nuevas en el motor. Las pruebas cubren días 1, 13, 14, 20 y fechas más antiguas.
+nuevas en el motor. Las pruebas cubren días 0, 6, 7, 14, 15 y fechas más antiguas.
 
 La composición final, ajustada por Lucas, contiene solo pregunta, ramo y control
 con «+ Nota» / «Ahora no»: sin contador, explicación larga ni abrir otra

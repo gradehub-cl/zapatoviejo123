@@ -75,11 +75,11 @@ const TENANT_GLYPHS={
   // uc:  '<path d="…"/>',
 };
 
-// Plazo del recordatorio de notas en Inicio (app). Lucas, 18-11-2026:
-// UC espera dos semanas y no vence; las demás miran los últimos 14 días.
+// Plazo del recordatorio de notas en Inicio (app). Martín, 27-11-2026: pregunta
+// una semana después de la evaluación y deja de preguntar a los 14 días. Antes
+// la UC no vencía y seguía preguntando por pruebas de hace dos meses.
 const RECORDATORIO_NOTAS_POR_TENANT={
-  defecto:{desde:1,hasta:14},
-  uc:{desde:14,hasta:null},
+  defecto:{desde:7,hasta:14},
 };
 
 // Mineduc, Directorio IES vigentes (mayo de 2026). Universidades en funcionamiento.
