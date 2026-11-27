@@ -1,6 +1,11 @@
 const MIN_EVALUACIONES_REPORTE=2;
 let reporteDraft=[],reporteRamoId=null,reporteComentarioDraft='';
-function estructuraReporte(r){return estructuraDe(r).map(e=>({...e}));}
+// Cada fila recuerda con qué nombre abrió el modal. Si alguien escribe "I1"
+// donde decía "Interrogación 1", es la MISMA evaluación renombrada: sin esto
+// la nota quedaba en 0% fuera de pauta y "I1" aparecía vacía, y el promedio
+// saltaba (reporte de Cálculo II, 2026-11-09). `original` no viaja al servidor.
+function estructuraReporte(r){return estructuraDe(r).map(e=>({...e,original:e.nombre}));}
+function sinOriginalReporte(est){return (est||[]).map(({original,...e})=>e);}
 function parsePesoReporte(raw){
   const txt=String(raw==null?'':raw).trim().replace(',','.');
   const n=Number(txt);
@@ -168,7 +173,7 @@ function ramoNormReporte(r){return siglaReporteUC(r)?normName(r.nombre):claveRep
 function openReportModal(ramoId,conservarBorrador=false){
   const r=S.ramos.find(x=>x.id===(ramoId||currentRamoId));
   if(!r){showToast('No se encontr\u00f3 el ramo',true);return;}
-  if(pautaConReglasDelEditor(r)){showToast('El reporte todavía no admite las reglas que agregaste a tu pauta.',true);return;}
+  if(pautaConReglasDelEditor(r)){showToast('El reporte todavía no admite las reglas que agregaste a tus ponderaciones.',true);return;}
   const est=conservarBorrador?reporteDraft:estructuraReporte(r);
   if(!est.length&&!conservarBorrador){showToast('Agrega las evaluaciones antes de reportar',true);return;}
   if(!conservarBorrador){reporteDraft=est;reporteComentarioDraft='';}
@@ -181,7 +186,7 @@ function openReportModal(ramoId,conservarBorrador=false){
       <button type="button" onclick="quitarReporteFila(${i})" aria-label="Quitar ${esc(e.nombre||'evaluaci\u00f3n')} del reporte" style="min-height:44px;padding:9px 8px;border:0;border-radius:10px;background:none;color:var(--fg3);font:600 0.75rem var(--font-ui);cursor:pointer;">Quitar</button>
     </div>`).join('');
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">Reportar pauta</div>
+    <div class="modal-title">Reportar ponderaciones</div>
     <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin-bottom:14px;">
       Corrige las evaluaciones de <b>${esc(r.nombre)}</b> como son en tu curso. El cambio queda en tu ramo y,
       si otros reportan lo mismo, pasa al cat\u00e1logo.
@@ -220,14 +225,29 @@ function aplicarReporteAlRamo(r,borrador){
   const actual=catsDePauta(r.categorias);
   const firma=lista=>lista.map(c=>`${normName(c.nombre)}:${r2(Number(c.peso)||0)}:${Number(c.slots)>1?c.slots:1}`).sort().join('|');
   if(firma(filas)===firma(actual))return 'igual';
-  const nombres=new Set(filas.map(e=>normName(e.nombre)));
+  // Una fila sigue siendo la evaluación con que abrió si conserva el nombre o
+  // si se renombró sin que otra fila tome ese nombre original.
+  const porNombre=new Set(filas.map(e=>normName(e.nombre)));
+  const deDonde=e=>{
+    const propia=actual.find(c=>normName(c.nombre)===normName(e.nombre));
+    if(propia)return propia;
+    const orig=normName(e.original||'');
+    if(!orig||porNombre.has(orig))return null;
+    return actual.find(c=>normName(c.nombre)===orig)||null;
+  };
+  const conserva=new Set(filas.map(deDonde).filter(Boolean).map(c=>c.id));
   const conRegla=new Set();
   (r.gates||[]).forEach(g=>{if(g.catId)conRegla.add(g.catId);(g.catIds||[]).forEach(id=>conRegla.add(id));});
-  if(actual.some(c=>conRegla.has(c.id)&&!nombres.has(normName(c.nombre))))return 'regla';
+  if(actual.some(c=>conRegla.has(c.id)&&!conserva.has(c.id)))return 'regla';
   const nuevas=filas.map(e=>{
-    const anterior=actual.find(c=>normName(c.nombre)===normName(e.nombre));
+    const anterior=deDonde(e);
+    const renombrada=anterior&&normName(anterior.nombre)!==normName(e.nombre);
     const cat=anterior?{...anterior,nombre:e.nombre,peso:e.peso}
       :{id:uid(),nombre:e.nombre,peso:e.peso,ponderaNotas:false,directNota:true,notas:[]};
+    // fusionarPauta busca las notas por nombre: el nombre anterior le dice
+    // de dónde traerlas, junto con el id (y así las reglas que apuntan a él).
+    if(renombrada)cat.nombresAnteriores=[...(anterior.nombresAnteriores||[]),anterior.nombre];
+    delete cat.original;
     const slots=Number(e.slots)>1?Number(e.slots):null;
     // El modal no edita casillas: una fila sin cantidad conserva las que ya
     // tenía, así ninguna nota queda en una casilla que deja de mostrarse.
@@ -240,19 +260,19 @@ function aplicarReporteAlRamo(r,borrador){
 
 async function enviarReporte(ramoId){
   const r=S.ramos.find(x=>x.id===ramoId);if(!r)return;
-  if(pautaConReglasDelEditor(r)){showToast('El reporte todavía no admite las reglas que agregaste a tu pauta.',true);return;}
+  if(pautaConReglasDelEditor(r)){showToast('El reporte todavía no admite las reglas que agregaste a tus ponderaciones.',true);return;}
   const btn=document.getElementById('m-rep-btn');
   if(!supabaseClient||!currentUser){
     showToast('Necesitas tener sesi\u00f3n iniciada para reportar',true);return;
   }
-  const est=estructuraParaConsenso(reporteRamoId===ramoId?reporteDraft.map(e=>({...e})):[]);
+  const est=estructuraParaConsenso(reporteRamoId===ramoId?sinOriginalReporte(reporteDraft):[]);
   const estado=estadoReporte(est);
   if(!est.length||!estado.lista){
     const total=document.getElementById('m-rep-total');if(total)total.focus();
     showToast(est.length?textoEstadoReporte(estado):'Vuelve a abrir el reporte',true);return;
   }
   if(repiteVotoSugerido(r,est)){
-    showToast('Esta pauta ya fue reportada por otros estudiantes.');
+    showToast('Estas ponderaciones ya fueron reportadas por otros estudiantes.');
     return;
   }
   const notaEl=document.getElementById('m-rep-nota');
@@ -287,15 +307,15 @@ async function enviarReporte(ramoId){
     track('reporte_catalogo',{tenant:S.tenant});
     closeModal();
     reporteDraft=[];reporteRamoId=null;reporteComentarioDraft='';
-    showToast(enRamo==='aplicada'?'Gracias \u00b7 tu reporte qued\u00f3 registrado y tu pauta, actualizada'
-      :enRamo==='regla'?'Reporte enviado. Tu pauta no cambi\u00f3: una evaluaci\u00f3n con regla de aprobaci\u00f3n se ajusta en Editar pauta.'
+    showToast(enRamo==='aplicada'?'Gracias \u00b7 tu reporte qued\u00f3 registrado y tus ponderaciones, actualizadas'
+      :enRamo==='regla'?'Reporte enviado. Tus ponderaciones no cambiaron: una evaluaci\u00f3n con regla de aprobaci\u00f3n se ajusta en Editar evaluaciones.'
       :'Gracias \u00b7 tu reporte qued\u00f3 registrado');
   }catch(e){
     if(btn){btn.disabled=false;btn.textContent='Enviar reporte';}
     // Tabla no creada todav\u00eda \u2192 mensaje entendible en vez del error crudo
     const msg=/relation .* does not exist|schema cache/i.test(e.message||'')
       ? 'Los reportes a\u00fan no est\u00e1n habilitados en el servidor.'
-      : enRamo==='aplicada'?'Tu pauta qued\u00f3 guardada, pero el reporte no se pudo enviar. Revisa tu conexi\u00f3n.'
+      : enRamo==='aplicada'?'Tus ponderaciones quedaron guardadas, pero el reporte no se pudo enviar. Revisa tu conexi\u00f3n.'
       : 'No se pudo enviar. Revisa tu conexi\u00f3n.';
     showToast(msg,true);
   }finally{_suspenderAportePautas=false;}

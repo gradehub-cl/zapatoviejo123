@@ -58,8 +58,10 @@ async function renderDocenteRamo(r,opinion=consultarCalificacionRamoFicha(r)){
   const solicitud=++profesorSolicitud,cuenta=currentUser&&currentUser.id,contexto=contextoDocente(r);
   docenteFichaActual=null;raiz.innerHTML='';boton.hidden=true;boton.onclick=null;boton.removeAttribute('aria-label');
   if(!currentUser||esCuentaProfesor())return;
+  const abierta=calificacionAbiertaRamo(r);
   boton.innerHTML='<span aria-hidden="true">★</span><span>Calificar profesor</span>';
   if(!contexto){
+    if(!abierta)return;
     boton.innerHTML='<span aria-hidden="true">★</span><span>Calificar</span>';
     boton.hidden=false;boton.onclick=()=>abrirSeccionParaCalificar(r);return;
   }
@@ -70,10 +72,10 @@ async function renderDocenteRamo(r,opinion=consultarCalificacionRamoFicha(r)){
     docenteFichaActual=d;
     const {nombre,mio,calif,contexto}=d,quien=nombre||mio,mia=Number(calif.mi_estrellas)||0;
     const nota=quien?htmlResumenCalificacion(calif):'',promedioAccesible=nota?`. Promedio ${Number(calif.promedio).toFixed(1)} de 5`:'';
-    raiz.innerHTML=quien?`${calif.puede_calificar===true?`<button type="button" aria-label="${esc(`Profesor ${quien}${promedioAccesible}. ${mia?'Editar tu calificación':'Calificar profesor'}`)}"><span>${esc(nombreCorto(quien))}${nota}</span></button>`:`<span>${esc(nombreCorto(quien))}${nota}</span>`}`:'';
+    raiz.innerHTML=quien?`${calif.puede_calificar===true&&(abierta||mia)?`<button type="button" aria-label="${esc(`Profesor ${quien}${promedioAccesible}. ${mia?'Editar tu calificación':'Calificar profesor'}`)}"><span>${esc(nombreCorto(quien))}${nota}</span></button>`:`<span>${esc(nombreCorto(quien))}${nota}</span>`}`:'';
     const tocar=raiz.querySelector('button');
     if(tocar)tocar.onclick=()=>{if(docenteFichaDeRamo(r)===d)abrirCalificarProfesor(r,contexto,d);};
-    const faltaProfesor=calif.puede_calificar===true&&!mia,faltaRamo=ramo?.puede_calificar===true&&!ramo.mia;
+    const faltaProfesor=abierta&&calif.puede_calificar===true&&!mia,faltaRamo=abierta&&ramo?.puede_calificar===true&&!ramo.mia;
     const texto=faltaProfesor&&faltaRamo?'Calificar':faltaRamo?'Calificar ramo':'Calificar profesor';
     boton.innerHTML=`<span aria-hidden="true">★</span><span>${texto}</span>`;
     boton.hidden=!faltaProfesor&&!faltaRamo;
@@ -81,7 +83,7 @@ async function renderDocenteRamo(r,opinion=consultarCalificacionRamoFicha(r)){
   }catch(error){
     const ramo=await opinion;
     if(!vigente())return;
-    if(ramo?.puede_calificar===true&&!ramo.mia){
+    if(abierta&&ramo?.puede_calificar===true&&!ramo.mia){
       boton.hidden=false;boton.innerHTML='<span aria-hidden="true">★</span><span>Calificar ramo</span>';
       boton.onclick=()=>{if(vigente())abrirCalificarRamo(r);};return;
     }

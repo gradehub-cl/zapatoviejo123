@@ -58,13 +58,16 @@ const entradas = Object.entries(CREDITOS_UC);
 // dos alternativas en la misma opción.
 // Los 24 teológicos con pauta entraron el 2026-09-17: están fuera de malla, y
 // esta tabla es de donde salen su sigla y sus créditos.
-chk('trae 147 ramos de Ingeniería, 26 propios de Comercial y 24 teológicos', entradas.length === 197);
+const ramosMedicina = new Set(Object.values(MALLA_UC['UC-MEDICINA']).flat());
+const entradasPrevias = entradas.filter(([nombre]) => !ramosMedicina.has(nombre));
+chk('conserva las 197 entradas anteriores y suma las 47 de Medicina',
+  entradasPrevias.length === 197 && entradas.length - entradasPrevias.length === 47);
 chk('cada entrada es [créditos, sigla]',
   entradas.every(([, v]) => Array.isArray(v) && v.length === 2 && typeof v[0] === 'number' && typeof v[1] === 'string'));
 chk('ninguna sigla vacía ni repetida',
   new Set(entradas.map(([, v]) => v[1])).size === entradas.length);
-chk('los créditos son valores del plan (0, 5, 10 o 20)',
-  entradas.every(([, v]) => [0, 5, 10, 20].includes(v[0])));
+chk('los planes anteriores conservan sus valores de créditos (0, 5, 10 o 20)',
+  entradasPrevias.every(([, v]) => [0, 5, 10, 20].includes(v[0])));
 // Si un día alguien "arregla" un 0 poniéndole 10, el promedio de miles de
 // estudiantes cambia en silencio. Estos cuatro son 0 SCT en el plan oficial.
 const ceros = entradas.filter(([, v]) => v[0] === 0).map(([n]) => n).sort();

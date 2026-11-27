@@ -20,6 +20,15 @@ function obIniciar(){
   ['ob-prof-nombre','ob-prof-presentacion'].forEach(id=>{const c=document.getElementById(id);if(c)c.value='';});
   const mayor=document.getElementById('ob-prof-mayor');if(mayor)mayor.checked=false;
   const error=document.getElementById('ob-prof-error');if(error)error.textContent='';
+  // Y el resto del borrador: nombre, carrera y ramos. Cerrar sesión no recarga,
+  // así que la cuenta que entraba después en el mismo dispositivo veía el nombre
+  // y la carrera de la anterior, y podía heredar sus ramos agregados a mano.
+  // El nombre que trae Google o Apple lo pone enterOnboarding DESPUÉS de esto,
+  // con la cuenta que entra. No toca S ni nada guardado.
+  ['ob-name','ob-apellido','ob-tenant-buscar'].forEach(id=>{const c=document.getElementById(id);if(c)c.value='';});
+  resetCarreraOnboarding();
+  obRamos=[];obRamosKey='';obManualOpen=false;obManualError='';obVarianteElegida={};
+  if(typeof initCarreraGrid==='function')initCarreraGrid();
   elegirTipoCuenta(typeof consumirEntradaProfesor==='function'&&consumirEntradaProfesor()?'profesor':'estudiante');
   montarRuletasOnboarding();renderTenantPick();obRender();checkOb();
 }
@@ -41,6 +50,10 @@ function obRender(){
     const publico=document.getElementById('ob-prof-nombre'),nombre=document.getElementById('ob-name');
     if(publico&&nombre&&!publico.value.trim())publico.value=nombre.value.trim();
   }
+  // Recién dijo su nombre: el paso siguiente lo usa, para que se entienda para
+  // qué lo pedimos y que la app es suya (Lucas, 2026-11-18).
+  const tituloUniversidad=document.getElementById('ob-titulo-universidad');
+  if(tituloUniversidad&&typeof tituloUniversidadOnboarding==='function')tituloUniversidad.textContent=tituloUniversidadOnboarding((document.getElementById('ob-name')||{}).value);
   obTrackPaso();
   document.querySelectorAll('.ob-step').forEach(el=>{
     el.style.display=(Number(el.dataset.step)===obStep)?'block':'none';
@@ -106,7 +119,11 @@ function obPasoIncompleto(){
   return 0;
 }
 
-function completeOnboarding(){
+function tituloUniversidadOnboarding(nombre){
+  const primero=String(nombre||'').trim().split(/\s+/)[0]||'';
+  return primero?`${primero}, ¿cuál es tu universidad?`:'¿Cuál es tu universidad?';
+}
+function completeOnboarding({conFoto=false}={}){
   const name=document.getElementById('ob-name').value.trim();
   // UNA sola fuente de verdad para "¿se puede seguir?": la misma función que
   // decide si el botón va habilitado. Antes esta guarda derivaba su propia
@@ -125,9 +142,13 @@ function completeOnboarding(){
     showToast('Falta un dato para crear tu cuenta',true);
     return;
   }
+  S.userApellido=apellidoLimpio((document.getElementById('ob-apellido')||{}).value);
   if(obTipo==='profesor'){completarOnboardingProfesor(name);return;}
+  // Con la foto, los ramos salen del horario y no de lo marcado en el paso 5:
+  // ahí venían premarcados los sugeridos de la malla, que son una suposición.
+  const ramosOb=conFoto?[]:obRamos;
   S.userName=name;S.careerSemestre=selectedSem;S.generacion=obGeneracion;S.verano=obVerano?{hasta:finDeVerano()}:null;S.carrera=selectedCarrera;S.carreraNombre=selectedCarreraNombre;S.tenant=selectedTenant;
-  obRamos.forEach(item=>{
+  ramosOb.forEach(item=>{
     if(S.ramos.some(r=>normName(r.nombre)===normName(item.nombre)))return;
     const preset=!item.manual?presetRamo(item.nombre,selectedTenant,selectedCarrera):null;
     const creditos=typeof item.creditos==='number'?item.creditos:creditosDe(item.nombre,selectedTenant,preset,item.sigla);
@@ -146,10 +167,11 @@ function completeOnboarding(){
   // texto suyo — lo prohíbe tests/analitica.test.js y lo promete la política.
   // La bandera dice lo único que la analítica necesita: si le pudimos cargar la
   // malla o no. Quién estudia qué se cuenta en la base, no acá.
-  track('onboarding_complete',{semestre:selectedSem,carrera:selectedCarrera,con_malla:!!selectedCarrera,ramos:obRamos.length});
+  track('onboarding_complete',{semestre:selectedSem,carrera:selectedCarrera,con_malla:!!selectedCarrera,ramos:ramosOb.length,con_foto:conFoto});
   enterApp();
-  const oficiales=obRamos.filter(item=>!item.manual&&!!presetRamo(item.nombre,selectedTenant,selectedCarrera)).length;
-  mostrarRamosCargados(obRamos.length,oficiales);
+  if(conFoto){abrirFotoHorarioOnboarding();return;}
+  const oficiales=ramosOb.filter(item=>!item.manual&&!!presetRamo(item.nombre,selectedTenant,selectedCarrera)).length;
+  mostrarRamosCargados(ramosOb.length,oficiales);
 }
 // La cuenta de profesor queda creada solo si la postulación llegó: sin su
 // `tutor_perfiles` sería una cuenta sin nada adentro. Si ya existía (un reintento
@@ -192,6 +214,17 @@ async function completarOnboardingProfesor(name){
     <div class="modal-btns"><button class="btn-confirm" onclick="closeModal()">Entendido</button></div>`;
   openModal();
 }
+// Recién creada la cuenta se abre la misma importación por foto de Inicio. Al
+// terminar se muestra el resumen de siempre, contando lo que quedó en el
+// semestre; si cancela, el de "agrega tu primer ramo desde Inicio".
+function abrirFotoHorarioOnboarding(){
+  abrirImportarHorarioBuscacursos();
+  alAgregarRamo=()=>{
+    const ramos=S.ramos||[];
+    mostrarRamosCargados(ramos.length,ramos.filter(r=>!!presetRamo(r.nombre,S.tenant,S.carrera)).length);
+  };
+  alCancelarAgregarRamo=()=>mostrarRamosCargados(0,0);
+}
 // Quien ya pasó su primer semestre tiene notas anteriores: se le ofrece cargarlas
 // todas de una con la ficha académica (Lucas, 2026-11-11). Es opcional; si no
 // la sube, el historial sigue disponible desde el menú del perfil y Ajustes.
@@ -217,7 +250,7 @@ function mostrarRamosCargados(cantidad,oficiales){
   }
 
   const ramosTxt=`${cantidad} ramo${cantidad!==1?'s':''} agregado${cantidad!==1?'s':''}`;
-  const oficialesTxt=`${oficiales} ramo${oficiales!==1?'s':''} con pauta`;
+  const oficialesTxt=`${oficiales} ramo${oficiales!==1?'s':''} con programa`;
   const pendientes=cantidad-oficiales;
   let titulo,principal,detalle;
   if(oficiales===cantidad){
@@ -241,6 +274,7 @@ function mostrarRamosCargados(cantidad,oficiales){
       ${oficiales?`<p style="font-size:0.75rem;color:var(--fg3);margin:2px 0 0;">${ramosTxt}</p>`:''}
     </div>
     ${ofertaFichaOnboardingHTML()}
+    ${excelOfertaOnboardingHTML()}
     <div class="modal-btns"><button class="btn-confirm" onclick="closeModal()">Ver mis ramos</button></div>`;
   openModal();
 }

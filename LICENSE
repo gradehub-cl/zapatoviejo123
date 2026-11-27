@@ -1,0 +1,88 @@
+GradeHub — Licencia propietaria / Proprietary License
+Copyright © 2026 Martín Sotomayor y Lucas Irarrázaval.
+Todos los derechos reservados. / All rights reserved.
+
+======================================================================
+ESPAÑOL
+======================================================================
+
+1. TITULARIDAD
+
+Este software y todo el material de este repositorio —código fuente,
+bases de datos de cursos, mallas curriculares y pautas de evaluación,
+diseño de interfaz, textos, logotipos e imágenes— es obra protegida por
+la Ley N° 17.336 sobre Propiedad Intelectual de la República de Chile,
+que ampara expresamente los programas computacionales, y por los
+tratados internacionales aplicables.
+
+La titularidad corresponde en partes iguales (50% y 50%) a Martín
+Sotomayor y Lucas Irarrázaval, en calidad de coautores.
+
+2. DERECHOS RESERVADOS
+
+Se reservan todos los derechos. No se concede ninguna licencia, expresa
+ni implícita, para usar, copiar, modificar, fusionar, publicar,
+distribuir, sublicenciar, vender ni crear obras derivadas de este
+software, en todo o en parte, sin autorización previa y por escrito de
+ambos titulares.
+
+En particular, y sin que la enumeración sea limitativa, queda prohibido:
+
+  a) Copiar o reutilizar el código fuente, total o parcialmente.
+  b) Reproducir el diseño de la interfaz, la estructura de navegación,
+     el nombre, el logotipo o los textos de la aplicación.
+  c) Extraer, copiar o reutilizar las bases de datos de cursos, mallas
+     curriculares y pautas de evaluación (archivos `cursos-*.js`,
+     `mallas-*.js`, `data.js` y equivalentes), que constituyen una
+     compilación protegida de forma independiente del resto del código.
+  d) Publicar este software, o una obra derivada de él, en cualquier
+     tienda de aplicaciones, repositorio o servicio de distribución.
+  e) Acceder al servicio por medios automatizados con el fin de extraer
+     datos ("scraping").
+
+3. LA VISIBILIDAD PÚBLICA NO ES UNA LICENCIA
+
+Si este repositorio estuvo o está visible públicamente, esa visibilidad
+no constituye licencia, autorización ni renuncia a ningún derecho. Que
+la plataforma que lo aloja permita consultarlo o bifurcarlo ("fork") no
+otorga permiso de uso bajo esta licencia.
+
+4. CONTRIBUCIONES
+
+Quien envíe una contribución a este repositorio (pull request, parche o
+similar) cede a los titulares, de forma gratuita, no exclusiva y sin
+límite de tiempo ni territorio, los derechos patrimoniales necesarios
+para incorporarla, explotarla y relicenciarla como parte de GradeHub.
+
+5. SIN GARANTÍA
+
+El software se entrega "tal cual", sin garantía de ningún tipo. Lo que
+la aplicación calcula no es información académica oficial: la fuente de
+verdad es siempre el programa oficial de cada ramo.
+
+6. AUTORIZACIONES Y CONTACTO
+
+Para solicitar una autorización de uso: gradehub.app@gmail.com
+
+======================================================================
+ENGLISH (unofficial summary)
+======================================================================
+
+All rights reserved. This software, including its source code, course
+and curriculum databases, interface design, texts, logos and images, is
+proprietary and protected under Chilean Law No. 17.336 on Intellectual
+Property and applicable international treaties. Ownership is held in
+equal shares by Martín Sotomayor and Lucas Irarrázaval.
+
+No licence is granted, expressly or by implication, to use, copy,
+modify, publish, distribute, sublicense, sell or create derivative
+works of this software, in whole or in part, without the prior written
+consent of both owners. Public visibility of this repository does not
+constitute a licence or a waiver of any right.
+
+Contributions submitted to this repository are assigned to the owners
+for incorporation into GradeHub.
+
+Permission requests: gradehub.app@gmail.com
+
+In case of discrepancy between versions, the Spanish text prevails.

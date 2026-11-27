@@ -12,7 +12,11 @@ let programa={},rutas=[],pedidos=[],guardados=0;
 const plugin={estado:async()=>({conectado:true}),get:async({path,params})=>{rutas.push(path);pedidos.push({path,params});
   if(path==='courses')return {data:[{id:42,course_code:'MAT1620-2',name:'Curso sintético',term:{name:'2026 Segundo Semestre'}}]};
   if(path==='courses/42')return {data:programa};
-  return {data:[]};}};
+  return {data:[]};},
+  // Archivos del curso (Lucas, 2026-11-17): nombres sin enlaces y texto por id.
+  archivosCurso:async({curso})=>{llamadasArchivos.push(['lista',curso]);return {data:archivosCurso};},
+  leerArchivo:async({curso,archivo})=>{llamadasArchivos.push(['leer',archivo]);return textos[archivo]||{texto:''};}};
+let archivosCurso=[],textos={},llamadasArchivos=[];
 const ctx={console,Intl,window:{addEventListener(){},matchMedia:()=>({matches:false,addEventListener(){},addListener(){}}),
   Capacitor:{isNativePlatform:()=>true,Plugins:{GradeHubCanvas:plugin}}},
   document:{getElementById:nodo,createElement:()=>nodo('nuevo'),addEventListener(){},documentElement:nodo('html'),body:nodo('body'),querySelector:()=>nodo('query'),querySelectorAll:()=>[]},
@@ -94,5 +98,48 @@ const conTabla=[
   await run('leerProgramaCanvas()');confirmo=0;run('usarProgramaCanvas()');
   assert.equal(confirmo,0);
   assert.deepEqual(json('pautaDraft.map(f=>[f.nombre,f.peso])'),[['Informe',40],['Presentación',60]]);
+  // ─── El programa entre los archivos del curso ─────────────────────────────
+  const orden=json('archivosProgramaCanvas('+JSON.stringify([
+    {id:1,nombre:'Pauta de corrección I1.pdf',tipo:'pdf'},{id:2,nombre:'Clase a clase.pdf',tipo:'pdf'},
+    {id:3,nombre:'PROGRAMA DE CURSO Lunes y Miércoles.docx',tipo:'docx',modulo:'Programa'},{id:4,nombre:'foto programa.png',tipo:'png'},
+    {id:5,nombre:'programa_reglas_FIS1514(1).pdf',tipo:'pdf',tamano:20*1024*1024}])+').map(a=>a.id)');
+  assert.deepEqual(orden,[3,2],'primero el programa (y su módulo), después el clase a clase; nunca una pauta de corrección, una imagen ni un archivo gigante');
+  run("S.ramos.push({id:'r3',nombre:'Sin programa',sigla:'MAT1620',categorias:[]});currentRamoId='r3';openPautaManualModal()");
+  programa={texto:'',archivo:true};
+  archivosCurso=[{id:2,nombre:'Clase a clase.pdf',tipo:'pdf'},{id:3,nombre:'PROGRAMA DE CURSO.docx',tipo:'docx',modulo:'Programa'}];
+  textos={3:{texto:'# Evaluaciones\nEvaluación 1\t20%\nEvaluación 2\t20%\nEvaluación 3\t30%\nExamen final\t30%',recortado:false},2:{texto:'Semana 1: límites'}};
+  llamadasArchivos=[];
+  await run('leerProgramaCanvas()');
+  assert.deepEqual(llamadasArchivos,[['lista',42],['leer',3]],'sin programa en Canvas, lee el mejor archivo y para al encontrar la pauta');
+  const deArchivo=run('canvasProgramaEditorHTML()');
+  assert.match(deArchivo,/Examen final/);assert.match(deArchivo,/Sale de «PROGRAMA DE CURSO\.docx»/,'dice de qué archivo salió');
+  run('usarProgramaCanvas()');
+  assert.deepEqual(json('pautaDraft.map(f=>[f.nombre,f.peso])'),[['Evaluación 1',20],['Evaluación 2',20],['Evaluación 3',30],['Examen final',30]]);
+  // Un PDF escaneado no tiene texto: se dice, sin inventar.
+  run("canvasProgramaRamo.clear()");archivosCurso=[{id:9,nombre:'Programa.pdf',tipo:'pdf'}];textos={9:{texto:''}};
+  await run('leerProgramaCanvas()');
+  assert.match(run('canvasProgramaEditorHTML()'),/escaneado/);
+  // Sin archivos que parezcan programa.
+  run("canvasProgramaRamo.clear()");archivosCurso=[{id:8,nombre:'Guía 3.pdf',tipo:'pdf'}];
+  await run('leerProgramaCanvas()');
+  assert.match(run('canvasProgramaEditorHTML()'),/Revisamos 1 archivo del curso en Canvas y ninguno parece el programa/);
+  // Un ítem de módulo sin extensión en el título también se prueba.
+  run("canvasProgramaRamo.clear()");archivosCurso=[{id:11,nombre:'Programa del curso',tipo:'archivo',modulo:'Información'}];
+  textos={11:{texto:'# Evaluación\nInforme\t40%\nPresentación\t60%'}};llamadasArchivos=[];
+  await run('leerProgramaCanvas()');
+  assert.deepEqual(llamadasArchivos,[['lista',42],['leer',11]]);assert.match(run('canvasProgramaEditorHTML()'),/Sale de «Programa del curso»/);
+  // Sin permiso para ver archivos: se dice así, sin culpar al token.
+  run("canvasProgramaRamo.clear()");const listaReal=plugin.archivosCurso;plugin.archivosCurso=async()=>{throw new Error('401')};
+  await run('leerProgramaCanvas()');plugin.archivosCurso=listaReal;
+  assert.match(run('canvasProgramaEditorHTML()'),/no nos dejó ver los archivos/);
+  assert.equal(json('S.ramos.find(r=>r.id===\'r3\').categorias').length,0,'nada se guarda solo');
+  // Una lectura que termina después de cambiar de cuenta no deja fuente reutilizable.
+  const getReal=plugin.get;let resolverPrograma;
+  plugin.get=async p=>p.path==='courses/42'?new Promise(resolve=>{resolverPrograma=resolve}):getReal(p);
+  const tardia=run('leerProgramaCanvas()');
+  while(!resolverPrograma)await new Promise(resolve=>setImmediate(resolve));
+  run("S={...S,ramos:[]};currentUser={id:'00000000-0000-0000-0000-000000000002'};canvasProgramaRamo.clear()");
+  resolverPrograma({data:{texto:'# Evaluación\nInforme\t100%'}});await tardia;plugin.get=getReal;
+  assert.equal(run('canvasProgramaRamo.size'),0,'el resultado de la cuenta anterior se descarta');
   console.log('OK Canvas programa: lee pesos del programa, marca reglas, no inventa y solo guarda con Guardar');
 })().catch(e=>{console.error(e);process.exit(1)});

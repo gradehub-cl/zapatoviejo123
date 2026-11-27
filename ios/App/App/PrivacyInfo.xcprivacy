@@ -13,10 +13,30 @@
   - Fotos: solo si un profesor sube el logo o el flyer de su clase. La foto del
     horario se lee en el teléfono y no sale de él.
   - Diagnóstico (errores_app): errores saneados, ligados a la cuenta.
-  - Analítica (Google Analytics, sin cookies): uso de pantallas, sin ligar a la
-    persona.
+  - Teléfono: solo si un profesor elige WhatsApp como contacto de su perfil o
+    anuncio; lo ven los estudiantes que quieren contactarlo.
+  - Uso de la app (Product Interaction), ligado a la cuenta: PostHog recibe un
+    identificador técnico de la cuenta (analitica.js, identify) y
+    visitas_diarias guarda una visita por cuenta y día. Google Analytics recibe
+    eventos sin identidad, pero basta un destinatario ligado para declararlo así.
+  - Datos de publicidad (Advertising Data), ligados a la cuenta: qué anuncios
+    de profesores vio, abrió o contactó cada cuenta (anuncio_eventos_recibos),
+    para contar cada persona una vez y medir y cobrar la campaña. No usa notas
+    para eso y nunca se entrega al profesor quién fue.
 
-  No hay rastreo entre apps ni publicidad (NSPrivacyTracking = false).
+  - Token de avisos push (Device ID), ligado a la cuenta: lo guarda el servidor
+    para mandar los avisos de Amigos (supabase/functions/avisos-push). Se
+    declara por precaución; no es el identificador de publicidad.
+
+  - Universidad, carrera, semestre y año de ingreso (Other Data Types), ligados.
+  - País que Google Analytics deduce de la IP (Coarse Location), sin ligar; se
+    declara por precaución.
+
+  Cada tipo y sus propósitos calzan con docs/app-store/privacidad.md, que es
+  lo que se carga en App Store Connect.
+
+  No hay rastreo entre apps ni con datos de otras empresas
+  (NSPrivacyTracking = false). Sí hay anuncios de profesores dentro de la app.
 
   API con motivo obligatorio: UserDefaults del App Group, que comparten la app y
   el widget (WidgetsPlugin.swift, Shared/ActividadPrueba.swift) → 1C8F.1.
@@ -63,6 +83,7 @@
 			<key>NSPrivacyCollectedDataTypePurposes</key>
 			<array>
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
 			</array>
 		</dict>
 		<dict>
@@ -75,6 +96,7 @@
 			<key>NSPrivacyCollectedDataTypePurposes</key>
 			<array>
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
 			</array>
 		</dict>
 		<dict>
@@ -116,6 +138,69 @@
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeProductInteraction</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePhoneNumber</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeAdvertisingData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeThirdPartyAdvertising</string>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeDeviceID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherDataTypes</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeCoarseLocation</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>

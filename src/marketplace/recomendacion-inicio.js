@@ -341,18 +341,18 @@ function lineaDatosClase(a){
 }
 // El mismo contenido para el banner de Inicio y para la vista previa que ve el
 // profesor al armar su clase: lo que ve uno es exactamente lo que verá el otro.
-function contenidoRecomendacionClase(anuncio,{logoUrl='',vistaPrevia=false}={}){
+function contenidoRecomendacionClase(anuncio,{logoUrl='',vistaPrevia=false,enPanelProfesor=false}={}){
   const a=anuncio||{},linea=lineaDatosClase(a);
-  return `<button type="button" class="clase-apoyo-abrir"${vistaPrevia?' tabindex="-1" aria-hidden="true"':''}>
+  return `<button type="button" class="clase-apoyo-abrir"${vistaPrevia&&!enPanelProfesor?' tabindex="-1" aria-hidden="true"':''}>
       <span class="clase-apoyo-texto">
         <span class="ca-cabeza"><small>Publicidad · ${etiquetaTipoClase(a)}</small><strong>${esc(a.titulo||(esMaterialClase(a)?'Tu material':'Tu clase'))}</strong></span>
-        <span class="ca-pie">${linea||(vistaPrevia&&!esMaterialClase(a))?`<span class="clase-apoyo-datos">${esc(linea||'Formato · Lugar')}</span>`:''}<span class="clase-apoyo-ver">${esMaterialClase(a)?'Ver material':'Ver clase'} ›</span></span>
+        <span class="ca-pie">${linea||(vistaPrevia&&!enPanelProfesor&&!esMaterialClase(a))?`<span class="clase-apoyo-datos">${esc(linea||'Formato · Lugar')}</span>`:''}<span class="clase-apoyo-ver">${esMaterialClase(a)?'Ver material':'Ver clase'} ›</span></span>
       </span>
     </button>
     <span class="clase-apoyo-logo" aria-hidden="true"${logoUrl?'':' hidden'}>${logoUrl?imgLogoClase(logoUrl):''}</span>
-    <button type="button" class="clase-apoyo-cerrar" aria-label="Ocultar este anuncio por hoy"${vistaPrevia?' tabindex="-1"':''}>
+    ${enPanelProfesor?'':`<button type="button" class="clase-apoyo-cerrar" aria-label="Ocultar este anuncio por hoy"${vistaPrevia?' tabindex="-1"':''}>
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
-    </button>`;
+    </button>`}`;
 }
 
 let timerRecomendacionClase=null;

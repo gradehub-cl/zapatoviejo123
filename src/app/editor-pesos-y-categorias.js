@@ -165,7 +165,7 @@ function confirmAddRamo(){
   const despues=alAgregarRamo;
   alCancelarAgregarRamo=null;
   save();track('add_ramo',{total_ramos:S.ramos.length,preset:!!preset,con_creditos:!!cr});closeModal();renderHome();
-  showToast(preset?'Pauta cargada':'Ramo agregado');
+  showToast(preset?'Ponderaciones cargadas':'Ramo agregado');
   if(despues)despues();
 }
 
@@ -178,7 +178,7 @@ function campoFechaHoraHTML(idBase,fecha,hora,conQuitar){
     <div class="modal-input" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <input type="date" id="${idBase}-fecha" value="${f}" autocomplete="off" style="flex:1 1 9.5rem;min-width:9rem;" oninput="sincronizarHora('${idBase}')" onfocus="sembrarFechaHoy('${idBase}')"/>
       <input type="time" id="${idBase}-hora" value="${h}" autocomplete="off" aria-label="Hora (opcional)" style="flex:1 1 7rem;min-width:6.5rem;" ${fecha?'':'disabled'}/>
-      ${conQuitar&&fecha?`<button type="button" onclick="limpiarFechaHora('${idBase}')" style="flex:0 0 auto;padding:10px 12px;background:var(--muted);border:none;border-radius:8px;color:var(--fg2);font-size:0.75rem;font-weight:600;cursor:pointer;">Quitar</button>`:''}
+      ${conQuitar&&fecha?`<button type="button" onclick="limpiarFechaHora('${idBase}')" style="flex:0 0 auto;min-height:44px;padding:10px 12px;background:var(--muted);border:none;border-radius:8px;color:var(--fg2);font-size:0.75rem;font-weight:600;cursor:pointer;">Quitar</button>`:''}
     </div>`;
 }
 // El campo nativo parte vacío y obliga a escribir el año completo cada vez, aunque
@@ -219,7 +219,8 @@ function leerHora(idBase){
 const idReglaModal=clave=>`m-cat-regla-${clave}`;
 function leerReglasEvaluacionModal(r,varias,cantidad){
   const leer=clave=>document.getElementById(idReglaModal(clave))?.value||'';
-  const reglas=validarReglasEvaluacionEditor({descarte:leer('descarte'),min:leer('min'),tope:leer('tope')},
+  const puntaje=document.getElementById(idReglaModal('puntos'))?{puntos:leer('puntos'),exigencia:leer('exigencia')}:{};
+  const reglas=validarReglasEvaluacionEditor({descarte:leer('descarte'),min:leer('min'),tope:leer('tope'),...puntaje},
     varias,cantidad,gh_reglasNota(r.origen?.tenant||S.tenant).grade_scale);
   if(!reglas.error)return reglas;
   const id=idReglaModal(reglas.campo),campo=document.getElementById(id);
@@ -249,10 +250,11 @@ function openAddCatModal(prefillDate){
     <div class="modal-input"><input type="text" id="m-cat-name" placeholder="Ej: Prueba 1, Tarea 2, Laboratorio" maxlength="${NOMBRE_MAX}" autocomplete="off" aria-describedby="m-cat-error"/></div>
     <p id="m-cat-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
     ${pesoControlHTML(30,null)}
-    <label class="modal-label" style="display:flex;align-items:center;gap:10px;text-transform:none;font-weight:500;letter-spacing:0;cursor:pointer;margin:2px 0 14px;line-height:1.35;">
+    <label class="modal-label" style="display:flex;min-height:44px;align-items:center;gap:10px;text-transform:none;font-weight:500;letter-spacing:0;cursor:pointer;margin:2px 0 14px;line-height:1.35;">
       <input type="checkbox" id="m-cat-varias" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--primary);"/>
       <span>Son varias notas que se promedian <span style="color:var(--fg3);">(controles, laboratorios, tareas)</span></span>
     </label>
+    ${cantidadVariasHTML({notas:[]},false,false)}
     ${campoFechaHoraHTML('m-cat',prefillDate||'',null,false)}
     ${reglasEvaluacionEditorHTML({manual:gh_descarteManual(r,S.tenant),id:idReglaModal,permiteCambiarVarias:true})}
     <div class="modal-btns">
@@ -260,6 +262,8 @@ function openAddCatModal(prefillDate){
       <button class="btn-confirm" id="m-add-cat-btn" onclick="confirmAddCat()">Agregar evaluación</button>
     </div>`;
   openModal();wirePesoControl();
+  const varias=document.getElementById('m-cat-varias'),filaCantidad=document.getElementById('m-cat-cantidad-fila');
+  if(varias&&filaCantidad)varias.addEventListener('change',()=>{filaCantidad.hidden=!varias.checked;});
   enfocarEnHoja(document.getElementById('m-cat-name'));
   document.getElementById('m-cat-name').addEventListener('input',()=>{if(addCatError){addCatError='';limpiarErrorCampo('m-cat-name','m-cat-error');}});
   document.getElementById('m-cat-name').addEventListener('keydown',e=>{if(e.key==='Enter')confirmAddCat();});
@@ -280,11 +284,13 @@ function confirmAddCat(){
   // Pero "Controles 20%" sí tiene varias notas adentro, y a mano no había forma
   // de decirlo: la casilla es el único camino que tiene el estudiante hacia la
   // tarjeta con "+ Agregar nota" que las pautas oficiales usan vía `lista:true`.
+  // Varias notas son un grupo de casillas, con su cantidad (ver cantidadVariasHTML).
   const varias=!!(document.getElementById('m-cat-varias')||{}).checked;
-  const reglas=leerReglasEvaluacionModal(r,varias,null);if(!reglas)return false;
+  const cantidad=varias?leerCantidadVarias({notas:[]},false):null;if(cantidad===false)return false;
+  const reglas=leerReglasEvaluacionModal(r,varias,cantidad);if(!reglas)return false;
   const hora=leerHora('m-cat');
-  const cat={id:uid(),nombre:name,peso,fecha,hora,fechaOrigen:fecha?'usuario':null,horaOrigen:hora?'usuario':null,ponderaNotas:false,directNota:!varias,notas:[]};
+  const cat={id:uid(),nombre:name,peso,fecha,hora,fechaOrigen:fecha?'usuario':null,horaOrigen:hora?'usuario':null,ponderaNotas:false,directNota:true,notas:[],...(cantidad?{slots:cantidad}:{})};
   guardarReglasEvaluacionEditor(r,cat,reglas);
-  r.categorias.push(cat);
+  r.categorias.push(cat);abrirGrupoVacio(cat);
   save();track('add_categoria',{peso,tiene_fecha:!!fecha,varias_notas:varias});closeModal();renderRamo();
 }

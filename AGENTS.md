@@ -80,9 +80,14 @@ Backend Supabase; hosting Cloudflare Pages. Fuentes/herramientas no se despliega
   Nunca trabajes en `main`: rama `codex/`, `li/` o `ms/`, PR y merge. Usa
   worktree si otro checkout está ocupado; no pises trabajo ajeno. Enlaza su
   `node_modules` para probar y retira el enlace antes del commit.
-- Carriles: `src/app/`, `src/app-session/`, `src/engine/`, `src/render-*/` → Codex;
-  workflows, `sw.js`, estilos y `_headers` → Lucas; datos UC → Lucas, FEN/UAndes
-  → Martín; iOS → Lucas/Martín en rama `ios`. Si sales del carril, dilo primero.
+- No hay carriles: todo el código y los datos son de todos. Cualquiera, persona
+  o agente, puede tocar cualquier carpeta; antes de empezar revisa PRs y ramas
+  abiertas para no pisar trabajo ajeno.
+- **Hasta el lanzamiento de la app (iOS y Android), lo nuevo va solo a la app**
+  (desde el 2026-11-13). Lo visible queda detrás de `enAppNativa()` o
+  `html.app-nativa`. En la web solo entran arreglos, seguridad, pautas y datos,
+  y el panel de profesores. Motor, sync y cálculo siguen siendo uno: nunca una
+  versión para la app y otra para la web.
 - Un PR, una cosa; refactor separado de feature. Más de ~3 archivos o archivos
   nuevos se acuerdan antes. Rebasea sobre `origin/main` antes de abrir **salvo**
   que `git log --oneline --merges origin/main..HEAD` devuelva merges: esa rama
@@ -121,7 +126,7 @@ Lee solo la guía que toca tu tarea:
 
 - Modelo, cálculo, cuentas profesor y datos: [datos-y-motor](docs/guia/datos-y-motor.md).
 - UI/tests: [reglas-y-entrega](docs/guia/reglas-y-entrega.md); fuentes/build/buscador: [fuentes-js](docs/guia/fuentes-js.md).
-- Carriles/conflictos: [colaboración](docs/guia/colaboracion.md); deploy: [desplegar](docs/guia/desplegar.md); iOS: [ios](docs/guia/ios.md).
+- Colaboración/conflictos: [colaboración](docs/guia/colaboracion.md); deploy: [desplegar](docs/guia/desplegar.md); iOS: [ios](docs/guia/ios.md).
 - Supabase, seguridad, producto, marketplace, reportes o reglas pendientes:
   [contexto por tema](docs/contexto.md). Es un índice; no leas todas sus ramas.
 

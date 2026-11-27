@@ -71,9 +71,55 @@ function pautaDesdeProgramaCanvas(programa,sigla){
   const reglas=lectura.complexRuleLines.map(c=>String(c.line).slice(0,220)).slice(0,4);
   return {...base,estado:'propuesta',filas,senales,reglas};
 }
+// ─── El programa entre los ARCHIVOS del curso (Lucas, 2026-11-17) ─────────
+// En la UC el campo «programa» de Canvas casi siempre viene vacío: el programa
+// es un PDF o un Word entre los archivos o en un módulo «Programa». El plugin
+// da nombres y tipos (nunca enlaces) y lee un archivo a texto. Se prueban los
+// mejores candidatos por nombre y vale el primero que trae una pauta completa.
+const CANVAS_ARCHIVOS_MAX=3;
+function puntajeArchivoPrograma(a){
+  const n=normName(String(a&&a.nombre||'').replace(/[_.-]+/g,' ')),m=normName(a&&a.modulo||'');
+  let p=0;
+  if(/\b(programa|syllabus|silabo|reglas|condiciones|normativa)\b/.test(n))p+=5;
+  if(/\b(programa|syllabus|informacion del curso)\b/.test(m))p+=3;
+  if(/\b(clase a clase|calendario|cronograma|fechas|planificacion)\b/.test(n))p+=1;
+  // Una pauta de corrección, una guía o un enunciado no es el programa.
+  if(/\b(pauta de correccion|solucion|solucionario|ayudantia|guia|enunciado|tarea|control|interrogacion|examen|prueba)\b/.test(n)&&p<5)p-=4;
+  return p;
+}
+function archivosProgramaCanvas(lista){
+  return (Array.isArray(lista)?lista:[])
+    .filter(a=>a&&Number.isSafeInteger(a.id)&&['pdf','docx','txt','archivo'].includes(a.tipo)&&!(a.tamano>15*1024*1024))
+    .map(a=>({...a,puntaje:puntajeArchivoPrograma(a)}))
+    .filter(a=>a.puntaje>0)
+    .sort((x,y)=>y.puntaje-x.puntaje||String(x.nombre).localeCompare(String(y.nombre)))
+    .slice(0,CANVAS_ARCHIVOS_MAX);
+}
+async function programaDesdeArchivosCanvas(cursoId,sigla){
+  const p=pluginCanvas();if(!p||typeof p.archivosCurso!=='function')return null;
+  let lista;
+  try{const r=await p.archivosCurso({curso:cursoId});lista=Array.isArray(r&&r.data)?r.data:[];}
+  catch(e){return {resultado:{estado:'sin_acceso',filas:[]},archivo:null};}
+  const candidatos=archivosProgramaCanvas(lista);
+  // Cuántos se revisaron, para que «no lo encontramos» diga algo concreto.
+  if(!candidatos.length)return {resultado:{estado:'sin_archivo',filas:[],revisados:lista.length},archivo:null};
+  let mejor=null;
+  for(const a of candidatos){
+    let leido;
+    try{leido=await p.leerArchivo({curso:cursoId,archivo:a.id});}catch(e){continue;}
+    const texto=String(leido&&leido.texto||'');
+    const resultado=texto.trim()?pautaDesdeProgramaCanvas({texto,archivo:false,recortado:!!leido.recortado},sigla):{estado:'escaneado',filas:[]};
+    if(resultado.estado==='propuesta')return {resultado,archivo:a.nombre};
+    if(!mejor)mejor={resultado,archivo:a.nombre};
+  }
+  return mejor||{resultado:{estado:'sin_archivo',filas:[]},archivo:null};
+}
 function mensajeProgramaCanvas(res){
   return {
-    archivo:'El programa está como archivo en Canvas. La app no lee archivos: copia los porcentajes del programa.',
+    sin_archivo:(res.revisados?'Revisamos '+res.revisados+' archivo'+(res.revisados===1?'':'s')+' del curso en Canvas y ninguno parece el programa.':'Este curso no tiene archivos visibles en Canvas.')+' Escribe las evaluaciones con su porcentaje.',
+    sin_acceso:'Canvas no nos dejó ver los archivos de este curso. Escribe las evaluaciones con su porcentaje.',
+    escaneado:'El programa está escaneado como imagen y no se puede leer. Copia los porcentajes del programa.',
+    archivo:'El programa está como archivo en Canvas y no pudimos leerlo. Actualiza la app o copia los porcentajes del programa.',
     vacio:'Este curso no tiene el programa escrito en Canvas.',
     sin_seccion:'No encontramos la sección de evaluación en el programa de Canvas.',
     sin_pesos:'El programa de Canvas no trae porcentajes por evaluación.',
@@ -99,7 +145,7 @@ function canvasProgramaEditorHTML(){
       +(res.reglas.length?'<ul style="margin:4px 0 6px;padding-left:18px;">'+res.reglas.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul>':'')+'</div>':'';
     cuerpo='<ul style="list-style:none;margin:0 0 6px;padding:0;font-size:0.8125rem;line-height:1.6;">'+filas+'</ul>'+avisos
       +'<div class="pauta-plantillas-opciones"><button type="button" style="min-height:44px;" onclick="usarProgramaCanvas()">Usar estas evaluaciones</button></div>'
-      +'<div class="pauta-plantillas-nota">Quedan en el editor para revisarlas. Nada cambia hasta que toques Guardar.</div>';
+      +'<div class="pauta-plantillas-nota">'+(d.archivo?'Sale de «'+esc(d.archivo)+'». ':'')+'Quedan en el editor para revisarlas. Nada cambia hasta que toques Guardar.</div>';
   }
   return '<div class="pauta-plantillas" id="m-pauta-programa"><div class="pauta-plantillas-titulo">Programa en Canvas</div>'+cuerpo+'</div>';
 }
@@ -110,17 +156,28 @@ function repintarProgramaCanvas(){
 async function leerProgramaCanvas(){
   const r=(S.ramos||[]).find(x=>x.id===currentRamoId);
   if(!r||!canvasDisponible())return;
-  const id=r.id,sigla=siglaRamoCanvas(r);
+  const id=r.id,sigla=siglaRamoCanvas(r),estado=S,usuario=currentUser?.id||null;
+  const vigente=()=>S===estado&&(currentUser?.id||null)===usuario&&currentRamoId===id&&S.ramos.includes(r);
   canvasProgramaRamo.set(id,{cargando:true});repintarProgramaCanvas();
   try{
     const curso=(await cursosCanvas()).find(c=>c.sigla===sigla);
+    if(!vigente())return;
     if(!curso)canvasProgramaRamo.set(id,{error:'No encontramos este ramo en tu Canvas de este semestre.'});
     else{
-      const resultado=pautaDesdeProgramaCanvas(await canvasGet(`courses/${curso.id}`,{'include[]':['syllabus_body']}),sigla);
-      canvasProgramaRamo.set(id,{resultado});
-      track('canvas_programa',{estado:resultado.estado,evaluaciones:resultado.filas.length,senales:(resultado.senales||[]).length});
+      let resultado=pautaDesdeProgramaCanvas(await canvasGet(`courses/${curso.id}`,{'include[]':['syllabus_body']}),sigla),archivo=null;
+      // Sin pauta en el campo «programa», se busca entre los archivos del curso.
+      if(resultado.estado!=='propuesta'){
+        let desdeArchivos=null;
+        try{desdeArchivos=await programaDesdeArchivosCanvas(curso.id,sigla);}catch(e){}
+        if(desdeArchivos&&(desdeArchivos.resultado.estado==='propuesta'||['vacio','archivo','sin_seccion'].includes(resultado.estado))){
+          resultado=desdeArchivos.resultado;archivo=desdeArchivos.archivo;
+        }
+      }
+      if(!vigente())return;
+      canvasProgramaRamo.set(id,{resultado,archivo});
+      track('canvas_programa',{estado:resultado.estado,evaluaciones:resultado.filas.length,senales:(resultado.senales||[]).length,desde_archivo:!!archivo});
     }
-  }catch(e){canvasProgramaRamo.set(id,{error:'No pudimos leer Canvas. Revisa la conexión o el token.'});}
+  }catch(e){if(!vigente())return;canvasProgramaRamo.set(id,{error:'No pudimos leer Canvas. Revisa la conexión o el token.'});}
   repintarProgramaCanvas();
 }
 // Lleva la propuesta al borrador del editor. Una evaluación con el mismo
@@ -144,12 +201,32 @@ function usarProgramaCanvas(){
   const r=(S.ramos||[]).find(x=>x.id===currentRamoId);
   const d=r&&canvasProgramaRamo.get(r.id);
   if(!d||!d.resultado||d.resultado.estado!=='propuesta')return;
+  const estadoCanvas=S;
   const aplicar=()=>{
+    if(S!==estadoCanvas||currentRamoId!==r.id||!S.ramos.includes(r))return;
     pautaDraft=filasProgramaParaEditor(d.resultado.filas,pautaDraft,r);
+    pautaProgramaCanvasDraft={ramoId:r.id,archivo:d.archivo||null,citas:d.resultado.reglas||[]};
     canvasProgramaRamo.delete(r.id);
     renderPautaManualModal();
     track('canvas_programa_usado',{evaluaciones:d.resultado.filas.length});
   };
   if(!pautaDraft.some(f=>String(f.nombre||'').trim()))return aplicar();
   showConfirm('Usar el programa de Canvas','Cambia las evaluaciones del editor por las del programa. Las notas que ya tienes se conservan cuando el nombre coincide. Nada se guarda hasta que toques Guardar.',aplicar,{label:'Usar programa',danger:false,focusCancel:true});
+}
+
+// Propuesta aditiva para revisión de Lucas: solo nombre del archivo y hasta
+// cuatro líneas ya marcadas por el lector. Sin token, URL, id de curso ni texto
+// completo. La firma evita atribuir citas de un archivo a otro tras una fusión.
+function firmaContenidoProgramaCanvas(d){return hashPautaSugerida(JSON.stringify([d.archivo,d.citas,d.pauta]));}
+function crearProgramaCanvas(archivo,citas,r){
+  const d={archivo:typeof archivo==='string'?archivo.trim().slice(0,160):null,
+    citas:(Array.isArray(citas)?citas:[]).filter(c=>typeof c==='string'&&c.trim()).slice(0,4).map(c=>c.trim().slice(0,220)),
+    pauta:firmaPautaSugerida(r)};
+  return {...d,firma:firmaContenidoProgramaCanvas(d)};
+}
+function copiarProgramaCanvas(d){
+  if(!d||!(d.archivo===null||typeof d.archivo==='string'&&d.archivo.length<=160)||
+    !Array.isArray(d.citas)||d.citas.length>4||d.citas.some(c=>typeof c!=='string'||!c.trim()||c.length>220)||
+    !/^[0-9a-f]{16}$/.test(d.pauta)||!/^[0-9a-f]{16}$/.test(d.firma)||firmaContenidoProgramaCanvas(d)!==d.firma)return null;
+  return {archivo:d.archivo,citas:[...d.citas],pauta:d.pauta,firma:d.firma};
 }

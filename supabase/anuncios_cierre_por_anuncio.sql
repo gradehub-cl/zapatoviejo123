@@ -49,13 +49,30 @@ $$;
 revoke all on function public.cerrar_anuncio_hoy(uuid) from public, anon;
 grant execute on function public.cerrar_anuncio_hoy(uuid) to authenticated;
 
+-- Además del cierre con la X: un anuncio que la cuenta ya vio en 5 días
+-- distintos (en total, no necesariamente seguidos; día de Chile) deja de
+-- mostrársele (Lucas, 2026-11-25). Se calcula al vuelo desde los recibos de
+-- impresión, sin guardar filas nuevas; no toca cobro, alcance ni métricas.
+-- security definer porque los recibos no son legibles por el cliente: solo
+-- lee y borra filas de auth.uid().
 create or replace function public.mis_cierres_anuncios()
 returns table (anuncio_id uuid, oculta_hasta timestamptz)
-language plpgsql security invoker set search_path = '' as $$
+language plpgsql security definer set search_path = '' as $$
+declare uid uuid:=auth.uid();
 begin
-  if auth.uid() is null then raise exception 'inicia sesión'; end if;
-  delete from public.anuncios_cierres_por_anuncio c where c.user_id=auth.uid() and c.oculta_hasta<=now();
-  return query select c.anuncio_id,c.oculta_hasta from public.anuncios_cierres_por_anuncio c where c.user_id=auth.uid() and c.oculta_hasta>now();
+  if uid is null then raise exception 'inicia sesión'; end if;
+  delete from public.anuncios_cierres_por_anuncio c where c.user_id=uid and c.oculta_hasta<=now();
+  return query select c.anuncio_id,c.oculta_hasta from public.anuncios_cierres_por_anuncio c where c.user_id=uid and c.oculta_hasta>now();
+  -- Sin anuncio_eventos.sql aplicado no hay recibos: solo rige el cierre manual.
+  if to_regclass('public.anuncio_eventos_recibos') is not null then
+    -- El vencimiento se vuelve a calcular en cada lectura; 30 días solo evita
+    -- que una copia en memoria del cliente quede oculta para siempre.
+    return query select r.anuncio_id,now()+interval '30 days'
+      from public.anuncio_eventos_recibos r
+      where r.user_id=uid and r.tipo='impresion'
+      group by r.anuncio_id
+      having count(distinct (r.creado_at at time zone 'America/Santiago')::date)>=5;
+  end if;
 end;
 $$;
 revoke all on function public.mis_cierres_anuncios() from public, anon;

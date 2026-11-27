@@ -18,12 +18,7 @@ Datos fijos: Team ID **PH6XQV8L2M** (GradeHub SpA) · bundle **cl.gradehub.app**
 - [x] El repo usa `group.cl.gradehub.app.shared` (#1111, mergeada en `ios`).
 - [x] `ITSAppUsesNonExemptEncryption = NO` en `ios/App/App/Info.plist` (#1127).
 - [x] Solo iPhone: `TARGETED_DEVICE_FAMILY = 1` (#1131).
-- [ ] **[código]** Entrar con Apple: la app ofrece «Continuar con Google»
-      (`src/app-session/oauth-y-recuperacion.js`), así que la guideline 4.8 pide
-      una opción equivalente (Sign in with Apple). Está en el PR borrador
-      **#1112**; hoy `App.entitlements` en `main` no tiene
-      `com.apple.developer.applesignin`. Debe estar mergeado antes de App Review
-      (para TestFlight externo es muy recomendable).
+- [x] **[código]** Entrar con Apple (guideline 4.8): #1112, y revocar con Apple al borrar la cuenta: #1133.
 - [ ] **[Lucas]** Developer → Certificates, IDs & Profiles → **Keys** → crear una
       key con **Sign in with Apple** habilitado, asociada al App ID primario
       `cl.gradehub.app`. Descargar el `.p8` (se baja una sola vez) y anotar el Key ID.
@@ -41,6 +36,10 @@ Datos fijos: Team ID **PH6XQV8L2M** (GradeHub SpA) · bundle **cl.gradehub.app**
 ## 2. Build 1.0 (1) a TestFlight
 
 - [x] **[Lucas]** `git pull` en `ios` → `npm ci` → `npm run ios:preparar` (build 1.0 (1), 15-nov).
+- [x] **[código]** El build Release/Archive verifica la configuración copiada y
+      los recursos web con `bin/verificar-build-ios.py` (#1190).
+- [ ] **[Lucas]** Antes de Archive: `npm run ios:preparar` →
+      `python3 bin/verificar-build-ios.py`. No usar `ios:rama` para enviar a Apple.
 - [ ] **[Lucas]** Xcode → target App y GradeHubWidgets: firma automática con el
       Team PH6XQV8L2M (sin commitear el Team; ver `docs/guia/ios.md`), Product →
       **Archive** con esquema App, destino «Any iOS Device».
@@ -52,8 +51,11 @@ Datos fijos: Team ID **PH6XQV8L2M** (GradeHub SpA) · bundle **cl.gradehub.app**
 ## 3. TestFlight externo
 
 - [ ] **[tras merge]** Test Information: copiar de `docs/app-store/testflight.md`.
-- [ ] **[Lucas]** Crear la cuenta demo en producción según el plan de
-      `testflight.md` y pegar usuario/contraseña solo en App Store Connect.
+- [x] **[documentación]** Guion de las dos cuentas y recorrido del revisor en
+      `cuenta-demo.md` y `ficha.md` (#1192). No se crearon cuentas.
+- [ ] **[Lucas]** Aprobar la exclusión preventiva de métricas de #1192, crear
+      las dos cuentas según `cuenta-demo.md` y guardar sus credenciales solo
+      en App Store Connect.
 - [ ] **[Lucas]** Grupo externo → agregar build → enviar a Beta App Review.
 
 ## 4. Ficha y envío a App Review
@@ -61,14 +63,19 @@ Datos fijos: Team ID **PH6XQV8L2M** (GradeHub SpA) · bundle **cl.gradehub.app**
 - [ ] **[tras merge]** App Information: nombre, subtítulo, categoría Educación,
       URL de privacidad (`ficha.md`).
 - [ ] **[tras merge]** Versión 1.0: texto promocional, descripción, palabras
-      clave, URLs de soporte y marketing, notas al revisor (`ficha.md`).
+      clave, URLs de soporte y marketing, notas al revisor (`ficha.md`, en inglés).
+- [x] **[código]** En la app no se compran campañas (3.1.1): #1161.
+- [ ] **[código]** Interruptor «Usar mis notas para elegir anuncios» (5.1.2 / 2.5.18): #1163.
+- [ ] **[código]** Versión B lista por si rechazan por 2.5.18: anuncios sin notas en la app (PR en borrador).
 - [ ] **[tras merge]** App Privacy: cargar las etiquetas de `privacidad.md`
       (tracking: No) — después de cerrar sus puntos «Verificar».
 - [ ] **[tras merge]** Age Rating: cuestionario según `age-rating.md`.
 - [ ] **[Lucas]** Decidir si se fuerza 13+ (ver `age-rating.md`).
-- [ ] **[código]** Botón «Reportar» en avisos/perfiles de profesores (guideline
-      1.2) si se declara contenido de usuarios.
-- [ ] **[código]** Ajustes a `privacidad.html` para iOS (ver `privacidad.md` §1).
+- [x] **[código]** «Denunciar o bloquear» en anuncios, perfiles y opiniones (guideline 1.2): #1137.
+- [x] **[código]** Ajustes a `privacidad.html` para iOS: #1191; auditoría de
+      Canvas, MCP y Apple en `privacidad.md` (#1193).
+- [ ] **[Lucas, tras merge #1191]** Comprobar política publicada y cerrar las
+      verificaciones de producción pendientes en `privacidad.md` antes de App Privacy.
 - [ ] **[Lucas]** Capturas de 6,9". Sin iPad: la app parte solo en iPhone (#1131).
 - [ ] **[Lucas]** Precio: gratis. **Disponibilidad: todos los países menos los
       27 de la Unión Europea** (decisión de Lucas; evita las obligaciones de
@@ -77,6 +84,42 @@ Datos fijos: Team ID **PH6XQV8L2M** (GradeHub SpA) · bundle **cl.gradehub.app**
 - [ ] **[Lucas]** App Review Information: contacto (Lucas Irarrázaval;
       teléfono y correo solo en App Store Connect) y cuenta demo.
 - [ ] **[Lucas]** Enviar a revisión; publicación manual recomendada para la 1.0.
+
+## 5. Amigos (si va en este envío)
+
+Rama `claude/friendly-noether-h0w94l`. La pestaña aparece solo en la app nativa
+y solo cuando su SQL está aplicado; sin SQL, la app queda como estaba.
+
+- [ ] **[Martín]** Aplicar en producción, en este orden, después de
+      `administradores.sql`: `supabase/amigos.sql`, `supabase/amigos_grupos.sql`,
+      `supabase/amigos_notas.sql`, `supabase/amigos_calendario.sql` y
+      `supabase/amigos_avisos.sql`. Desde su Mac:
+      `node bin/sql-produccion.js aplicar supabase/amigos.sql supabase/amigos_grupos.sql supabase/amigos_notas.sql supabase/amigos_calendario.sql supabase/amigos_avisos.sql`
+      (un clic por archivo), o pegándolos en el SQL Editor. Comprobar con
+      `node bin/sql-produccion.js consultar "select count(*) from pg_proc where proname in ('amigos_estado','mis_grupos','amigos_notas_estado')"` → 3.
+      (Desde la nube no se puede: no hay token y quitar el clic de confirmación
+      quedó descartado.)
+- [x] **[código]** Pantalla en el panel de admin para las denuncias de usuarios.
+- [ ] **[Lucas]** Avisos push: llave APNs, Push Notifications en el App ID,
+      secretos, `supabase functions deploy avisos-push` y el Database Webhook.
+      Paso a paso en `supabase/functions/avisos-push/LEEME.md`. En Xcode, revisar
+      que Signing & Capabilities muestre **Push Notifications** (el permiso ya
+      está en `App.entitlements`).
+- [ ] **[Lucas/Martín]** Compilar en Xcode y probar en un iPhone: el widget
+      «Hoy en la u» (pequeño, mediano, grande y bloqueo) y los avisos. Se
+      escribieron sin poder compilar.
+- [ ] **[Lucas]** Cuenta demo para App Review con username, un amigo con horario
+      y un grupo; anotarlo en `cuenta-demo.md` y en la nota para el revisor.
+- [ ] **[Lucas]** Publicar `privacidad.html` con las filas de Amigos antes del
+      envío (llega a la web con el merge a `main`).
+- [ ] **[tras merge]** App Privacy: Amigos no agrega tipos de dato; revisar las
+      filas actualizadas en `privacidad.md` (Name, Other User Content, User ID).
+- [ ] **[código]** Universal Links (#663): el link `gradehub.cl/?amigo=…` hoy
+      abre la web, donde Amigos no aparece.
+- Segunda versión (decidido por Lucas, 2026-11-20): Amigos parte solo dentro de
+  la misma universidad. Lo único entre universidades que vale la pena es un
+  calendario de pruebas en un grupo para ver cuándo pueden juntarse; turno y
+  almorzar entre U se descartaron.
 
 ## Notas
 

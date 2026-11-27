@@ -43,3 +43,11 @@ const PRESETS_UC_COM=[
 // La distinción sí vale para el resto: los prospectos verificados son del plan
 // común de INGENIERÍA, y un ramo que en Comercial lleva otra sigla es otro curso
 // aunque se llame igual. Por eso esta lista es explícita y no "todo lo de UC".
+// Medicina: solo los ramos de los que tenemos el programa de su facultad.
+const PRESETS_UC_MEDICINA=[
+  'Integrado Ciencias Médicas III',
+  'Morfología III',
+  'Bases y Mecanismos de la Enfermedad I',
+];
+// Carreras UC que reciben pautas, además de Ingeniería, que las recibe todas.
+const PRESETS_UC_POR_CARRERA={'COM':PRESETS_UC_COM,'UC-MEDICINA':PRESETS_UC_MEDICINA};

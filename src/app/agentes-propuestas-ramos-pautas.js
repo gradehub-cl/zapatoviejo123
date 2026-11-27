@@ -33,7 +33,7 @@ function abrirRamosPropuestos(){
     <div class="modal-title">Ramos por agregar</div>
     <p class="modal-desc">Tu agente los leyó de ${esc(propuesta.fuente)}. <b>No están agregados.</b> Desmarca los que no lleves este semestre.</p>
     <div class="agent-ramo-list">${filas}</div>
-    <p class="agent-proposal-help">A los que tengan pauta en el catálogo se les carga al agregarlos. Ninguno llega con notas.</p>
+    <p class="agent-proposal-help">A los que tengan programa en el catálogo se les cargan sus ponderaciones al agregarlos. Ninguno llega con notas.</p>
     <div class="modal-btns">
       <button type="button" class="btn-cancel" onclick="confirmarDescartarRamosPropuestos()">Descartar</button>
       <button type="button" class="btn-confirm" onclick="aplicarRamosPropuestos()">Agregar los marcados</button>
@@ -99,13 +99,13 @@ async function cargarPropuestasPautaAgente(opts){
     pintarRamosPropuestos();
     renderPropuestasPautaHome();
     if(opts.mostrar&&propuestasPautaAgente.length)abrirPropuestasPautaAgente();
-    else if(opts.mostrar&&opts.avisar)showToast('No tienes pautas pendientes');
+    else if(opts.mostrar&&opts.avisar)showToast('No tienes ponderaciones pendientes');
     return propuestasPautaAgente;
   }catch(e){
     // La bandeja es una mejora, no una razón para impedir que alguien entre a
     // sus notas. La tabla se aplica manualmente y mientras no exista la app
     // sigue funcionando exactamente como antes.
-    if(opts.avisar)showToast('No pudimos cargar las pautas pendientes. Intenta de nuevo.',true);
+    if(opts.avisar)showToast('No pudimos cargar las ponderaciones pendientes. Intenta de nuevo.',true);
     return [];
   }finally{propuestasPautaCargando=false;}
 }
@@ -113,7 +113,7 @@ function filasPropuestaPauta(propuesta){
   return propuesta.evaluaciones.map(e=>`<li><b>${esc(e.nombre)}</b><span>${r2(e.peso)}%${e.casillas?` · ${e.casillas} nota${e.casillas!==1?'s':''}`:''}</span></li>`).join('');
 }
 function abrirPropuestasPautaAgente(){
-  if(!propuestasPautaAgente.length){showToast('No tienes pautas pendientes');return;}
+  if(!propuestasPautaAgente.length){showToast('No tienes ponderaciones pendientes');return;}
   const tarjetas=propuestasPautaAgente.map(p=>{
     const ramo=ramoDePropuestaPauta(p);
     const sinRamo=!ramo;
@@ -124,12 +124,12 @@ function abrirPropuestasPautaAgente(){
       ${sinRamo?`<p class="agent-proposal-warning">Este ramo ya no está en tu semestre. Puedes descartar la propuesta.</p>`:`<p class="agent-proposal-help">Revisa que calce con tu programa. Aplicarla conserva las notas que ya hayas puesto con el mismo nombre.</p>`}
       <div class="modal-btns agent-proposal-actions">
         <button type="button" class="btn-cancel" onclick="confirmarDescartarPropuestaPauta('${esc(p.id)}')">Descartar</button>
-        ${sinRamo?'':`<button type="button" class="btn-confirm" onclick="confirmarAplicarPropuestaPauta('${esc(p.id)}')">Aplicar pauta</button>`}
+        ${sinRamo?'':`<button type="button" class="btn-confirm" onclick="confirmarAplicarPropuestaPauta('${esc(p.id)}')">Aplicar ponderaciones</button>`}
       </div>
     </article>`;
   }).join('');
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">Pautas por revisar</div>
+    <div class="modal-title">Ponderaciones por revisar</div>
     <p class="modal-desc">Tu agente propuso estas evaluaciones desde un programa. <b>No se han aplicado.</b> Revísalas antes de decidir.</p>
     <div class="agent-proposals">${tarjetas}</div>
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Lo reviso después</button></div>`;
@@ -149,7 +149,7 @@ function confirmarAplicarPropuestaPauta(id){
   if(propuestaConReglaQueCambia(ramo,propuesta)){
     showToast('Esta propuesta cambia una evaluación con una regla de aprobación. Revísala manualmente para no perder esa regla.',true);return;
   }
-  showConfirm(`¿Aplicar la pauta de ${ramo.nombre}?`,'Cambiarán los nombres y porcentajes de las evaluaciones. Las notas que ya ingresaste se conservan cuando coinciden por nombre.',()=>aplicarPropuestaPauta(id),{label:'Aplicar pauta',danger:false,focusCancel:true});
+  showConfirm(`¿Aplicar las ponderaciones de ${ramo.nombre}?`,'Cambiarán los nombres y porcentajes de las evaluaciones. Las notas que ya ingresaste se conservan cuando coinciden por nombre.',()=>aplicarPropuestaPauta(id),{label:'Aplicar ponderaciones',danger:false,focusCancel:true});
 }
 async function resolverPropuestaPauta(id,accion){
   const {error}=await supabaseClient.rpc('resolver_propuesta_pauta_agente',{p_id:id,p_accion:accion});
@@ -201,13 +201,13 @@ async function aplicarPropuestaPauta(id){
     }
     closeModal();
     if(currentRamoId===ramo.id)renderRamo();else renderHome();
-    showToast(reportada?'Pauta aplicada · también la sumamos al consenso':'Pauta aplicada · no pudimos sumarla al consenso ahora');
-  }catch(e){showToast('No pudimos aplicar esta pauta. Intenta de nuevo.',true);}
+    showToast(reportada?'Ponderaciones aplicadas · también las sumamos al consenso':'Ponderaciones aplicadas · no pudimos sumarlas al consenso ahora');
+  }catch(e){showToast('No pudimos aplicar estas ponderaciones. Intenta de nuevo.',true);}
   finally{_suspenderAportePautas=false;}
 }
 function confirmarDescartarPropuestaPauta(id){
   const propuesta=propuestasPautaAgente.find(p=>p.id===id);if(!propuesta)return;
-  showConfirm('¿Descartar esta pauta?','Se elimina esta propuesta pendiente. No cambia tus ramos ni tus notas.',async()=>{
+  showConfirm('¿Descartar estas ponderaciones?','Se elimina esta propuesta pendiente. No cambia tus ramos ni tus notas.',async()=>{
     try{
       await resolverPropuestaPauta(id,'descartada');
       if(propuestasPautaAgente.length)abrirPropuestasPautaAgente();else{closeModal();showToast('Propuesta descartada');}

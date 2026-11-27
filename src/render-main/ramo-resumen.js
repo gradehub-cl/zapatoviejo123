@@ -23,9 +23,14 @@ function horasRamoTexto(b){
  for(const x of lista)if(Number.isSafeInteger(x?.n)&&x.n>0&&x.opcion>=1&&x.opcion<=4&&(!mejor||x.n>mejor.n))mejor=x;
  return mejor?RAMO_CARGAS[mejor.opcion-1]:'—';
 }
+// Las escritas («Otro») solo llegan si las repiten tres cuentas o más.
 function etiquetasRamoHTML(b){
- const lista=(Array.isArray(b?.etiquetas)?b.etiquetas:[]).filter(e=>Number.isSafeInteger(e.n)&&e.n>=3&&RAMO_ETIQUETAS.some(x=>x.id===e.id));
- return lista.length?`<ul class="rr-etiquetas">${lista.map(e=>`<li>${esc(RAMO_ETIQUETAS.find(x=>x.id===e.id).texto)}</li>`).join('')}</ul>`:'';
+ const lista=(Array.isArray(b?.etiquetas)?b.etiquetas:[]).filter(e=>Number.isSafeInteger(e.n)&&e.n>=3&&RAMO_ETIQUETAS.some(x=>x.id===e.id))
+  .map(e=>({texto:RAMO_ETIQUETAS.find(x=>x.id===e.id).texto,n:e.n}));
+ const escritas=(Array.isArray(b?.escritas)?b.escritas:[]).filter(e=>typeof e?.texto==='string'&&e.texto.trim()&&Number.isSafeInteger(e.n)&&e.n>=3)
+  .map(e=>({texto:e.texto.trim(),n:e.n}));
+ const todas=[...lista,...escritas].sort((a,b)=>b.n-a.n).slice(0,8);
+ return todas.length?`<ul class="rr-etiquetas">${todas.map(e=>`<li>${esc(e.texto)}</li>`).join('')}</ul>`:'';
 }
 // Cada cifra en su escala (docs/guia/reglas-y-entrega.md, «Estadísticas pone
 // cada número en su escala»): una posición de 1 a 5 o una parte de un total va
@@ -44,12 +49,14 @@ function asistenciaRamo(b){
  return Number.isSafeInteger(si)&&Number.isSafeInteger(no)&&si>=0&&no>=0&&si+no>=5&&si+no<=b.total?{si,no,n:si+no}:null;
 }
 function recomiendanRamo(b){return Math.max(0,Math.min(10,Math.round(Number(b?.recomiendan_de_10)||0)));}
+// «Más o menos» va aparte: no suma a los que lo recomiendan.
+function masOMenosRamo(b){return Math.max(0,Math.min(10,Math.round(Number(b?.mas_o_menos_de_10)||0)));}
 function anillosRamoHTML(b){
  const rec=recomiendanRamo(b),asis=asistenciaRamo(b);
  const mayoria=asis?(asis.si>=asis.no?{palabra:'Sí',n:asis.si}:{palabra:'No',n:asis.no}):null;
  return `<div class="stats-anillos-fila rr-anillos">
   ${anilloRamoHTML({fraccion:escala5Ramo(b.facilidad),valor:decimalRamo(b.facilidad),de:palabraFacilidadRamo(b.facilidad),pie:'Facilidad para sacarse buena nota, de 1 a 5',etiqueta:`Facilidad ${decimalRamo(b.facilidad)} de 5: ${palabraFacilidadRamo(b.facilidad).toLowerCase()}`})}
-  ${anilloRamoHTML({fraccion:rec/10,valor:String(rec),de:'de 10',pie:'Lo recomiendan',etiqueta:`${rec} de cada 10 lo recomiendan`})}
+  ${anilloRamoHTML({fraccion:rec/10,valor:String(rec),de:'de 10',pie:masOMenosRamo(b)?`Lo recomiendan · ${masOMenosRamo(b)} de 10, más o menos`:'Lo recomiendan',etiqueta:`${rec} de cada 10 lo recomiendan${masOMenosRamo(b)?`; ${masOMenosRamo(b)} de cada 10, más o menos`:''}`})}
   ${mayoria?anilloRamoHTML({fraccion:mayoria.n/asis.n,valor:mayoria.palabra,de:`${mayoria.n} de ${asis.n}`,pie:'¿Se toma asistencia?',etiqueta:asistenciaRamoTexto(b)}):''}
  </div>`;
 }
@@ -122,37 +129,25 @@ async function abrirResumenRamo(r,{tenant=S.tenant,alVolver=null,alAgregar=null}
  try{const [d,coordinado]=await Promise.all([cargarResumenRamo(tenant,clave),coordinacionResumenRamo(r,tenant)]);if(vigente())caja.querySelector('[data-rr-body]').innerHTML=contenidoResumenRamoHTML(d,{coordinado});}
  catch(e){if(vigente())caja.querySelector('[data-rr-body]').innerHTML='<p role="status">No pudimos cargar las opiniones. Puedes seguir y agregar el ramo igualmente.</p>';}
 }
-// Se agrega al resultado, no a searchCatalog: el motor de búsqueda no espera red.
-function accionResumenCatalogoHTML(r){
- return typeof currentUser!=='undefined'&&currentUser?`<button type="button" class="ramo-catalogo-resumen" data-como-ramo data-nombre="${esc(r.nombre)}" data-sigla="${esc(r.sigla||'')}">Cómo es este ramo</button>`:'';
-}
-function enlazarResumenesCatalogo(caja,q){
- if(!caja?.querySelectorAll)return;const tenant=S.tenant,cuenta=typeof currentUser!=='undefined'&&currentUser?.id,estado=S,despues=alAgregarRamo,cancelar=alCancelarAgregarRamo;
- caja.querySelectorAll('[data-como-ramo]').forEach(b=>b.addEventListener('click',()=>{
-  if(!currentUser||currentUser.id!==cuenta||S!==estado)return;
-  const r={nombre:b.dataset.nombre,sigla:b.dataset.sigla,origen:{tenant,ramoKey:ramoKey(b.dataset.nombre,tenant,S.carrera,b.dataset.sigla)}};
-  const volver=()=>{if(currentUser?.id!==cuenta||S!==estado)return;openAddRamoModal(despues,cancelar);const input=document.getElementById('m-ramo-search');if(input){input.value=q;renderCatalogResults(q);}};
-  abrirResumenRamo(r,{tenant,alVolver:volver,alAgregar:()=>{if(currentUser?.id===cuenta&&S===estado)addFromCatalog(r.nombre,r.sigla);}});
- }));
-}
+// «Cómo es este ramo» no se muestra en el buscador ni en la ficha: cuando el
+// estudiante ya eligió el ramo, no tiene nada que hacer con esa información.
+// Se mostrará solo en la toma de ramos, que aún no definimos (Lucas,
+// 2026-11-18). abrirResumenRamo queda para ese momento. En la ficha solo se
+// pide la opinión propia.
 async function pintarResumenRamoFicha(r,opinion=consultarCalificacionRamoFicha(r)){
  const version=++versionResumenRamoFicha,cuenta=typeof currentUser!=='undefined'&&currentUser?.id;
  const hero=document.querySelector('#screen-ramo .ramo-hero');
  const anterior=document.getElementById('ramo-opinion');if(anterior?.remove)anterior.remove();
  if(!cuenta||!hero||typeof hero.appendChild!=='function'||typeof supabaseClient==='undefined'||!supabaseClient)return;
- const c=contextoCalificarRamo(r),cliente=supabaseClient,tenant=S.tenant;
+ const c=contextoCalificarRamo(r),cliente=supabaseClient;
  const vigente=()=>version===versionResumenRamoFicha&&currentUser?.id===cuenta&&supabaseClient===cliente&&S.ramos.includes(r)&&currentRamoId===r.id&&document.getElementById('screen-ramo')?.classList.contains('active');
  try{
-  const [resumen,estado,coordinado]=await Promise.all([cargarResumenRamo(tenant,claveCalificarRamo(r)),opinion,coordinacionResumenRamo(r,tenant)]);
-  if(!vigente())return;const dato=resumenRamoDisponible(resumen);
+  const estado=await opinion;
+  if(!vigente())return;
   const invitacion=elegibleAvisoCalificarRamo(r,c,estado),mia=!!estado?.mia;
-  if(!dato&&!invitacion&&!mia)return;
+  if(!invitacion&&!mia)return;
   const linea=document.createElement('div');linea.id='ramo-opinion';linea.className='ramo-opinion';
-  // En un ramo no coordinado, el «de cada 10» mezclaría profesores: no se muestra.
-  const textoResumen=coordinado===true?`${Math.max(0,Math.min(10,Number(resumen?.recomiendan_de_10)||0))} de cada 10 lo recomiendan · Cómo es este ramo`:'Cómo es este ramo con cada profesor';
-  linea.innerHTML=`${dato?`<button type="button" class="ramo-opinion-resumen" data-rc-resumen>${textoResumen} <span aria-hidden="true">›</span></button>`:''}
-  ${invitacion?`<div class="ramo-opinion-invitacion"><span>¿Cómo ha sido ${esc(r.nombre)}?</span><button type="button" data-rc-calificar>Dar mi opinión</button><button type="button" data-rc-descartar>Ahora no</button></div>`:mia?'<button type="button" class="ramo-opinion-resumen" data-rc-calificar>Tu opinión del ramo · Editar</button>':''}`;
-  linea.querySelector('[data-rc-resumen]')?.addEventListener('click',()=>abrirResumenRamo(r));
+  linea.innerHTML=`${invitacion?`<div class="ramo-opinion-invitacion"><span>¿Cómo ha sido ${esc(r.nombre)}?</span><button type="button" data-rc-calificar>Dar mi opinión</button><button type="button" data-rc-descartar>Ahora no</button></div>`:mia?'<button type="button" class="ramo-opinion-resumen" data-rc-calificar>Tu opinión del ramo · Editar</button>':''}`;
   linea.querySelector('[data-rc-calificar]')?.addEventListener('click',()=>abrirCalificarRamo(r));
   linea.querySelector('[data-rc-descartar]')?.addEventListener('click',()=>linea.querySelector('.ramo-opinion-invitacion')?.remove());
   hero.appendChild(linea);if(invitacion)marcarAvisoCalificarRamo(c);

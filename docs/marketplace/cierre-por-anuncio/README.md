@@ -4,6 +4,10 @@
 
 La X oculta solo ese anuncio hasta la próxima medianoche de Chile. Otro anuncio que calce puede aparecer inmediatamente; si se cierran todos, no aparece ninguno. El día siguiente vuelven a ser candidatos. El mensaje y el nombre accesible dicen «este anuncio». Con teclado, al cerrar el foco vuelve al nombre del ramo asociado sin mover la página.
 
+## Tope de 5 días por anuncio (2026-11-25)
+
+Si una cuenta ya vio un anuncio en 5 días distintos de Chile (en total, no necesariamente seguidos), `mis_cierres_anuncios()` lo devuelve como cerrado y deja de aparecer en Inicio, en la web y en la app, sin cambiar el cliente. Se calcula en cada lectura desde las impresiones de `anuncio_eventos_recibos` (todas las publicaciones del anuncio, cualquier canal); no guarda filas ni toca cobro, alcance o métricas. La lista de Apoyo sigue mostrándolo. Las vistas anteriores a `anuncio_eventos.sql` no tienen recibo y no cuentan.
+
 ## Modelo y compatibilidad
 
 La [propuesta de modelo](../cierres-anuncio-modelo.md) se publicó en esta PR antes de escribir SQL. Se implementa la tabla nueva `anuncios_cierres_por_anuncio`, con clave `(user_id, anuncio_id)` y `oculta_hasta`. La cuenta y el límite los fija el servidor; la RPC de escritura recibe únicamente `p_anuncio_id`.

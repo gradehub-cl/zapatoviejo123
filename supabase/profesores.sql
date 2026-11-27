@@ -8,7 +8,7 @@ begin;
 
 create table if not exists public.profesor_aportes (
   user_id uuid not null references auth.users(id) on delete cascade,
-  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd')),
+  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd','udp','unab')),
   ramo_clave text not null check (char_length(ramo_clave) between 1 and 200),
   seccion integer not null check (seccion between 1 and 999),
   periodo text not null check (periodo ~ '^20[0-9]{2}-[12]$'),
@@ -21,7 +21,7 @@ create index if not exists profesor_aportes_curso
 -- se reemplaza por nombre, así que correr el archivo de nuevo la agrega.
 alter table public.profesor_aportes drop constraint if exists profesor_aportes_tenant_check;
 alter table public.profesor_aportes add constraint profesor_aportes_tenant_check
-  check (tenant in ('uc','fen','uai','uandes','udd'));
+  check (tenant in ('uc','fen','uai','uandes','udd','udp','unab'));
 alter table public.profesor_aportes enable row level security;
 -- Sin acceso directo, incluso al propio aporte: las RPC proyectan solo nombres.
 revoke all on public.profesor_aportes from public, anon, authenticated;
@@ -108,7 +108,7 @@ begin
       then u.data->'ramos' else '[]'::jsonb end) r
     where u.user_id=auth.uid() and r->>'id'=p_ramo_id
       and p_seccion between 1 and 999 and r->>'seccion'=p_seccion::text
-      and u.data->>'tenant' in ('uc','fen','uai','uandes','udd')
+      and u.data->>'tenant' in ('uc','fen','uai','uandes','udd','udp','unab')
       and coalesce(r->'origen'->>'tenant',u.data->>'tenant')=u.data->>'tenant'
     limit 1;
   if not found then raise exception 'ramo o sección no sincronizados en tu semestre actual'; end if;
@@ -130,7 +130,7 @@ $$;
 --     delete from public.profesor_aportes where tenant='uc' and public.profesor_coinciden(nombre,'Nombre Apellido');
 --     insert into public.profesor_ocultos(tenant,nombre,motivo) values('uc','Nombre Apellido','supresion');
 create table if not exists public.profesor_ocultos (
-  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd')),
+  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd','udp','unab')),
   nombre text not null check (char_length(nombre) between 3 and 100),
   motivo text not null default 'oposicion' check (motivo in ('oposicion','supresion','abuso')),
   creado timestamptz not null default now(),
@@ -138,7 +138,7 @@ create table if not exists public.profesor_ocultos (
 );
 alter table public.profesor_ocultos drop constraint if exists profesor_ocultos_tenant_check;
 alter table public.profesor_ocultos add constraint profesor_ocultos_tenant_check
-  check (tenant in ('uc','fen','uai','uandes','udd'));
+  check (tenant in ('uc','fen','uai','uandes','udd','udp','unab'));
 alter table public.profesor_ocultos enable row level security;
 revoke all on public.profesor_ocultos from public, anon, authenticated;
 
@@ -227,7 +227,7 @@ $$;
 -- vive en la base, no solo en la app.
 create or replace function public.profesor_texto_permitido(p_texto text)
 returns boolean language sql immutable set search_path = '' as $$
-  select p_texto ~ '^[[:alpha:]]+( [[:alpha:]]+)*$' and char_length(p_texto) between 3 and 20
+  select p_texto ~ '^[[:alpha:]]+( [[:alpha:]]+)*$' and char_length(p_texto) between 3 and 40
     and public.profesor_normalizar(p_texto) !~ ('(^| )(' || array_to_string(array[
       'wn','wna','wea','weas','ql','qlo','ctm','csm','ptm','pico','raja','zorra','perra','perro','cerdo','cerda',
       'tonto','tonta','idiota','imbecil','estupido','estupida','pendejo','pendeja','cabron','gil','gila','longi',
@@ -250,7 +250,7 @@ $$;
 
 create table if not exists public.profesor_calificaciones (
   user_id uuid not null references auth.users(id) on delete cascade,
-  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd')),
+  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd','udp','unab')),
   ramo_clave text not null check (char_length(ramo_clave) between 1 and 200),
   seccion integer not null check (seccion between 1 and 999),
   periodo text not null check (periodo ~ '^20[0-9]{2}-[12]$'),
@@ -261,7 +261,7 @@ create table if not exists public.profesor_calificaciones (
 );
 alter table public.profesor_calificaciones drop constraint if exists profesor_calificaciones_tenant_check;
 alter table public.profesor_calificaciones add constraint profesor_calificaciones_tenant_check
-  check (tenant in ('uc','fen','uai','uandes','udd'));
+  check (tenant in ('uc','fen','uai','uandes','udd','udp','unab'));
 alter table public.profesor_calificaciones add column if not exists otro text;
 -- Las etiquetas escritas viven en `otros`. `otro` queda como copia de la primera
 -- para la app anterior y para volver atrás; se borra en una migración aparte.
@@ -325,11 +325,15 @@ begin
     return;
   end if;
   return query
+    -- Una persona, una calificación: la sección la declara cada uno, así que
+    -- quien calificó al mismo docente en varias secciones cuenta una sola vez
+    -- (la más reciente) para el piso, el promedio y las etiquetas.
     with notas as materialized (
-      select k.user_id, k.estrellas, k.etiquetas, k.otros from public.profesor_calificaciones k
+      select distinct on (k.user_id) k.user_id, k.estrellas, k.etiquetas, k.otros from public.profesor_calificaciones k
       join public.profesor_aportes a on a.user_id=k.user_id and a.tenant=k.tenant
         and a.ramo_clave=k.ramo_clave and a.seccion=k.seccion and a.periodo=k.periodo
       where k.tenant=c.tenant and k.ramo_clave=c.ramo_clave and public.profesor_coinciden_en_ramo(k.tenant,k.ramo_clave,a.nombre,d)
+      order by k.user_id, k.actualizada desc
     ), conteo as (select count(*)::integer as n from notas),
     destacadas as (
       select jsonb_build_object('etiqueta',e) as j, count(*)::integer as n, e as orden

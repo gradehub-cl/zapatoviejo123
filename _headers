@@ -66,3 +66,9 @@
 # hasta que expire. Es el archivo que menos se puede cachear de todos.
 /sw.js
   Cache-Control: no-cache
+
+# Apple lee este archivo (sin extensión) para abrir en la app de iOS los links
+# de gradehub.cl que declara: Inicio, ?profe=, ?dar-clases y ?amigo=usuario.
+# Debe llegar como JSON, con 200 y sin redirección.
+/.well-known/apple-app-site-association
+  Content-Type: application/json

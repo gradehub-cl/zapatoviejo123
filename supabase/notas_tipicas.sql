@@ -15,7 +15,7 @@ create or replace function public.notas_tipicas_en_escala(p_tenant text,p_nota n
 returns boolean language sql immutable set search_path='' as $$
  -- Mismos límites actuales de GH_REGLAS_NOTA_POR_TENANT/base. El test compara
  -- con el motor; una futura escala nueva exige actualizar este dato también.
- select exists(select 1 from (values('uc',1,7),('fen',1,7),('uai',1,7),('uandes',1,7),('udd',1,7)) e(tenant,minimo,maximo)
+ select exists(select 1 from (values('uc',1,7),('fen',1,7),('uai',1,7),('uandes',1,7),('udd',1,7),('udp',1,7),('unab',1,7)) e(tenant,minimo,maximo)
  where e.tenant=p_tenant and p_nota between e.minimo and e.maximo);
 $$;
 create table if not exists public.evaluacion_notas(

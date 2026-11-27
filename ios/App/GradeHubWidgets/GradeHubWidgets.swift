@@ -7,151 +7,16 @@ import WidgetKit
 // la app con el motor de siempre: acá no se calcula ninguna nota. Lo único que
 // depende de la hora ("hoy", "en 3 días") se resuelve en el widget.
 
-// MARK: - Datos
-
-struct Resumen: Decodable {
-    struct Promedio: Decodable { let oficial: Double; let nivel: String }
-    struct Ramo: Decodable { let id: String; let nombre: String; let color: String?; let promedio: Double?; let nivel: String? }
-    struct Evaluacion: Decodable {
-        let ramoId: String
-        let ramo: String
-        let sigla: String?
-        let color: String?
-        let evaluacion: String
-        let fecha: String
-        let hora: String?
-        let necesitas: String?
-        let margen: Bool?
-        let inalcanzable: Bool?
-        // Porcentaje del ramo que define (0–100); nil si no es fijo.
-        let parte: Double?
-    }
-    let version: Int
-    let actualizado: String
-    let promedio: Promedio?
-    // Lo que hay que hacer (#639): recorregir, sin nota o sin fecha. Lo de hoy
-    // o mañana no viene: sale de `agenda`, que el widget mira con la hora real.
-    struct Pendiente: Decodable {
-        let tipo: String
-        let ramoId: String
-        let ramo: String
-        let sigla: String?
-        let color: String?
-        let evaluacion: String
-        let fecha: String?
-        var hora: String? = nil
-    }
-    // Las cifras de Estadísticas, ya escritas como en la app.
-    struct Estadisticas: Decodable {
-        struct Rango: Decodable { let piso: String; let techo: String; let nivelPiso: String; let nivelTecho: String }
-        struct Exigente: Decodable { let ramoId: String; let ramo: String; let color: String?; let necesitas: String? }
-        let avance: Int
-        let rango: Rango?
-        let exigente: Exigente?
-    }
-    let ramos: [Ramo]
-    let agenda: [Evaluacion]
-    // Opcionales: un resumen guardado por una versión anterior de la app no los trae.
-    let pendientes: [Pendiente]?
-    let estadisticas: Estadisticas?
-    // Una clase con su fecha: contrato «Próxima clase» de docs/guia/ios.md. Las
-    // horas `inicio`/`fin` son de Chile y se muestran tal cual; `inicioAt` y
-    // `finAt` son los instantes reales, y con ellos se arma la línea de tiempo.
-    struct Clase: Decodable {
-        let id: String
-        let ramoId: String
-        let ramo: String
-        let sigla: String?
-        let fecha: String
-        let inicio: String
-        let fin: String
-        let inicioAt: String
-        let finAt: String
-        let sala: String?
-        let tipo: String?
-        let enlace: String?
-    }
-    // Nunca falla: una clase mal escrita se salta y no bota el resumen entero,
-    // que es el mismo que leen los otros cuatro widgets.
-    struct ListaClases: Decodable {
-        private struct Suelta: Decodable {
-            let clase: Clase?
-            init(from decoder: Decoder) throws { clase = try? Clase(from: decoder) }
-        }
-        let lista: [Clase]
-        init(from decoder: Decoder) throws {
-            lista = ((try? decoder.singleValueContainer().decode([Suelta].self)) ?? []).compactMap(\.clase)
-        }
-    }
-    let fechaHoy: String?
-    let clasesProximas: ListaClases?
-}
-
-enum Almacen {
-    // Sale de Firma.xcconfig (vía Info.plist): con otra cuenta de Apple el grupo cambia.
-    static let grupo = Bundle.main.object(forInfoDictionaryKey: "GradeHubAppGroup") as? String ?? "group.cl.gradehub.app.shared"
-    static let clave = "resumen.v1"
-    static func leer() -> Resumen? {
-        guard let texto = UserDefaults(suiteName: grupo)?.string(forKey: clave),
-              let datos = texto.data(using: .utf8),
-              let resumen = try? JSONDecoder().decode(Resumen.self, from: datos),
-              resumen.version == 1 else { return nil }
-        return resumen
-    }
-}
-
-// MARK: - Fechas
-
-enum Fechas {
-    static let iso: DateFormatter = {
-        let f = DateFormatter()
-        f.calendar = Calendar(identifier: .gregorian)
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = .current
-        f.dateFormat = "yyyy-MM-dd"
-        return f
-    }()
-    static func dia(_ texto: String) -> Date? { iso.date(from: texto) }
-    static func diasHasta(_ texto: String, desde ahora: Date) -> Int? {
-        guard let d = dia(texto) else { return nil }
-        let cal = Calendar.current
-        return cal.dateComponents([.day], from: cal.startOfDay(for: ahora), to: cal.startOfDay(for: d)).day
-    }
-    static func cuando(_ e: Resumen.Evaluacion, desde ahora: Date) -> String {
-        cuando(fecha: e.fecha, hora: e.hora, desde: ahora)
-    }
-    static func cuando(fecha: String, hora h: String?, desde ahora: Date) -> String {
-        guard let n = diasHasta(fecha, desde: ahora) else { return fecha }
-        let hora = h.map { " · \($0)" } ?? ""
-        switch n {
-        case 0: return "Hoy" + hora
-        case 1: return "Mañana" + hora
-        default: return "En \(n) días"
-        }
-    }
-    // "jue 8 oct", en español, sin depender del idioma del iPhone.
-    static func corta(_ texto: String) -> String {
-        guard let d = dia(texto) else { return texto }
-        let c = Calendar(identifier: .gregorian).dateComponents([.weekday, .day, .month], from: d)
-        let dias = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"]
-        let meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic"]
-        return "\(dias[(c.weekday ?? 1) - 1]) \(c.day ?? 0) \(meses[(c.month ?? 1) - 1])"
-    }
-    // La próxima evaluación que todavía no pasa, vista desde la fecha de la entrada.
-    static func proxima(_ r: Resumen?, desde ahora: Date) -> Resumen.Evaluacion? {
-        r?.agenda.first { (diasHasta($0.fecha, desde: ahora) ?? -1) >= 0 }
-    }
-}
-
-func enlaceRamo(_ id: String) -> URL {
-    URL(string: "cl.gradehub.app://ramo/\(id)") ?? URL(string: "cl.gradehub.app://inicio")!
-}
+// `Resumen`, `Almacen`, `Fechas`, `enlaceRamo`, `Nota` y `Clases` viven en
+// Shared/Resumen.swift: los comparten la app (Siri y Atajos) y esta extensión.
 
 // MARK: - Línea de tiempo
 
 struct Entrada: TimelineEntry {
     let date: Date
     let resumen: Resumen?
+    // Solo la usa Próxima clase: cuánto le importa esta entrada a la Smart Stack.
+    var relevance: TimelineEntryRelevance? = nil
 }
 
 struct Proveedor: TimelineProvider {
@@ -183,11 +48,6 @@ extension Color {
 
 // El semáforo es semántico y no se tiñe por tema (AGENTS.md): los mismos tonos
 // de SEMAFORO en data.js, claro y oscuro.
-// Las notas llegan de la app como dato («3.7»); en pantalla van con coma.
-enum Nota {
-    static func coma(_ s: String) -> String { s.replacingOccurrences(of: ".", with: ",") }
-}
-
 struct Semaforo {
     static func color(_ nivel: String?, _ esquema: ColorScheme) -> Color {
         let oscuro = esquema == .dark
@@ -628,78 +488,16 @@ struct PendientesWidget: Widget {
 
 // MARK: - Próxima clase (#641)
 
-// Qué clase toca según la hora: es lo único que decide el widget. Las clases ya
-// vienen con su fecha y sus instantes desde la app (`clasesProximas`), así que
-// acá no se interpreta ninguna hora con la zona del teléfono.
-enum Clases {
-    static let zona = TimeZone(identifier: "America/Santiago") ?? .current
-    static let cal: Calendar = {
-        var c = Calendar(identifier: .gregorian)
-        c.timeZone = zona
-        return c
-    }()
-    static let instante: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
-    static let dia: DateFormatter = {
-        let f = DateFormatter()
-        f.calendar = cal
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = zona
-        f.dateFormat = "yyyy-MM-dd"
-        return f
-    }()
-    static let nombres = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
-
-    struct Ocurrencia {
-        let clase: Resumen.Clase
-        let inicio: Date
-        let fin: Date
+// La Smart Stack es cosa del widget (WidgetKit): va acá y no en Shared/Resumen.swift.
+extension Clases {
+    // Desde 15 minutos antes y hasta que termina, la clase es lo más útil de la
+    // pantalla: la Smart Stack sube el widget sola. El resto del tiempo, nada.
+    static let aviso: TimeInterval = 15 * 60
+    static func relevancia(_ r: Resumen?, _ ahora: Date) -> TimelineEntryRelevance {
+        guard !vencido(r, ahora), let o = vigentes(r, desde: ahora).first,
+              o.inicio.timeIntervalSince(ahora) <= aviso else { return TimelineEntryRelevance(score: 0) }
+        return TimelineEntryRelevance(score: 100, duration: o.fin.timeIntervalSince(ahora))
     }
-
-    static func todas(_ r: Resumen?) -> [Ocurrencia] {
-        (r?.clasesProximas?.lista ?? []).compactMap { c in
-            guard let i = instante.date(from: c.inicioAt), let f = instante.date(from: c.finAt), f > i else { return nil }
-            return Ocurrencia(clase: c, inicio: i, fin: f)
-        }
-    }
-    // Las que no han terminado, en el orden de la app: la que está en curso va primero.
-    static func vigentes(_ r: Resumen?, desde ahora: Date) -> [Ocurrencia] { todas(r).filter { $0.fin > ahora } }
-    static func enCurso(_ o: Ocurrencia, _ ahora: Date) -> Bool { o.inicio <= ahora }
-
-    // La app manda las clases de hoy y los siete días siguientes. Pasado eso el
-    // widget no sabe qué viene: lo dice y pide abrir la app, en vez de repetir
-    // la misma semana para siempre.
-    static func horizonte(_ r: Resumen?) -> Date? {
-        guard let hoy = r?.fechaHoy.flatMap({ dia.date(from: $0) }) else { return nil }
-        return cal.date(byAdding: .day, value: 8, to: hoy)
-    }
-    static func vencido(_ r: Resumen?, _ ahora: Date) -> Bool { horizonte(r).map { ahora >= $0 } ?? false }
-
-    // "Ahora", "Hoy", "Mañana" o el día de la semana, con el calendario de Chile.
-    static func cuando(_ o: Ocurrencia, _ ahora: Date) -> String {
-        if enCurso(o, ahora) { return "Ahora" }
-        guard let d = dia.date(from: o.clase.fecha),
-              let n = cal.dateComponents([.day], from: cal.startOfDay(for: ahora), to: d).day else { return o.clase.fecha }
-        switch n {
-        case 0: return "Hoy"
-        case 1: return "Mañana"
-        default: return nombres[cal.component(.weekday, from: d) - 1]
-        }
-    }
-    static func hora(_ o: Ocurrencia, _ ahora: Date) -> String {
-        enCurso(o, ahora) ? "hasta las \(o.clase.fin)" : o.clase.inicio
-    }
-    // "Sala K201 · CLAS". El tipo es texto libre de cada universidad: va tal cual.
-    static func lugar(_ c: Resumen.Clase) -> String? {
-        let partes = [c.sala.map { "Sala \($0)" }, c.tipo].compactMap { $0 }.filter { !$0.isEmpty }
-        return partes.isEmpty ? nil : partes.joined(separator: " · ")
-    }
-    static func enlace(_ c: Resumen.Clase) -> URL { c.enlace.flatMap { URL(string: $0) } ?? enlaceRamo(c.ramoId) }
-    // El color no viaja con la clase: es el de su ramo.
-    static func color(_ c: Resumen.Clase, _ r: Resumen?) -> String? { r?.ramos.first { $0.id == c.ramoId }?.color }
 }
 
 // Una entrada en cada inicio, cada fin y cada medianoche de Chile: "Mañana" pasa
@@ -716,14 +514,16 @@ struct ProveedorClases: TimelineProvider {
             completion(Timeline(entries: [Entrada(date: ahora, resumen: resumen)], policy: .never))
             return
         }
-        var cambios = Clases.todas(resumen).flatMap { [$0.inicio, $0.fin] }
+        // También 15 minutos antes de cada una: ahí sube en la Smart Stack.
+        var cambios = Clases.todas(resumen).flatMap { [$0.inicio.addingTimeInterval(-Clases.aviso), $0.inicio, $0.fin] }
         var noche = Clases.cal.startOfDay(for: ahora)
         while let sigue = Clases.cal.date(byAdding: .day, value: 1, to: noche), sigue <= fin {
             cambios.append(sigue)
             noche = sigue
         }
         let fechas = Array(Set(cambios.filter { $0 > ahora && $0 <= fin } + [fin])).sorted()
-        completion(Timeline(entries: ([ahora] + fechas).map { Entrada(date: $0, resumen: resumen) }, policy: .after(fin)))
+        completion(Timeline(entries: ([ahora] + fechas).map { Entrada(date: $0, resumen: resumen, relevance: Clases.relevancia(resumen, $0)) },
+                            policy: .after(fin)))
     }
 }
 
@@ -743,6 +543,8 @@ struct ProximaClaseVista: View {
                     Text([o.clase.sigla ?? o.clase.ramo, Clases.hora(o, ahora), o.clase.sala].compactMap { $0 }.joined(separator: " · "))
                         .privacySensitive()
                 } else { Text(corto) }
+            case .accessoryCircular:
+                circular(vigentes.first)
             case .accessoryRectangular:
                 if let o = vigentes.first {
                     VStack(alignment: .leading, spacing: 1) {
@@ -835,6 +637,32 @@ struct ProximaClaseVista: View {
         }
     }
 
+    // Bloqueo, circular: la hora de inicio y la sigla. En clase, un anillo que el
+    // sistema llena solo hasta el fin (no gasta recargas) y la hora de término.
+    func circular(_ o: Clases.Ocurrencia?) -> some View {
+        let ahora = entrada.date
+        return ZStack {
+            AccessoryWidgetBackground()
+            if let o {
+                if Clases.enCurso(o, ahora) {
+                    ProgressView(timerInterval: o.inicio...o.fin, countsDown: false) { EmptyView() } currentValueLabel: { EmptyView() }
+                        .progressViewStyle(.circular).widgetAccentable()
+                }
+                VStack(spacing: 0) {
+                    Text(Clases.enCurso(o, ahora) ? o.clase.fin : o.clase.inicio)
+                        .font(.system(.headline, design: .rounded)).monospacedDigit().minimumScaleFactor(0.6)
+                    Text(o.clase.sigla ?? o.clase.ramo).font(.system(size: 11, weight: .medium))
+                        .lineLimit(1).minimumScaleFactor(0.6).privacySensitive()
+                }
+                .padding(6)
+            } else {
+                Image(systemName: "calendar").font(.title3)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(o.map { Clases.enCurso($0, ahora) ? "En clase de \($0.clase.ramo) hasta las \($0.clase.fin)" : "\($0.clase.ramo) a las \($0.clase.inicio)" } ?? corto)
+    }
+
     var vacio: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("PRÓXIMA CLASE").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
@@ -853,7 +681,7 @@ struct ProximaClaseWidget: Widget {
         }
         .configurationDisplayName("Próxima clase")
         .description("Qué clase te toca, a qué hora y en qué sala.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }
 
@@ -1159,6 +987,229 @@ struct ActividadPruebaWidget: Widget {
     }
 }
 
+// MARK: - Hoy en la u (Amigos)
+
+// Quién de tus amigos está hoy en la u: libres ahora (anillo del color de la
+// app), en clases (anillo gris) y los que llegan más tarde (sin anillo). Es el
+// mismo código de la pestaña Amigos. Solo horas: nunca notas ni ramos.
+struct EntradaAmigos: TimelineEntry {
+    let date: Date
+    let datos: AmigosHoy?
+    var relevance: TimelineEntryRelevance? = nil
+}
+
+struct ProveedorAmigos: TimelineProvider {
+    func placeholder(in context: Context) -> EntradaAmigos { EntradaAmigos(date: .now, datos: nil) }
+    func getSnapshot(in context: Context, completion: @escaping (EntradaAmigos) -> Void) {
+        completion(EntradaAmigos(date: .now, datos: AlmacenAmigos.leer() ?? (context.isPreview ? Self.muestra : nil)))
+    }
+    // Una entrada en cada inicio y fin de clase de las próximas 24 horas: así
+    // «libre» pasa a «en clases» sin abrir la app. Sube en la Smart Stack
+    // cuando hay amigos libres.
+    func getTimeline(in context: Context, completion: @escaping (Timeline<EntradaAmigos>) -> Void) {
+        let datos = AlmacenAmigos.leer(), ahora = Date()
+        let fechas = [ahora] + EnLaU.cambios(datos, desde: ahora)
+        let entradas = fechas.map { d -> EntradaAmigos in
+            let libres = EnLaU.hoy(datos, d).filter { if case .libre = $0.estado { return true }; return false }.count
+            return EntradaAmigos(date: d, datos: datos, relevance: TimelineEntryRelevance(score: Float(min(libres, 5))))
+        }
+        completion(Timeline(entries: entradas, policy: fechas.count > 1 ? .after(fechas.last!) : .never))
+    }
+    // Solo para la galería de widgets: amigos de ejemplo, nunca reales.
+    static let muestra: AmigosHoy? = {
+        let f = Clases.dia.string(from: .now)
+        func b(_ h1: Int, _ h2: Int) -> AmigosHoy.Bloque {
+            let i = Clases.cal.date(bySettingHour: h1, minute: 0, second: 0, of: .now) ?? .now
+            let fin = Clases.cal.date(bySettingHour: h2, minute: 10, second: 0, of: .now) ?? .now
+            return AmigosHoy.Bloque(fecha: f, inicioAt: Clases.instante.string(from: i), finAt: Clases.instante.string(from: fin), sala: "B12")
+        }
+        let h = Clases.cal.component(.hour, from: .now)
+        return AmigosHoy(version: 1, actualizado: "", fechaHoy: f, total: 4, amigos: [
+            AmigosHoy.Amigo(id: "m1", nombre: "Sofía", inicial: "S", bloques: [b(h - 2, h - 1), b(h + 1, h + 2)]),
+            AmigosHoy.Amigo(id: "m2", nombre: "Tomás", inicial: "T", bloques: [b(h - 1, h + 1)]),
+            AmigosHoy.Amigo(id: "m3", nombre: "Isi", inicial: "I", bloques: [b(h - 3, h - 2), b(h + 2, h + 3)]),
+            AmigosHoy.Amigo(id: "m4", nombre: "Matías", inicial: "M", bloques: [b(h + 2, h + 4)]),
+        ])
+    }()
+}
+
+// El acento de GradeHub (--primary), en claro y oscuro.
+struct AcentoApp {
+    static func color(_ esquema: ColorScheme) -> Color { Color(hexRamo: esquema == .dark ? "#2dd4bf" : "#0d7a6b") }
+}
+
+// Inicial en un círculo, con el anillo que dice qué hace. El anillo se dibuja
+// con aire (como las historias de Instagram) para que no se pegue a la letra.
+struct AvatarAmigo: View {
+    @Environment(\.colorScheme) var esquema
+    @Environment(\.widgetRenderingMode) var modo
+    let persona: EnLaU.Persona
+    var tamano: CGFloat = 34
+
+    var body: some View {
+        let anillo: Color? = {
+            switch persona.estado {
+            case .libre: return AcentoApp.color(esquema)
+            case .enClase: return .secondary.opacity(0.55)
+            case .llega: return nil
+            }
+        }()
+        ZStack {
+            Circle().fill(Color.primary.opacity(modo == .fullColor ? 0.07 : 0.15))
+            Text(persona.inicial)
+                .font(.system(size: tamano * 0.42, weight: .semibold, design: .rounded))
+                .foregroundStyle(persona.orden == 2 ? .secondary : .primary)
+        }
+        .frame(width: tamano, height: tamano)
+        .padding(3)
+        .overlay {
+            if let anillo {
+                Circle().strokeBorder(anillo, lineWidth: 2).widgetAccentable(persona.orden == 0)
+            }
+        }
+        .privacySensitive()
+    }
+}
+
+// Avatares superpuestos, como «y 3 más» en Instagram. Cada uno con su borde
+// del fondo para que se separen.
+struct PilaAvatares: View {
+    let personas: [EnLaU.Persona]
+    var tamano: CGFloat = 30
+    var body: some View {
+        HStack(spacing: -tamano * 0.32) {
+            ForEach(personas.prefix(4)) { p in
+                AvatarAmigo(persona: p, tamano: tamano)
+                    .background(Circle().fill(.background))
+            }
+        }
+    }
+}
+
+struct HoyEnLaUVista: View {
+    @Environment(\.widgetFamily) var familia
+    @Environment(\.colorScheme) var esquema
+    let entrada: EntradaAmigos
+
+    var personas: [EnLaU.Persona] { EnLaU.vencido(entrada.datos, entrada.date) ? [] : EnLaU.hoy(entrada.datos, entrada.date) }
+    var libres: [EnLaU.Persona] { personas.filter { $0.orden == 0 } }
+    var enClases: [EnLaU.Persona] { personas.filter { $0.orden == 1 } }
+
+    // El titular dice lo más útil primero: cuántos están libres para juntarse.
+    var titular: String {
+        if !libres.isEmpty { return libres.count == 1 ? "1 libre ahora" : "\(libres.count) libres ahora" }
+        if !enClases.isEmpty { return enClases.count == 1 ? "1 en clases" : "\(enClases.count) en clases" }
+        if let p = personas.first, case .llega(let d) = p.estado { return "Llegan desde las \(EnLaU.hora.string(from: d))" }
+        return "Nadie en la u"
+    }
+    var bajada: String {
+        if !libres.isEmpty { return EnLaU.nombres(libres) }
+        if !enClases.isEmpty { return EnLaU.nombres(enClases) }
+        if !personas.isEmpty { return EnLaU.nombres(personas) }
+        guard let d = entrada.datos else { return "Abre Amigos en GradeHub" }
+        if EnLaU.vencido(d, entrada.date) { return "Abre GradeHub para actualizar" }
+        return d.total == 0 ? "Agrega amigos en GradeHub" : "Ninguno tiene más clases hoy"
+    }
+
+    var body: some View {
+        Group {
+            switch familia {
+            case .accessoryInline:
+                Label(libres.isEmpty ? titular : "\(titular) en la u", systemImage: "person.2.fill")
+            case .accessoryCircular:
+                ZStack {
+                    AccessoryWidgetBackground()
+                    VStack(spacing: 0) {
+                        Text("\(libres.count)").font(.system(.title2, design: .rounded).weight(.semibold)).monospacedDigit()
+                        Text("libres").font(.system(size: 10, weight: .medium))
+                    }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(titular). \(bajada)")
+            case .accessoryRectangular:
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(titular).font(.headline).widgetAccentable().lineLimit(1)
+                    Text(bajada).font(.subheadline).lineLimit(2).privacySensitive()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            case .systemMedium:
+                HStack(alignment: .top, spacing: 14) {
+                    resumen.frame(width: 118, alignment: .leading)
+                    lista(Array(personas.prefix(3)))
+                }
+            case .systemLarge:
+                VStack(alignment: .leading, spacing: 12) {
+                    resumen
+                    Divider()
+                    lista(Array(personas.prefix(6)))
+                }
+            default:
+                resumen
+            }
+        }
+        .widgetURL(URL(string: "cl.gradehub.app://amigos"))
+    }
+
+    // Arriba a la izquierda, como los demás widgets: la etiqueta, el titular
+    // grande y quiénes. Los avatares van entre medio, que es lo que se reconoce.
+    var resumen: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("HOY EN LA U").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            if !personas.isEmpty { PilaAvatares(personas: libres.isEmpty ? personas : libres) }
+            Text(titular)
+                // En el mediano la columna es angosta: un paso menos para que no parta en tres líneas.
+                .font(familia == .systemMedium ? .headline : .title3.weight(.semibold)).monospacedDigit()
+                .foregroundStyle(libres.isEmpty ? Color.primary : AcentoApp.color(esquema))
+                .lineLimit(2).minimumScaleFactor(0.75)
+            Text(bajada).font(.caption).foregroundStyle(.secondary).lineLimit(2).privacySensitive()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    // Cada fila abre la ficha de ese amigo.
+    func lista(_ lista: [EnLaU.Persona]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if lista.isEmpty {
+                Spacer(minLength: 0)
+                Text(entrada.datos == nil ? "Abre la pestaña Amigos para verlos acá." : "Cuando tengan clases hoy, aparecen acá.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
+            ForEach(lista) { p in
+                Link(destination: EnLaU.enlace(p)) {
+                    // Filas de 32 pt: nombre y una sola línea de estado, como una lista de iOS compacta.
+                    HStack(spacing: 9) {
+                        AvatarAmigo(persona: p, tamano: 24)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(p.nombre).font(.footnote.weight(.semibold)).lineLimit(1)
+                            Text(EnLaU.linea(p)).font(.caption2).monospacedDigit().foregroundStyle(.secondary)
+                                .lineLimit(1).minimumScaleFactor(0.85)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .privacySensitive()
+                }
+                .accessibilityLabel("\(p.nombre): \(EnLaU.linea(p))")
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct HoyEnLaUWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "hoy-en-la-u", provider: ProveedorAmigos()) { entrada in
+            HoyEnLaUVista(entrada: entrada).containerBackground(.background, for: .widget)
+        }
+        .configurationDisplayName("Hoy en la u")
+        .description("Cuáles de tus amigos están libres en la u ahora y quién está en clases.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular, .accessoryInline])
+    }
+}
+
 @main
 struct GradeHubWidgets: WidgetBundle {
     var body: some Widget {
@@ -1168,5 +1219,6 @@ struct GradeHubWidgets: WidgetBundle {
         ProximaClaseWidget()
         EstadisticasWidget()
         ActividadPruebaWidget()
+        HoyEnLaUWidget()
     }
 }

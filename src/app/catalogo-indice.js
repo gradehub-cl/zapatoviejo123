@@ -111,8 +111,11 @@ function catalogRamosUniversidad(tenant,carreraPropia){
       (porSem[sem]||[]).forEach(nombre=>{
         const k=normName(nombre);
         const sigla=tenant==='uc'?siglaCatalogoUC(nombre):null;
+        // La estrella promete el programa que se carga al agregarlo, y eso lo
+        // decide la carrera del alumno. Una malla ajena (un major de Ingeniería
+        // visto desde Comercial) no puede prometer un programa que no llega.
         out.push({nombre,semestre:ajenas.has(car)?0:Number(sem),propio:propios.has(k),sigla,
-                  tienePreset:!!findPresetName(nombre,tenant,carreraPropia)||!!findPresetName(nombre,tenant,car)});
+                  tienePreset:!!findPresetName(nombre,tenant,carreraPropia)||(!ajenas.has(car)&&!!findPresetName(nombre,tenant,car))});
       });
     });
   });
@@ -132,6 +135,13 @@ function catalogRamosUniversidad(tenant,carreraPropia){
     // semestre 0 = fuera de malla. No compite con los del semestre del
     // estudiante en el orden, porque no le corresponde a nadie en particular.
     out.push({nombre,semestre:0,propio:false,sigla,siglaPauta,tienePreset:true});
+  });
+  // Un ramo no coordinado con programa publicado (los teológicos, Revelación y
+  // Fe) sigue apareciendo aunque ya no traiga una pauta para todos: sin esta
+  // fila, TTF012 —que no está en cursos-uc.js— desaparecía del buscador. No
+  // promete pauta: la ficha ofrece las que hay (distribuciones-pauta.js).
+  if(tenant==='uc')presetsNoCoordinados(tenant).forEach(nombre=>{
+    out.push({nombre,semestre:0,propio:false,sigla:siglaCatalogoUC(nombre),siglaPauta:siglaDePreset(nombre),tienePreset:false});
   });
   // Las pautas que cinco o más estudiantes reportaron igual se ofrecen como las
   // del catálogo, diciendo de dónde salen. Si hay una de programa para ese ramo,
@@ -168,6 +178,16 @@ function catalogRamosUniversidad(tenant,carreraPropia){
 // son del plan común de Ingeniería y no valen para Comercial —"Cálculo I" de
 // Comercial es otro curso—, así que listarlos sin filtrar pondría una estrella
 // de "pauta oficial" sobre un ramo que después se agregaría vacío.
+// Presets de ramos no coordinados sin una pauta para todos: solo datos del
+// ramo (sigla, créditos, programa por sección o del catálogo).
+function presetsNoCoordinados(tenant){
+  const p=PRESETS_POR_TENANT[tenant];
+  if(!p)return [];
+  return Object.keys(p).filter(n=>{
+    const def=p[n];
+    return def&&!Array.isArray(def)&&def.coordinado===false&&!pautaPresetSuficiente(evalsDePreset(def));
+  });
+}
 function presetsFueraDeMalla(tenant,carrera){
   const p=PRESETS_POR_TENANT[tenant];
   if(!p)return [];

@@ -58,7 +58,7 @@ async function revocarAppleAntesDeBorrar(){
 
 async function eliminarCuenta(){
   if(!supabaseClient||!currentUser){showToast('Primero inicia sesión',true);return;}
-  if(cuentaConApple(currentUser)&&typeof enAppNativa==='function'&&enAppNativa()){
+  if(cuentaConApple(currentUser)&&typeof enAppIOS==='function'&&enAppIOS()){
     if(!await revocarAppleAntesDeBorrar())return;
   }
   showToast('Eliminando tu cuenta…');
@@ -95,7 +95,10 @@ function confirmResetApp(){
     // copia previa a importar son copias completas de las notas.
     [STORAGE_KEY,CACHE_OWNER_KEY,SYNC_BASE_KEY,CURSO_SIGLAS_KEY,PRE_IMPORT_KEY].forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
     if(typeof borrarCacheApartada==='function')borrarCacheApartada(conCuenta?currentUser.id:null);
-    if(conCuenta){try{await supabaseClient.auth.signOut();}catch(e){}}
+    if(conCuenta){
+      if(typeof olvidarCanvasCuenta==='function')await olvidarCanvasCuenta();
+      try{await supabaseClient.auth.signOut();}catch(e){}
+    }
     location.reload();
   },{label:'Reiniciar'});
 }

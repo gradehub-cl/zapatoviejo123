@@ -107,6 +107,9 @@ function enfocarEnHoja(el,despues){
   setTimeout(ir,subiendo?Math.max(100,dura):100);
 }
 function closeModal(){
+  // El modal conserva su HTML al cerrarse. Descarta la credencial pegada.
+  const tokenCanvas=document.getElementById('s-canvas-token');
+  if(tokenCanvas)tokenCanvas.value='';
   const despuesDeCancelar=alCancelarAgregarRamo;
   alAgregarRamo=null;
   alCancelarAgregarRamo=null;
@@ -216,7 +219,12 @@ document.addEventListener('keydown',e=>{
   const i=casillas().indexOf(el);
   el.blur(); // dispara onchange → setSlotNota/setDirectNota → renderRamo
   const sig=casillas()[i+(e.shiftKey?-1:1)];
-  if(sig){sig.focus();if(sig.select)sig.select();}
+  if(!sig)return;
+  // Una evaluación pendiente es un botón. Con el foco ahí, la nota siguiente se
+  // tecleaba sin campo que la recibiera y se perdía sin aviso; el Enter solo
+  // abría la casilla vacía (#1376). Se abre su campo, igual que al tocarla.
+  if(sig.matches('button.nota-en-fila'))sig.click();
+  else{sig.focus();if(sig.select)sig.select();}
 });
 document.addEventListener('keydown',e=>{
   const conf=document.getElementById('confirm-overlay');

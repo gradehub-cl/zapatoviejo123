@@ -260,13 +260,13 @@ chk('aunque un cuadrito de la leyenda salga desteñido (30 %, como en el caso re
   run('aplicarHorarioBuscacursos()');marcas={};
   chk('si llegó otro horario por sync, se conserva',run(`ramoConSigla('MAT1620').horario[0].sala`)==='Otro dispositivo');
 
-  console.log('\n=== La semana en la Agenda (solo en la app) ===');
+  console.log('\n=== La semana en la Agenda (Evaluaciones | Horario, también en la web) ===');
   run(`enAppNativa=()=>false;agendaVista='horario'`);
-  chk('en la web la Agenda sigue igual: no hay selector',run('pintarVistaAgenda()')==='evaluaciones'&&get('agenda-vista').hidden===true);
+  chk('en la web también aparece «Evaluaciones | Horario»',run('pintarVistaAgenda()')==='horario'&&get('agenda-vista').hidden===false&&/aria-pressed="true">Horario/.test(get('agenda-vista').innerHTML));
   run(`enAppNativa=()=>true;agendaVista='horario'`);
-  chk('en la app aparece «Evaluaciones | Horario»',run('pintarVistaAgenda()')==='horario'&&/aria-pressed="true">Horario/.test(get('agenda-vista').innerHTML));
+  chk('en la app, lo mismo',run('pintarVistaAgenda()')==='horario');
   run(`esCuentaProfesor=()=>true`);
-  chk('una cuenta de profesor no lo ve',run('pintarVistaAgenda()')==='evaluaciones');
+  chk('una cuenta de profesor no lo ve',run('pintarVistaAgenda()')==='lista'&&get('agenda-vista').hidden===true);
   run(`esCuentaProfesor=()=>false`);
   run(`ramoConSigla('MAT1620').horario=horarioDesdeModulos('uc',['V'],[5],{sala:'Z1',tipo:'Cátedra'})`);
   const semana=run(`horarioSemanaHTML(S.ramos,new Date('2026-11-17T13:00:00Z'))`);
@@ -275,7 +275,7 @@ chk('aunque un cuadrito de la leyenda salga desteñido (30 %, como en el caso re
   chk('el sábado aparece cuando hay clases',/>Sáb</.test(run(`horarioSemanaHTML(S.ramos,new Date('2026-11-17T13:00:00Z'))`)));
   chk('cada clase es un botón con todo dicho para VoiceOver',/<button type="button" class="horario-semana-clase"[^>]*aria-label="Dinámica, Martes de 09:40 a 10:50, Cátedra, sala BC27"/.test(semana));
   chk('la sigla se parte entre letras y números, nunca a la mitad',/<b><span>FIS<\/span><span>1514<\/span><\/b>/.test(semana));
-  chk('el día de hoy va marcado',/<span class="hoy">Mar<\/span>/.test(semana));
+  chk('el día de hoy va marcado, con su fecha',/<span class="hoy">Mar<b>17<\/b><\/span>/.test(semana));
   chk('la clase mide al menos 44 pt de alto',[...semana.matchAll(/height:(\d+)px/g)].every(m=>+m[1]>=44));
   chk('el color del ramo es solo la línea lateral, sin semáforo',/--ramo:#1D9E75/.test(semana)&&!/var\(--(red|green|yellow|amber)/.test(semana));
   run(`globalThis.__tope=[{id:'t1',nombre:'A',sigla:'AAA100',color:'#111',horario:horarioDesdeModulos('uc',['L'],[1],{})},{id:'t2',nombre:'B',sigla:'BBB100',color:'#222',horario:horarioDesdeModulos('uc',['L'],[1],{})}]`);

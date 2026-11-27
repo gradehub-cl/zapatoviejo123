@@ -4,7 +4,9 @@ const leer=f=>fs.readFileSync(path.join(__dirname,'..',f),'utf8');
 const ids=new Map();
 function nodo(id){if(ids.has(id))return ids.get(id);const n={isConnected:true,innerHTML:'',textContent:'',value:'',disabled:false,
   style:{setProperty(){},removeProperty(){}},classList:{add(){},remove(){},contains(){return false},toggle(){}},
-  addEventListener(){},appendChild(){},setAttribute(){},removeAttribute(){},focus(){},querySelectorAll(){return []},dataset:{}};
+  addEventListener(){},appendChild(){},setAttribute(){},getAttribute(){return null},removeAttribute(){},focus(){},
+  closest(sel){return this.isConnected?nodo(sel==='#s-canvas'?'s-canvas':'modal'):null},
+  querySelector(sel){return nodo(sel.replace(/^#/,''))},querySelectorAll(){return []},dataset:{}};
   ids.set(id,n);return n;}
 let conectado=false,tokenRecibido='',rutas=[],pedidos=[],guardados=0;
 // Notas sintéticas: escala 1–7, puntos sobre 7, puntaje sobre 25, sin publicar y no calificables.
@@ -44,6 +46,8 @@ const igual=(a,b,m)=>assert.equal(JSON.stringify(a),JSON.stringify(b),m);
   run("S.tipoCuenta='estudiante'");
   chk(run("cursosCanvasDelSemestre([{id:42,course_code:'MAT1620-2',term:{name:'2026 Segundo Semestre'}},{id:'../x',course_code:'MAT1610-1',term:{name:'2026 Segundo Semestre'}}],new Date(2026,9,21)).length")===1,'solo rutas con ID numérico seguro');
   await run('pintarCanvasAjustes()');
+  chk(!nodo('s-canvas').innerHTML.includes('type="password"')&&nodo('s-canvas').innerHTML.includes('Traer notas'),'primero se elige la acción');
+  nodo('s-canvas-solo-conectar').onclick();
   chk(/type="password"/.test(nodo('s-canvas').innerHTML),'el campo del token no muestra caracteres');
   const guardadosAntes=guardados;
   const falso='123~'+('A'.repeat(24));nodo('s-canvas-token').value=falso;
@@ -55,8 +59,48 @@ const igual=(a,b,m)=>assert.equal(JSON.stringify(a),JSON.stringify(b),m);
   chk(/Traer fechas/.test(nodo('s-canvas').innerHTML),'Ajustes muestra la acción con conexión');
   const antes=run('JSON.stringify(S)');
   run('openModal=()=>{globalThis.__abierto=true}');
+  // Atajo de Inicio → token → la misma revisión, con la cuenta que abrió la hoja.
+  let opciones;
+  const abrirAjustes=ctx.openSettings;
+  ctx.openSettings=(seccion,op)=>{assert.equal(seccion,'canvas');opciones=op};
+  run('ACCIONES_HERRAMIENTAS.canvas()');
+  ctx.openSettings=abrirAjustes;
+  assert.equal(opciones.volverA,'Inicio');
+  conectado=false;
+  await ctx.pintarCanvasAjustes({accion:opciones.accionCanvas});
+  assert.equal(nodo('s-canvas').dataset.accionCanvas,'notas');
+  const campo=nodo('s-canvas-token'),boton=nodo('s-canvas-conectar');
+  const conectarAntes=plugin.conectar,eventos=[];
+  ctx.track=(...args)=>eventos.push(args);
+  for(const [code,mensaje] of [['0',/conexión/],['403',/no autorizó/],['429',/Espera/],['401',/rechazó/]]){
+    campo.value=falso;boton.disabled=false;
+    plugin.conectar=async()=>{throw {code}};
+    await ctx.conectarCanvas();
+    assert.match(nodo('query').textContent,mensaje);
+    assert.equal(campo.value,code==='401'?'':falso);
+    assert.equal(boton.disabled,false);
+    assert.deepEqual(rutas,[]);
+  }
+  let completar,intentos=0;
+  plugin.conectar=()=>new Promise(resolve=>{intentos++;completar=()=>{conectado=true;resolve({conectado:true})}});
+  campo.value=falso;
+  const primera=ctx.conectarCanvas();
+  await ctx.conectarCanvas();completar();await primera;
+  assert.equal(intentos,1);
+  assert.deepEqual(rutas,['courses','courses/42/assignments'],'al conectar abre las notas sin elegir la acción otra vez');
+  assert.equal(run('JSON.stringify(S)'),antes);
+  assert.equal(guardados,guardadosAntes);
+  assert(!JSON.stringify(eventos).includes(falso));
+  rutas=[];eventos.length=0;conectado=false;
+  await ctx.pintarCanvasAjustes({accion:'notas'});
+  campo.value=falso;boton.disabled=false;
+  const cancelada=ctx.conectarCanvas();campo.isConnected=false;
+  completar();await cancelada;
+  assert.deepEqual(rutas,[],'un resultado tardío no abre otra revisión');
+  assert.deepEqual(eventos,[]);
+  campo.isConnected=true;plugin.conectar=conectarAntes;
   await run('traerFechasCanvas()');
-  assert.deepEqual(rutas,['courses','courses/42/assignments','calendar_events'],'solo GET a rutas esperadas');
+  assert.deepEqual(rutas,['courses','courses/42/assignments','calendar_events','courses/42/discussion_topics'],'solo GET a rutas esperadas');
   const evPedido=pedidos.find(x=>x.path==='calendar_events').params;
   igual(evPedido['context_codes[]'],['course_42'],'eventos solo del curso, nunca el calendario personal');
   assert.equal(evPedido.type,'event');chk(/^\d{4}-\d{2}-\d{2}$/.test(evPedido.start_date)&&evPedido.end_date>evPedido.start_date,'con rango de fechas');
@@ -88,7 +132,26 @@ const igual=(a,b,m)=>assert.equal(JSON.stringify(a),JSON.stringify(b),m);
   assert.equal(run('JSON.stringify(S)'),antesNotas,'traer notas no escribe nada');
   assert.equal(guardados,guardadosNotas);
   assert.deepEqual(JSON.parse(run('JSON.stringify(canvasNotasDraft.map(p=>[p.titulo,p.target,p.valor]))')),
-    [['I1','r|i|',5.5],['Control 2','r|c|2',6.3],['Tarea 1','r|t|',null]],'Control 1 ya tenía nota: no se propone');
+    [['I1','r|i|',5.5],['Control 2','r|c|2',6.3],['Tarea 1','r|t|',5.3]],'Control 1 ya tenía nota: no se propone; 18 de 25 pts con 50 % es 5,3');
+  // Puntaje → nota con exigencia (Lucas, 2026-11-17). Escala chilena, a la décima.
+  const nP=(p,t,e)=>run(`notaDesdePuntaje(${p},${t},${e})`);
+  assert.equal(nP(12.5,25,50),4,'la exigencia justa es un 4,0');assert.equal(nP(0,25,50),1);assert.equal(nP(25,25,50),7);
+  assert.equal(nP(18,25,60),4.9);assert.equal(nP(30,25,50),7,'un bonus sobre el total no pasa de 7,0');
+  assert.equal(nP(-1,25,50),null);assert.equal(nP(5,0,50),null,'sin total no hay nota');assert.equal(nP(5,25,0),null,'exigencia fuera de rango');
+  assert.equal(nP(39.5,79,50),4,'3,95 se aproxima a 4,0');
+  assert.equal(run("exigenciaValida('60 %')"),60);assert.equal(run("exigenciaValida('55,5')"),55.5);assert.equal(run("exigenciaValida('120')"),null);
+  assert.equal(run("exigenciaRamo({})"),50,'sin exigencia, 50 %');assert.equal(run("exigenciaRamo({exigencia:60})"),60);
+  const pct=JSON.parse(run(`JSON.stringify(notaDesdeCanvas({grading_type:'percent',submission:{grade:'72%'}}))`));
+  assert.deepEqual(pct.puntos,{obtenido:72,total:100},'un porcentaje sin puntos se lee como 72 de 100');
+  // En la revisión: 60 % recalcula la fila y borra lo escrito a mano.
+  run("canvasNotasDraft[2].editado='6,9'");run('exigenciaNotaCanvas(2,60)');
+  assert.equal(run('canvasNotasDraft[2].valor'),4.9);assert.equal(run('canvasNotasDraft[2].editado'),null);
+  run("exigenciaNotaCanvas(2,'abc')");assert.equal(run('canvasNotasDraft[2].exigencia'),60,'una exigencia inválida no cambia nada');
+  run('exigenciaNotaCanvas(2,50)');
+  // La exigencia guardada en el ramo manda al traer.
+  run("S.ramos[0].exigencia=60");
+  assert.equal(JSON.parse(run(`JSON.stringify(resumenNotasCanvas([{id:9,name:'Tarea 1',grading_type:'points',points_possible:25,submission:{score:18}}],S.ramos[0]).propuestas.map(p=>[p.valor,p.exigencia]))`))[0].join(),'4.9,60');
+  run("delete S.ramos[0].exigencia");
   nodo('cn-nota-0').value='5,5';nodo('cn-nota-1').value='6,3';nodo('cn-nota-2').value='';
   run('confirmarNotasCanvas()');
   chk(/Tarea 1/.test(nodo('cn-error').textContent),'una fila sin nota detiene el guardado');

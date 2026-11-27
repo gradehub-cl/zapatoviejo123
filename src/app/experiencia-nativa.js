@@ -93,3 +93,29 @@ function actualizarConexionNativa(){
   });
   programar();
 })();
+
+// Android: el botón o gesto «atrás» del sistema. Sin escucharlo, Capacitor
+// cierra la app aunque haya una hoja abierta. Lo que está encima se cierra
+// igual que con Escape (cada capa ya sabe hacerlo, con su aviso de cambios sin
+// guardar); después se sale del ramo como con el gesto del iPhone, se recorre
+// el historial de vistas y, al final, la app se va al fondo sin cerrarse.
+function capaAbiertaNativa(){
+  if(typeof _wrapped!=='undefined'&&_wrapped)return true;
+  const herramientas=document.getElementById('herramientas-menu');
+  return !!(herramientas&&!herramientas.hidden)
+    ||!!document.querySelector('#menu-flotante,#user-menu.open,.confirm-overlay.open,#modal.open');
+}
+function atrasAndroid(puedeVolver){
+  if(capaAbiertaNativa()){
+    (document.activeElement||document).dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+    return 'capa';
+  }
+  if(document.getElementById('screen-ramo')?.classList.contains('active')){
+    showTab(NAV_TABS.includes(currentTab)?currentTab:'home');
+    return 'ramo';
+  }
+  if(puedeVolver){history.back();return 'historial';}
+  const app=window.Capacitor?.Plugins?.App;
+  if(app&&typeof app.minimizeApp==='function')app.minimizeApp();
+  return 'fondo';
+}

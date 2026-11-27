@@ -87,8 +87,9 @@ jobs:
             --exclude 'node_modules' --exclude 'dist' --exclude 'docs' \
             --exclude 'tests' --exclude 'supabase' --exclude 'bin' --exclude 'src' \
             --exclude '*.md' --exclude 'package.json' --exclude 'package-lock.json' \
-            --exclude '.gitignore' --exclude '.ignore' \
-            --exclude 'ios' --exclude 'ios-web' --exclude 'capacitor.config.*'
+            --exclude '.gitignore' --exclude '.ignore' --exclude 'LICENSE' \
+            --exclude 'ios' --exclude 'ios-web' --exclude 'capacitor.config.*' \
+            --exclude 'android'
 
           # Lista cerrada: comprueba a la vez que la app esté completa y que
           # ningún artefacto interno termine publicado por una exclusión
@@ -97,8 +98,8 @@ jobs:
           data.js mallas-uc.js mallas-uai.js cursos-uc.js engine.js app.js app-session.js marketplace.js render-main.js render-agenda.js styles.css sw.js mallas-uandes.js mallas-udd.js
           manifest.json _headers robots.txt sitemap.xml
           logo.svg icon.svg icon-192.png icon-512.png og-v3.png og-calculadora.png icon-maskable-512.png
-          .well-known/assetlinks.json
-          functions/canvas-calendario.js functions/apple-revocar.js functions/cal/[token].js functions/mcp/[[ruta]].js functions/mcp/herramientas.js
+          .well-known/assetlinks.json .well-known/apple-app-site-association
+          functions/canvas-calendario.js functions/apple-revocar.js functions/cal/[token].js functions/mcp/[[ruta]].js functions/mcp/herramientas.js functions/ds/[[ruta]].js
           ocr/tesseract.min.js ocr/worker.min.js ocr/tesseract-core-simd-lstm.wasm.js ocr/tesseract-core-lstm.wasm.js ocr/eng.traineddata.gz ocr/LICENSE.txt
           apple/continuar-negro.png apple/continuar-blanco.png
           pdf/pdf.min.mjs pdf/pdf.worker.min.mjs pdf/LICENSE.txt

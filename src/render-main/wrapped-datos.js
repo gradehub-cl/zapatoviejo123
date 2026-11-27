@@ -52,12 +52,16 @@ function revisarCierreWrapped(base,cierre){
 
 // Todo sale de `ramoAvg` y `gpa`: son las únicas fórmulas de promedio que hay,
 // y el resumen tiene que decir los mismos números que Inicio.
+function aprobadoWrapped(r,nota){
+  return notaPortalValida(r.notaOficial)?notaAprobada(nota):notaAprobadaRamo(r,nota);
+}
 function datosWrapped(ramos){
-  const lista=ramosDelPromedio(ramos).map(r=>({r,avg:notaRamoParaResumen(r,ramos)})).filter(x=>x.avg!==null);
+  const cerrada=r=>notaPortalValida(r.notaOficial)||(ramos!==S.ramos&&notaPortalValida(r.avgOverride))||ramoCompletamenteEvaluado(r,calculoRamoConCompuertas(r));
+  const lista=ramosDelPromedio(ramos).map(r=>({r,avg:notaRamoParaResumen(r,ramos)})).filter(x=>notaPortalValida(x.avg));
   if(!lista.length)return null;
   let mejor=null,nNotas=0;
   lista.forEach(({r})=>(r.categorias||[]).forEach(c=>(c.notas||[]).forEach(n=>{
-    if(typeof n.valor!=='number')return;
+    if(!notaPortalValida(n.valor))return;
     nNotas++;
     if(!mejor||n.valor>mejor.valor)mejor={valor:n.valor,ramo:r.nombre,evaluacion:n.nombre||c.nombre};
   })));
@@ -66,13 +70,13 @@ function datosWrapped(ramos){
     gpa:gpa(ramos),nRamos:lista.length,nNotas,mejor,
     colores:lista.map(x=>x.r.color),
     // Un color por nota, en orden de ramo: la grilla del semestre.
-    notasColores:lista.flatMap(({r})=>(r.categorias||[]).flatMap(c=>(c.notas||[]).filter(n=>typeof n.valor==='number').map(()=>r.color))),
+    notasColores:lista.flatMap(({r})=>(r.categorias||[]).flatMap(c=>(c.notas||[]).filter(n=>notaPortalValida(n.valor)).map(()=>r.color))),
     ranking:orden.map(x=>({nombre:x.r.nombre,color:x.r.color,avg:x.avg})),
-    aprobando:lista.filter(x=>notaAprobadaRamo(x.r,x.avg)).length,
+    aprobando:lista.filter(x=>aprobadoWrapped(x.r,x.avg)).length,
     // Reprobado solo si ya no queda nada por registrar: un ramo abierto no se da por perdido.
-    reprobados:lista.filter(x=>ramoCompletamenteEvaluado(x.r)&&!notaAprobadaRamo(x.r,x.avg)).length,
+    reprobados:lista.filter(x=>cerrada(x.r)&&!aprobadoWrapped(x.r,x.avg)).length,
     // «Cerraste» solo si de verdad no queda nada por registrar.
-    completo:lista.every(x=>ramoCompletamenteEvaluado(x.r)),
+    completo:lista.every(x=>cerrada(x.r)),
     estrella:orden[0],
     // Con un solo ramo, "el que más te costó" sería la misma estrella.
     dificil:orden.length>1?orden[orden.length-1]:null,
@@ -118,7 +122,7 @@ function notasFechadasWrapped(ramos){
   const out=[];
   (ramos||[]).forEach((r,ri)=>(r.categorias||[]).forEach((c,ci)=>(c.notas||[]).forEach((n,ni)=>{
     const fecha=String(n&&(n.fecha||c.fecha)||'').slice(0,10);
-    if(typeof n?.valor==='number'&&/^\d{4}-\d{2}-\d{2}$/.test(fecha))
+    if(notaPortalValida(n?.valor)&&fechaLocalDesdeISO(fecha))
       out.push({r,c,n,fecha,ruta:[ri,ci,ni],orden:out.length,nombre:n.nombre||c.nombre||'Evaluación'});
   })));
   return out.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:a.orden-b.orden);
@@ -128,19 +132,20 @@ function fechaCortaWrapped(iso){
   return new Date(Date.UTC(y,m-1,d,12)).toLocaleDateString('es-CL',{day:'numeric',month:'long',timeZone:'UTC'});
 }
 // La semana (de lunes a domingo) con más evaluaciones rendidas. Desde tres.
+// `dias` cuenta cuántas cayeron cada día, de lunes a domingo, para dibujarla.
 function semanaPesadaWrapped(fechadas){
   const por=new Map();
   fechadas.forEach(x=>{
     const [y,m,d]=x.fecha.split('-').map(Number),t=Date.UTC(y,m-1,d),dia=(new Date(t).getUTCDay()+6)%7;
     const lunes=new Date(t-dia*864e5).toISOString().slice(0,10);
-    por.set(lunes,(por.get(lunes)||0)+1);
+    if(!por.has(lunes))por.set(lunes,[0,0,0,0,0,0,0]);
+    por.get(lunes)[dia]++;
   });
-  let mejor=null;por.forEach((k,lunes)=>{if(!mejor||k>mejor.k||(k===mejor.k&&lunes<mejor.lunes))mejor={lunes,k};});
+  let mejor=null;por.forEach((dias,lunes)=>{const k=dias.reduce((s,n)=>s+n,0);if(!mejor||k>mejor.k||(k===mejor.k&&lunes<mejor.lunes))mejor={lunes,k,dias};});
   return mejor&&mejor.k>=3?{...mejor,texto:fechaCortaWrapped(mejor.lunes)}:null;
 }
-// El semestre como se fue llenando: el promedio general después de cada nota,
-// con el mismo `gpa()` de Inicio sobre una copia que solo tiene las notas
-// rendidas hasta ese momento. Nunca un promedio propio.
+// El promedio del ramo después de cada nota fechada, con la pauta y el motor
+// de la ficha. La reconstrucción se hace sobre una copia.
 function evolucionWrapped(ramos,fechadas){
   if(fechadas.length<2)return null;
   const copia=JSON.parse(JSON.stringify(ramos));
@@ -152,39 +157,24 @@ function evolucionWrapped(ramos,fechadas){
   return fechadas.map(x=>{
     const [ri,ci,ni]=x.ruta;
     copia[ri].categorias[ci].notas[ni].valor=x.n.valor;
-    return {x,g:gpa(copia),avgRamo:ramoAvg(copia[ri],undefined,copia),ri};
+    return {x,avgRamo:ramoAvg(copia[ri],undefined,copia),ri};
   });
 }
-// La nota que más subió el promedio. Desde una décima, como se ve en pantalla.
-// Se mide recién cuando todos los ramos tienen alguna nota: antes, cualquier
-// nota mueve mucho un promedio de uno o dos ramos y la cifra engañaría.
-function notaQueMovioWrapped(evo){
-  if(!evo)return null;
-  const ramos=new Set(evo.map(p=>p.ri)),vistos=new Set();
-  let desde=evo.length;
-  for(let i=0;i<evo.length;i++){vistos.add(evo[i].ri);if(vistos.size===ramos.size){desde=i+1;break;}}
-  let mejor=null;
-  for(let i=desde;i<evo.length;i++){
-    const a=evo[i-1].g,b=evo[i].g;
-    if(a===null||b===null)continue;
-    const delta=Number(fmtPromedioDato(b))-Number(fmtPromedioDato(a));
-    if(delta>=0.1-1e-9&&(!mejor||delta>mejor.delta))mejor={delta,x:evo[i].x};
-  }
-  return mejor;
-}
 // Un ramo que estuvo bajo 4,0 después de su segunda nota y terminó aprobado.
+// `serie` es el promedio del ramo después de cada nota, para dibujar la curva.
 function remontadaWrapped(ramos,evo){
   if(!evo)return null;
   let mejor=null;
   ramos.forEach((r,ri)=>{
     const pasos=evo.filter(p=>p.ri===ri&&p.avgRamo!==null);
     if(pasos.length<3)return;
-    const final=ramoAvg(r,undefined,ramos);
-    if(final===null||!notaAprobadaRamo(r,final))return;
+    if(pasos.length!==(r.categorias||[]).flatMap(c=>c.notas||[]).filter(n=>notaPortalValida(n.valor)).length)return;
+    const final=notaRamoParaResumen(r,ramos);
+    if(!notaPortalValida(final)||!aprobadoWrapped(r,final))return;
     const bajo=pasos.slice(1,-1).reduce((m,p)=>!m||p.avgRamo<m.avgRamo?p:m,null);
     if(!bajo||Number(fmtPromedioDato(bajo.avgRamo))>=4)return;
     const subida=final-bajo.avgRamo;
-    if(!mejor||subida>mejor.subida)mejor={r,subida,minimo:bajo.avgRamo,final,mes:fechaCortaWrapped(bajo.x.fecha).split(' ').pop()};
+    if(!mejor||subida>mejor.subida)mejor={r,subida,minimo:bajo.avgRamo,final,mes:fechaCortaWrapped(bajo.x.fecha).split(' ').pop(),serie:pasos.map(p=>p.avgRamo),iMinimo:pasos.indexOf(bajo)};
   });
   return mejor;
 }
@@ -197,16 +187,18 @@ function mitadesWrapped(fechadas){
 }
 // Una personalidad por reglas fijas; la primera que se cumple gana.
 const PERSONALIDADES_WRAPPED=[
-  {id:'remontada',nombre:'Remontada profesional',frase:'Cuando parecía perdido, apareciste.'},
-  {id:'siete',nombre:'Siete sin miedo',frase:'Algunos sueñan con un 7. Tú los coleccionas.'},
-  {id:'parejo',nombre:'Siempre parejo',frase:'Pase lo que pase, tú: constante.'},
-  {id:'arranque',nombre:'Arranque fuerte',frase:'Saliste a ganar desde la primera prueba.'},
-  {id:'maraton',nombre:'Maratonista',frase:'Más ramos que horas en el día. Y aun así.'},
-  {id:'filo',nombre:'Al filo, pero adentro',frase:'Cada décima cuenta. Tú lo sabes mejor que nadie.'},
-  {id:'construccion',nombre:'En construcción',frase:'Cada semestre se escribe distinto. Este fue tuyo.'},
+  {id:'remontada',nombre:'Remontada profesional',frase:'La segunda parte cambió la historia.'},
+  {id:'siete',nombre:'Siete sin miedo',frase:'Más de una vez llenaste la casilla con un siete.'},
+  {id:'parejo',nombre:'Siempre parejo',frase:'Tus notas quedaron cerquita unas de otras.'},
+  {id:'arranque',nombre:'Arranque fuerte',frase:'Tus primeras notas marcaron el ritmo.'},
+  {id:'maraton',nombre:'Maratonista',frase:'Hubo varios ramos que acompañar a la vez.'},
+  {id:'filo',nombre:'Al filo, pero adentro',frase:'Hubo un ramo que cerraste por unas décimas.'},
+  {id:'construccion',nombre:'A tu ritmo',frase:'Cada ramo tuvo su propio ritmo.'},
 ];
 function personalidadWrapped(d){
-  const valores=d.valores,media=valores.reduce((s,v)=>s+v,0)/valores.length;
+  const valores=d.valores;
+  if(!valores.length)return null;
+  const media=valores.reduce((s,v)=>s+v,0)/valores.length;
   const desvio=Math.sqrt(valores.reduce((s,v)=>s+(v-media)**2,0)/valores.length);
   const todos=d.aprobando===d.nRamos,mit=d.mitades;
   const reglas={
@@ -224,28 +216,58 @@ function personalidadWrapped(d){
   const opciones=PERSONALIDADES_WRAPPED.filter(p=>p===elegida||otras.slice(0,4).includes(p)).slice(0,5);
   return {...elegida,opciones,letra:'ABCDE'[opciones.indexOf(elegida)]};
 }
-// Contra el semestre anterior del historial. Una baja no se muestra.
-function frenteAnteriorWrapped(gpaActual,actual){
-  const h=(S.historial||[]).filter(x=>Number.isFinite(x.gpa))[actual?0:1];
-  if(!h||gpaActual===null)return null;
-  const delta=Number(fmtPromedioDato(gpaActual))-Number(fmtPromedioDato(h.gpa));
-  if(delta<=-0.05)return null;
-  return {label:h.label,delta:Math.round(delta*10)/10};
-}
-function extrasWrapped(d,ramos,actual){
+function extrasWrapped(d,ramos){
   const fechadas=notasFechadasWrapped(ramos);
-  const evo=evolucionWrapped(ramos,fechadas);
-  const primera=fechadas[0]||null;
-  const e={
-    valores:ramos.flatMap(r=>(r.categorias||[]).flatMap(c=>(c.notas||[]).filter(n=>typeof n.valor==='number').map(n=>n.valor))),
-    semana:semanaPesadaWrapped(fechadas),
-    primera:primera&&{valor:primera.n.valor,nombre:primera.nombre,ramo:primera.r.nombre},
-    movio:notaQueMovioWrapped(evo),
-    remontada:remontadaWrapped(ramos,evo),
-    mitades:mitadesWrapped(fechadas),
-    anterior:frenteAnteriorWrapped(d.gpa,actual),
-  };
-  Object.assign(d,e);
+  d.valores=ramos.flatMap(r=>(r.categorias||[]).flatMap(c=>(c.notas||[]).filter(n=>notaPortalValida(n.valor)).map(n=>n.valor)));
+  d.semana=semanaPesadaWrapped(fechadas);
+  d.remontada=remontadaWrapped(ramos,evolucionWrapped(ramos,fechadas));
+  d.mitades=mitadesWrapped(fechadas);
   d.personalidad=personalidadWrapped(d);
   return d;
+}
+
+// Solo los ramos identificables del plan registrado. No extrapola los optativos,
+// menciones ni semestres ausentes a un porcentaje del título.
+function avanceCreditosWrapped(malla,creditos,aprobadas){
+  if(!malla||!creditos)return null;
+  const plan=new Map();
+  for(const nombre of Object.values(malla).flat()){
+    const ficha=creditos[nombre];
+    if(!Array.isArray(ficha)||!Number.isFinite(ficha[0])||ficha[0]<0)return null;
+    const id=ficha[1]||nombre;
+    if(plan.has(id)&&plan.get(id)!==ficha[0])return null;
+    plan.set(id,ficha[0]);
+  }
+  let total=0,aprobados=0,ramos=0;
+  for(const [id,peso] of plan){
+    total+=peso;
+    if(peso>0&&aprobadas.has(id)){aprobados+=peso;ramos++;}
+  }
+  return total>0&&ramos>=2?{total,aprobados}:null;
+}
+function avanceMallaWrapped(ramos,historial,tenant,carrera,ramosArchivados=false){
+  const plan=mallaFor(tenant)[carrera],tabla=CREDITOS_POR_TENANT[tenant];
+  if(!plan||!tabla)return null;
+  const aprobadas=new Set();
+  const campana=parseEtiquetaSemestre(WRAPPED_PERIODO);
+  const previos=historial.filter(h=>{
+    const p=parseEtiquetaSemestre(h.label);
+    return p&&(p.anio<campana.anio||(p.anio===campana.anio&&p.periodo!==campana.periodo));
+  });
+  for(const grupo of [...previos.map(h=>h.ramos||[]),ramos]){
+    const actual=grupo===ramos&&!ramosArchivados;
+    const pendientes=new Set(revisionCierreSemestre({ramos:grupo,actual}).pendientes.map(r=>r.id));
+    for(const r of grupo){
+      if((r.origen?.tenant||r.cierre?.tenant||tenant)!==tenant)continue;
+      const ficha=tabla[r.nombre];
+      const sigla=r.sigla||r.cierre?.sigla||r.origen?.ramoKey;
+      const id=sigla?String(sigla).toUpperCase():ficha&&(ficha[1]||r.nombre);
+      if(!id||aprobadas.has(id)||pendientes.has(r.id))continue;
+      const acta=notaPortalValida(r.notaOficial)||(!actual&&notaPortalValida(r.avgOverride));
+      if(!acta&&!ramoCompletamenteEvaluado(r,calculoRamoConCompuertas(r)))continue;
+      const nota=notaRamoParaResumen(r,grupo);
+      if(notaPortalValida(nota)&&aprobadoWrapped(r,nota))aprobadas.add(id);
+    }
+  }
+  return avanceCreditosWrapped(plan,tabla,aprobadas);
 }
