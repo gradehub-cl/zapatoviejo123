@@ -54,11 +54,12 @@ function mallasExtraDe(tenant){
   if(tenant==='uandes'&&typeof MALLAS_UANDES_EXTRA!=='undefined')return MALLAS_UANDES_EXTRA;
   if(tenant==='udd'&&typeof MALLAS_UDD_EXTRA!=='undefined')return MALLAS_UDD_EXTRA;
   if(tenant==='ucn'&&typeof MALLAS_UCN_EXTRA!=='undefined')return MALLAS_UCN_EXTRA;
+  if(tenant==='pucv'&&typeof MALLAS_PUCV_EXTRA!=='undefined')return MALLAS_PUCV_EXTRA;
   return null;
 }
 // Qué archivo trae las mallas diferidas de cada universidad. Sin entrada acá,
 // el tenant funciona igual: sin sugerencia automática y agregando ramos a mano.
-const ARCHIVO_MALLAS={uc:'mallas-uc.js',uai:'mallas-uai.js',uandes:'mallas-uandes.js',udd:'mallas-udd.js',ucn:'mallas-ucn.js'};
+const ARCHIVO_MALLAS={uc:'mallas-uc.js',uai:'mallas-uai.js',uandes:'mallas-uandes.js',udd:'mallas-udd.js',ucn:'mallas-ucn.js',pucv:'mallas-pucv.js'};
 
 // Las mallas extra de UC y UAI se traen cuando se necesitan y no en cada carga:
 // meterlas en data.js habría cobrado ese peso a todo el mundo, incluida la gente
