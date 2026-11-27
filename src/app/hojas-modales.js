@@ -67,7 +67,9 @@ function openModal(){
   ov.classList.add('open');
   const sheet=document.querySelector('.modal-sheet');
   const contenido=document.getElementById('modal-content');
-  const titulo=contenido&&typeof contenido.querySelector==='function'?contenido.querySelector('.modal-title'):null;
+  const titulo=contenido&&typeof contenido.querySelector==='function'?contenido.querySelector('.modal-title,#modal-titulo'):null;
+  // El título puede ser un encabezado propio con id «modal-titulo» y sin la
+  // clase («Encuentra tu apoyo»): sin mirarlo, el diálogo se llamaba «Ventana».
   if(sheet&&typeof sheet.setAttribute==='function'){
     if(titulo){
       if(!titulo.id)titulo.id='modal-titulo';
@@ -239,5 +241,9 @@ document.addEventListener('keydown',e=>{
   }
   if(e.key!=='Escape')return;
   if(conf.classList.contains('open'))closeConfirm();
-  else if(document.getElementById('modal').classList.contains('open'))closeModal();
+  else if(document.getElementById('modal').classList.contains('open')){
+    // En el editor de ponderaciones Escape es Cancelar: pregunta si hay cambios.
+    if(typeof pautaManualAbierta==='function'&&pautaManualAbierta())cancelarPautaManual();
+    else closeModal();
+  }
 });

@@ -51,6 +51,9 @@ async function submitAuth(){
         await afterLogin();
         return;
       }
+      // Crear la cuenta con correo también es «usar el correo»: sin esto, al
+      // cerrar sesión la pantalla volvía en modo «Crear cuenta» (#1376).
+      recordarMetodoLogin('correo');
       currentUser=data.user;
       await registrarAceptacionLegal();
       await afterSignup();

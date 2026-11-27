@@ -506,7 +506,7 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .tenant-badge.lg{width:46px;height:46px;border-radius:8px;}
 .tenant-badge.lg .tenant-mono{font-size:1.0625rem;}
 .tenant-badge.lg .tenant-mono[data-len="3"]{font-size:0.875rem;}
-.tenant-badge.lg .tenant-mono[data-len="4"]{font-size:0.8125rem;}
+.tenant-badge.lg .tenant-mono[data-len="4"]{font-size:0.75rem;}
 .tenant-badge.lg .tenant-mono[data-len="5"]{font-size:0.625rem;}
 .tenant-badge.lg .tenant-mono[data-len="6"]{font-size:0.5625rem;}
 /* Marca de universidad junto al wordmark de GradeHub */
@@ -1150,6 +1150,8 @@ button,[role="button"],a{touch-action:manipulation;}
 .modal-label{font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--fg3);margin-bottom:6px;display:block;}
 .modal-input{margin-bottom:14px;}
 input#m-ramo-seccion[aria-invalid="true"]{border-color:var(--red);box-shadow:0 0 0 2px color-mix(in srgb,var(--red),transparent 84%);}
+/* La calculadora dice «corrige el dato marcado»: el campo ya llevaba aria-invalid, pero nada lo mostraba (#1376). */
+input.modal-input[id^="calc-app-"][aria-invalid="true"]{border-color:var(--red);box-shadow:0 0 0 2px color-mix(in srgb,var(--red),transparent 84%);}
 .slider-wrap{margin-bottom:14px;}
 input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 /* CONTROL DE PONDERACIÓN: número editable + slider que salta de 5 en 5 */

@@ -25,6 +25,10 @@ chk('un handler global convierte Enter/Espacio en click sobre role="button"',
 chk('ningún onkeydown suelto duplica al handler global', !/onkeydown="/.test(render));
 chk('Enter/Tab en una casilla de nota guarda y salta a la siguiente',
   /matches\('#screen-ramo input\.eval-row-input'\)/.test(app) && /e\.key!=='Enter'&&!\(e\.key==='Tab'/.test(app));
+// «Explorar apoyo» titula con <h1 id="modal-titulo">, sin la clase .modal-title:
+// el diálogo quedaba con el nombre genérico «Ventana» para lectores de pantalla.
+chk('el diálogo toma su nombre del título aunque no lleve la clase',
+  /querySelector\('\.modal-title,#modal-titulo'\)/.test(app) && /<h1 id="modal-titulo">Encuentra tu apoyo<\/h1>/.test(leer('marketplace.js')));
 
 const iConsent = html.search(/gtag\('consent',\s*'default',\s*\{[^}]*analytics_storage:\s*'denied'/), iConfig = html.search(/gtag\('config',\s*'G-[A-Z0-9]+'/);
 chk('GA sin cookies: analytics_storage denegado antes del config', iConsent > -1 && iConfig > iConsent);
