@@ -118,6 +118,31 @@ visual que no las cumple no se mergea. Lo que más aplica a una PWA:
 - **Interruptor (switch) cuando el cambio se aplica solo** (Lucas, 2026-11-10):
   si al tocarlo algo se prende o se apaga al instante, sin botón «Guardar», es un
   interruptor. No un botón que cambia de texto, ni casillas o radios.
+- **Un solo interruptor** (2026-11-15): todos salen de la regla
+  `input[type=checkbox][role=switch]` de `styles.css` (riel 51×31, perilla 27,
+  encendido en el acento). Uno nuevo se escribe como
+  `<input type="checkbox" role="switch">` dentro de su `label`; no se le dan
+  medidas propias (`tests/interruptor-unico.test.js`).
+- **Un solo radio: 8 px** para botones, campos y tarjetas (2026-11-15). Las
+  hojas conservan sus esquinas superiores y los círculos siguen siendo círculos.
+- **Botones de fila compactos, no toscos** (Lucas, 2026-11-20). Las acciones que
+  van en una fila o una tarjeta (aceptar, rechazar, cancelar, agregar, editar)
+  son como «Confirmar / Eliminar» de Instagram: al lado del texto, 32 pt a la
+  vista y 44 pt de área con un `::after`, sin borde, la principal rellena y la
+  otra en `--muted`. Nada de botones a todo el ancho ni de 44 pt dibujados para
+  una acción secundaria. Referencia: `.amigo-solicitud .amigo-boton` y
+  `.amigos-perfil-botones` en `styles.css` (pestaña Amigos).
+  **Pendiente aplicarlo en:** el panel de admin (todo amontonado arriba: la barra
+  de vistas, el buscador y los filtros compiten; acciones de tarjetas como
+  «Marcar resuelta», «Descartar» o «Pausar profesor» con el peso de una acción
+  principal), y revisar Clases, el resto de Alumnos y las hojas de Ajustes con
+  el mismo ojo. En Alumnos › Ramos, «Marcar» y «Ver alumnos» ya lo cumplen
+  (`.ramos-ver`).
+- **La barra es Inicio · Agenda · Estadísticas · Perfil** (2026-11-15), con
+  Clases, Alumnos y Admin antes de Perfil para quien las tiene. Perfil es
+  siempre la última y reemplaza al avatar con menú: la cuenta, el semestre y
+  las herramientas se agregan como filas en `src/app/perfil-pestana.js`. La
+  pestaña activa rellena su mismo ícono; no usa un dibujo distinto.
   [HIG — Toggles](https://developer.apple.com/design/human-interface-guidelines/toggles).
   Para elegir entre varias apariencias, como el tema, el fondo o un tema festivo,
   se usan **muestras que se ven como va a quedar**, como en Ajustes → Apariencia,

@@ -61,9 +61,10 @@ chk('vacía y sin fecha, se puede quitar',/Quitar la última/.test(juntar(byId('
 run(`deleteNota('c1',S.ramos[0].categorias[0].notas[3].id);deleteNota('c1','a');agregarNotaLista('c1');`);
 chk('no repite un nombre que ya existe',run(`S.ramos[0].categorias[0].notas.map(n=>n.nombre).join('|')`)==='Tarea 2|Tarea 3|Tarea 4');
 
-console.log('\n=== Una lista vacía muestra cómo partir ===');
+console.log('\n=== Una lista vacía se ve como nota sola ===');
+// Dos tipos desde 2026-11-22 (seVeComoNotaSola): sin notas es una fila con "+ Nota".
 const vacia=cargar('fen',lista([]));
-chk('abierta y con el botón a la vista',/class="eval-group-body open"/.test(vacia.html)&&/\+ Agregar nota</.test(vacia.html));
+chk('una fila con "+ Nota", sin desplegable',/class="nota-en-fila"/.test(vacia.html)&&!/eval-group-body/.test(vacia.html));
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
 process.exit(fail?1:0);

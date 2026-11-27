@@ -23,6 +23,32 @@ pendientes para las casillas sin nota —nunca se guardan en `S`—, para que me
 y avance no den por cerrado un 70% con un solo informe. Sin `slots`, no se
 inventa cuántas evaluaciones faltan.
 
+### Citas del programa leído en Canvas (propuesta, pendiente de Lucas)
+
+`ramo.programaCanvas` es opcional y privado. Solo se añade en la app al **usar**
+una propuesta del programa y **guardar** el editor. Leer, cancelar o abrir otro
+borrador no lo escribe. Un ramo antiguo sin el campo sigue sin él.
+
+```js
+programaCanvas: {
+  archivo: 'Programa sintético.docx', // nombre, máximo 160 caracteres; null para syllabus_body
+  citas: ['La asistencia mínima es 75 %.'], // hasta 4 fragmentos de 220 caracteres
+  pauta: '0123456789abcdef', // firmaPautaSugerida del reparto/reglas al aceptar
+  firma: '0123456789abcdef' // hash del nombre, citas y pauta, para detectar fusiones parciales
+}
+```
+
+Las citas son las líneas que el lector compartido ya marcó; **no crean reglas
+calculables**. Se muestran escapadas y pueden estar recortadas. No se guarda el
+texto completo, URL, token ni ID del curso. El campo viaja en el JSON privado,
+respaldo e historial; no se aporta al consenso ni a métricas. La firma no es una
+prueba de autenticidad: evita presentar juntas citas y nombre mezclados por la
+fusión genérica. Datos mal formados o con firma incoherente se omiten. Si cambia
+la pauta, la ficha identifica el programa como referencia de una pauta editada.
+
+El motor y la fusión de sync no cambian. Este campo requiere el OK de Lucas
+antes de mergear; sin él se puede entregar la presentación del catálogo sola.
+
 ### Fecha de edición de una nota
 
 `nota.editadaEn` es opcional: una fecha ISO en UTC de la última creación o
@@ -148,7 +174,7 @@ Lo que las separa no es el selector sino cuánto contenido tienen detrás:
 | | Carreras declarables | Mallas | Ramos únicos | Con pauta |
 |---|---|---|---|---|
 | UC | 71 | 2 (ING-PC, COM) | 49 en malla + catálogo completo | 45 |
-| FEN | 3 | 3 | 88 | 12 |
+| FEN | 3 | 3 | 88 | 26 |
 | UAI | 23, todas con malla | 23 | 530 | 6 |
 | UAndes | 34, todas menos Arquitectura con malla | 33 | 869 | 44 (cursos PEG) |
 | UDD | 46 (una por mención o sede donde la malla cambia), 42 con malla | 42 | 1.175 | 23 (Psicología y Arquitectura) |

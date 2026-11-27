@@ -46,11 +46,34 @@ chk('si el reporte quita la evaluación con regla, no se aplica',aplicar(r,[{nom
 r=ramo();r.gates=[{type:'min_grade_required',catId:'ex',min:3.5,cap:3.9}];
 chk('si solo cambia su porcentaje, se aplica y la regla sigue apuntando a ella',aplicar(r,[{nombre:'Controles',peso:20,slots:5},{nombre:'Interrogación 1',peso:30},{nombre:'Examen',peso:50}])==='aplicada'&&r.categorias.some(c=>c.id==='ex'&&c.peso===50));
 
+console.log('\n=== Renombrar no es quitar y agregar ===');
+// Lo que abre el modal: cada fila con el nombre con que llegó.
+const borradorDe=r=>{ctx.__r=r;return run('estructuraReporte(__r)');};
+r=ramo();
+let b=borradorDe(r);
+b.find(e=>e.nombre==='Interrogación 1').nombre='I1';
+chk('el renombre se aplica',aplicar(r,b)==='aplicada'&&cat('I1')&&!cat('Interrogación 1'));
+chk('la nota sigue en la evaluación renombrada',cat('I1').notas.length===1&&cat('I1').notas[0].valor===5.4);
+chk('con su peso, su fecha y su id',cat('I1').peso===40&&cat('I1').fecha==='2026-10-01'&&cat('I1').id==='i1');
+chk('nada queda fuera de pauta en 0%',!r.categorias.some(c=>c.fueraDePauta));
+r=ramo();r.gates=[{type:'min_grade_required',catId:'ex',min:3.5,cap:3.9}];
+b=borradorDe(r);b.find(e=>e.nombre==='Examen').nombre='Examen final';
+chk('renombrar la evaluación con regla no la bloquea',aplicar(r,b)==='aplicada'&&r.categorias.some(c=>c.id==='ex'&&c.nombre==='Examen final'));
+r=ramo();b=borradorDe(r);
+// Si otra fila toma el nombre original, la renombrada es nueva: no se adivina.
+b.find(e=>e.nombre==='Interrogación 1').nombre='I2';
+b.push({nombre:'Interrogación 1',peso:0});
+b.find(e=>e.nombre==='Examen').peso=40;
+aplicar(r,b);
+chk('si el nombre original sigue en otra fila, la nota se queda con esa',cat('Interrogación 1')&&cat('Interrogación 1').notas[0]&&cat('Interrogación 1').notas[0].valor===5.4&&cat('I2').notas.length===0);
+ctx.__b=borradorDe(ramo());
+chk('el nombre original no viaja al servidor',!run('sinOriginalReporte(__b)').some(e=>'original' in e));
+
 console.log('\n=== El envío guarda primero ===');
 const app=fs.readFileSync(path.join(raiz,'app.js'),'utf8');
 const envio=app.slice(app.indexOf('async function enviarReporte'),app.indexOf('async function cargarConsenso'));
 chk('la pauta se guarda antes de llamar al servidor',envio.indexOf('aplicarReporteAlRamo')>-1&&envio.indexOf('aplicarReporteAlRamo')<envio.indexOf('rpcReporteCatalogo('));
-chk('si el envío falla, lo dice sin decir que se perdió',/Tu pauta qued\\u00f3 guardada, pero el reporte no se pudo enviar/.test(envio));
+chk('si el envío falla, lo dice sin decir que se perdió',/Tus ponderaciones quedaron guardadas, pero el reporte no se pudo enviar/.test(envio));
 
 console.log('\nPASS: '+ok+'   FAIL: '+fail);
 process.exit(fail?1:0);

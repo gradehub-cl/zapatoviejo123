@@ -37,7 +37,7 @@ run(`currentUser={id:'u'};supabaseClient={rpc:async(n,a)=>{pedidos.push(a.p_tena
   const buscar=q=>run(`searchCatalog(${JSON.stringify(q)},'uandes',null,1)`);
   const cinco=buscar('Taller Sintético Cinco').find(r=>r.nombre==='Taller Sintético Cinco');
   assert.ok(cinco&&cinco.tienePreset&&cinco.consenso===5,'con 5 respaldos se ofrece como pauta del catálogo');
-  ctx.__r=cinco;assert.match(run('obCatalogMeta(__r)'),/pauta de 5 estudiantes/);
+  ctx.__r=cinco;assert.match(run('obCatalogMeta(__r)'),/ponderaciones según 5 estudiantes/);
   assert.ok(!buscar('Taller Sintético Tres').some(r=>r.nombre==='Taller Sintético Tres'),'con 3 no entra al buscador');
   // La de programa manda: no aparece dos veces ni dice "de estudiantes".
   const prog=buscar('Ramo Con Programa').filter(r=>r.nombre==='Ramo Con Programa');

@@ -97,13 +97,16 @@ async function imagenesParaOcr(file){
     const aBlob=()=>new Promise(r=>c.toBlob(b=>r(b),'image/png'));
     const original=escala===1?file:(await aBlob())||file;
     const img=ctx2d.getImageData(0,0,c.width,c.height),d=img.data,corte=OCR_UMBRAL_BN*255;
+    // En Mi UC el tipo de clase va SOLO en el color de la celda: se guarda una
+    // copia de los colores antes de pasar a blanco y negro.
+    const pixeles={ancho:c.width,alto:c.height,datos:new Uint8ClampedArray(d)};
     for(let i=0;i<d.length;i+=4){
       const v=(0.299*d[i]+0.587*d[i+1]+0.114*d[i+2])<corte?0:255;
       d[i]=d[i+1]=d[i+2]=v;
     }
     ctx2d.putImageData(img,0,0);
     const bn=await aBlob();
-    return bn?[original,bn]:[original];
+    return Object.assign(bn?[original,bn]:[original],{pixeles});
   }catch(e){return [file];}
 }
 async function leerFotoOcr(file,progreso){
@@ -115,6 +118,9 @@ async function leerFotoOcr(file,progreso){
     corePath:base+(wasmSimdDisponible()?'tesseract-core-simd-lstm.wasm.js':'tesseract-core-lstm.wasm.js'),
     langPath:base.replace(/\/$/,''),
     workerBlobURL:false,
+    // Sin esto, el lector además de rechazar la promesa lanza el mismo error
+    // suelto en la página: llegaba a errores_app aunque ya se había avisado.
+    errorHandler:()=>{},
     logger:m=>{if(progreso&&m&&m.status==='recognizing text'&&typeof m.progress==='number')progreso((paso+m.progress)/pasos);},
   });
   try{
@@ -127,7 +133,7 @@ async function leerFotoOcr(file,progreso){
     const lecturas=[];
     for(;paso<imagenes.length;paso++){
       const {data}=await worker.recognize(imagenes[paso],{},{text:true,blocks:true});
-      lecturas.push({texto:(data&&data.text)||'',palabras:palabrasDeLectura(data)});
+      lecturas.push({texto:(data&&data.text)||'',palabras:palabrasDeLectura(data),pixeles:imagenes.pixeles||null});
     }
     return lecturas;
   }finally{try{await worker.terminate();}catch(e){}}
@@ -198,6 +204,361 @@ function codigosDeFotoHorario(lecturas,existe){
     return {sigla,seccion};
   });
 }
+// ─── LA GRILLA: DÍAS, MÓDULOS Y TIPO ────────────────────────────────────────
+//
+// «Carga Académica» de Mi UC es una grilla: los días arriba (el sábado puede
+// salir cortado), y a la izquierda la columna Módulo, con el número y las horas.
+// Cada celda trae solo «MAT1610-» y la sección en la línea de abajo; el tipo de
+// clase va SOLO en el color de fondo, según la leyenda de arriba (Cátedra
+// naranjo, Ayudantía verde, Laboratorio celeste…). La foto no trae sala: esa
+// sale de BuscaCursos (proponerHorarioDesdeCatalogo) o la pone la persona.
+// Sin una grilla reconocible —sin encabezado de días o sin dos filas de
+// módulos— no se propone nada: un horario inventado es peor que uno que falta.
+// Las horas salen SOLO de la tabla oficial de módulos (horarioDesdeModulos).
+const DIAS_FOTO={LUNES:'L',LUN:'L',MARTES:'M',MAR:'M',MIERCOLES:'W',MIER:'W',MIE:'W',
+  JUEVES:'J',JUE:'J',VIERNES:'V',VIE:'V',SABADO:'S',SAB:'S'};
+const LETRAS_DIA_FOTO={L:'L',M:'M',W:'W',J:'J',V:'V',S:'S'};
+// El tipo se guarda con la palabra que usa el estudiante; el widget lo muestra
+// tal cual ("Sala K201 · Cátedra"). Por si la celda lo trae escrito.
+const TIPOS_FOTO={CLAS:'Cátedra',CLASE:'Cátedra',CAT:'Cátedra',CATEDRA:'Cátedra',
+  AYUD:'Ayudantía',AYU:'Ayudantía',AYUDANTIA:'Ayudantía',
+  LAB:'Laboratorio',LABT:'Laboratorio',LABORATORIO:'Laboratorio',
+  TAL:'Taller',TALL:'Taller',TALLER:'Taller'};
+// La leyenda de Mi UC. Los colores de respaldo se midieron en la leyenda de un
+// pantallazo de iPhone (2026-11-15); si la foto trae su leyenda, mandan los
+// colores de esa misma foto. "Otro" no es un tipo que valga la pena guardar.
+const LEYENDA_FOTO={CATEDRA:'Cátedra',AYUDANTIA:'Ayudantía',LABORATORIO:'Laboratorio',TALLER:'Taller',
+  PRACTICA:'Práctica',TESIS:'Tesis',TERRENO:'Terreno',OTRO:'Otro'};
+const COLORES_TIPO_UC=[['Cátedra',[250,197,115]],['Ayudantía',[151,203,153]],['Laboratorio',[179,212,244]],
+  ['Taller',[199,195,249]],['Práctica',[204,203,154]],['Tesis',[178,240,239]],['Terreno',[255,203,255]],['Otro',[255,154,152]]];
+const textoGrillaFoto=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'')
+  .toUpperCase().replace(/^[^A-Z0-9]+|[^A-Z0-9]+$/g,'');
+const ordenDiaFoto=d=>DIAS_HORARIO.findIndex(([k])=>k===d);
+// Una sala UC tiene letras y número ("K201", "BC25", "AP-101"). Un número
+// solo es la sección que quedó debajo de la sigla, no una sala.
+const SALA_FOTO_RE=/^[A-Z]{1,4}-?\d{1,4}[A-Z]?$/;
+function grillaDeFotoHorario(palabras,tenant){
+  const tabla=MODULOS_HORARIO_POR_TENANT[tenant];
+  if(!tabla||!Array.isArray(palabras)||!palabras.length)return null;
+  const inicios=new Map(Object.entries(tabla).map(([m,[ini]])=>[ini,Number(m)]));
+  const cx=p=>(p.x0+p.x1)/2,cy=p=>(p.y0+p.y1)/2;
+  const candidatos=[];
+  palabras.forEach(p=>{
+    const t=textoGrillaFoto(p.texto);
+    // "Sábad": el pantallazo suele cortar la última columna.
+    const d=DIAS_FOTO[t]||(/^SABA/.test(t)?'S':null)||(t.length===1?LETRAS_DIA_FOTO[t]:null);
+    if(d)candidatos.push({d,x:cx(p),y:cy(p),h:Math.max(1,p.y1-p.y0),letra:t.length===1});
+  });
+  // El encabezado es la línea con más días distintos.
+  let encabezado=null;
+  candidatos.forEach(c=>{
+    const dias=new Map();
+    candidatos.filter(o=>Math.abs(o.y-c.y)<=Math.max(c.h,o.h)*0.8).sort((a,b)=>a.x-b.x)
+      .forEach(o=>{if(!dias.has(o.d))dias.set(o.d,o);});
+    if(!encabezado||dias.size>encabezado.size)encabezado=dias;
+  });
+  if(!encabezado)return null;
+  const cols=[...encabezado.values()].sort((a,b)=>a.x-b.x);
+  // Tres días con nombre, o cuatro letras sueltas: una "M" sola puede ser cualquier cosa.
+  if(cols.length<(cols.every(c=>c.letra)?4:3))return null;
+  for(let i=1;i<cols.length;i++)if(ordenDiaFoto(cols[i].d)<=ordenDiaFoto(cols[i-1].d))return null;
+  const ultima=cols[cols.length-1];
+  const paso=(ultima.x-cols[0].x)/Math.max(1,ordenDiaFoto(ultima.d)-ordenDiaFoto(cols[0].d));
+  const bajoEncabezado=Math.max(...cols.map(c=>c.y+c.h/2));
+  const margen=cols[0].x-paso*0.5;
+  // Filas: a la izquierda de la primera columna, el número del módulo o su
+  // hora de inicio ("8:20", "08:20 - 09:30"). La hora de término no es inicio
+  // de ningún módulo, así que no se confunde.
+  const ys=new Map();
+  palabras.forEach(p=>{
+    if(cx(p)>=margen||cy(p)<=bajoEncabezado)return;
+    const t=String(p.texto||'').trim();
+    const hora=/^(\d{1,2})[:.](\d{2})/.exec(t);
+    let n=null;
+    if(hora)n=inicios.get(hora[1].padStart(2,'0')+':'+hora[2])||null;
+    else if(/^\d$/.test(t)&&tabla[t])n=Number(t);
+    if(n){if(!ys.has(n))ys.set(n,[]);ys.get(n).push(cy(p));}
+  });
+  const filas=[...ys].map(([mod,v])=>({mod,y:v.reduce((s,x)=>s+x,0)/v.length})).sort((a,b)=>a.y-b.y);
+  if(!filas[1])return null;
+  // Las filas forman una recta (y = base + alto·módulo). Con la mediana, una
+  // hora mal leída ("08:40" por "09:40") o una que falta no corre las demás:
+  // la fila se ubica igual por su posición.
+  const mediana=v=>{const o=[...v].sort((a,b)=>a-b);return o[Math.floor(o.length/2)];};
+  const pares=[];
+  filas.forEach((f,i)=>filas.slice(i+1).forEach(o=>{if(o.mod!==f.mod)pares.push((o.y-f.y)/(o.mod-f.mod));}));
+  const alto=mediana(pares);
+  if(!(alto>0))return null;
+  const baseFilas=mediana(filas.map(f=>f.y-alto*f.mod));
+  if(!filas.filter(f=>Math.abs(f.y-baseFilas-alto*f.mod)<=alto*0.35)[1])return null;
+  return {paso,alto,bajoEncabezado,
+    // Posición de y en módulos: 2,0 es justo a la altura del rótulo del 2.
+    fila(y){return (y-baseFilas)/alto;},
+    dia(x){
+      let mejor=null;
+      cols.forEach(c=>{const dist=Math.abs(x-c.x);if(dist<=paso*0.55&&(!mejor||dist<mejor.dist))mejor={d:c.d,dist};});
+      if(mejor)return mejor.d;
+      // Una columna cuyo encabezado no se leyó se ubica por el paso entre días.
+      const i=Math.round(ordenDiaFoto(cols[0].d)+(x-cols[0].x)/paso),d=(DIAS_HORARIO[i]||[])[0];
+      return d&&d!=='D'&&!encabezado.has(d)&&Math.abs(x-(cols[0].x+(i-ordenDiaFoto(cols[0].d))*paso))<=paso*0.4?d:null;
+    },
+    // `desfase`: dónde va la primera sigla de una celda respecto del rótulo
+    // de su fila (la hora puede ir centrada y la sigla arriba). La celda va
+    // desde esa altura hacia abajo: así un segundo ramo en la misma celda
+    // (tope) sigue en su fila. Sin desfase, manda el rótulo más cercano.
+    modulo(y,desfase=null){
+      const v=(y-baseFilas)/alto,m=desfase==null?Math.round(v):Math.floor(v-desfase+0.25);
+      return tabla[m]?m:null;
+    },
+  };
+}
+// Color promedio de un cuadrito de la foto, o null fuera de la imagen.
+function colorFoto(px,x,y,r=2){
+  if(!px||!px.datos)return null;
+  x=Math.round(x);y=Math.round(y);
+  if(x-r<0||y-r<0||x+r>=px.ancho||y+r>=px.alto)return null;
+  const s=[0,0,0];let n=0;
+  for(let j=y-r;j<=y+r;j++)for(let i=x-r;i<=x+r;i++){const k=(j*px.ancho+i)*4;s[0]+=px.datos[k];s[1]+=px.datos[k+1];s[2]+=px.datos[k+2];n++;}
+  return s.map(v=>v/n);
+}
+// Los colores de Mi UC son pasteles: celeste (laboratorio) y lila (taller)
+// quedan cerca en RGB y una muestra un poco desteñida los confunde. Se compara
+// el TINTE (el color menos su componente más baja), que separa bien los ocho
+// tipos, y el brillo pesa poco.
+const tinteColor=c=>{const m=Math.min(...c);return c.map(v=>v-m);};
+const distanciaTinte=(a,b)=>{const ta=tinteColor(a),tb=tinteColor(b);
+  return Math.hypot(ta[0]-tb[0],ta[1]-tb[1],ta[2]-tb[2])+Math.abs((a[0]+a[1]+a[2])-(b[0]+b[1]+b[2]))/12;};
+const colorConTinte=c=>Math.max(...c)-Math.min(...c)>=25;
+// Los colores de la leyenda: el cuadrito a la izquierda de cada palabra, por
+// encima del encabezado de días. Con menos de tres, la paleta de respaldo.
+function paletaDeFoto(palabras,px,bajoEncabezado){
+  const leidos=new Map();
+  palabras.forEach(p=>{
+    const tipo=LEYENDA_FOTO[textoGrillaFoto(p.texto)];
+    if(!tipo||leidos.has(tipo)||(p.y0+p.y1)/2>=bajoEncabezado)return;
+    // El cuadrito está a la izquierda de la palabra. Su borde se mezcla con el
+    // blanco, así que se recorre y se queda el punto con más tinte: el centro.
+    const h=Math.max(1,p.y1-p.y0),y=(p.y0+p.y1)/2;
+    let c=null;
+    for(let f=0.3;f<=1.6;f+=0.1){
+      const m=colorFoto(px,p.x0-h*f,y,1);
+      if(m&&colorConTinte(m)&&(!c||Math.max(...m)-Math.min(...m)>Math.max(...c)-Math.min(...c)))c=m;
+    }
+    if(c)leidos.set(tipo,c);
+  });
+  return leidos.size>=3?[...leidos]:COLORES_TIPO_UC;
+}
+// El fondo de la celda alrededor de la sigla: a los lados de la sección, que
+// va centrada debajo, y justo encima. Cada punto vota por el color de la
+// leyenda más parecido; el texto y el fondo vacío (gris o blanco) no votan.
+function tipoPorColorFoto(p,px,paleta){
+  if(!px)return null;
+  const w=p.x1-p.x0,h=Math.max(1,p.y1-p.y0);
+  const puntos=[[p.x0+w*0.1,p.y1+h*0.55],[p.x1-w*0.1,p.y1+h*0.55],[p.x0+w*0.25,p.y1+h*0.55],[p.x1-w*0.25,p.y1+h*0.55],
+    [p.x0+w*0.1,p.y0-h*0.2],[p.x1-w*0.1,p.y0-h*0.2]];
+  const votos=new Map();
+  puntos.forEach(([x,y])=>{
+    const c=colorFoto(px,x,y,1);if(!c||!colorConTinte(c))return;
+    let mejor=null;
+    paleta.forEach(([tipo,ref])=>{const d=distanciaTinte(c,ref);if(d<=40&&(!mejor||d<mejor.d))mejor={tipo,d};});
+    if(mejor)votos.set(mejor.tipo,(votos.get(mejor.tipo)||0)+1);
+  });
+  const orden=[...votos].sort((a,b)=>b[1]-a[1]);
+  if(!orden.length||orden[0][1]<2||(orden[1]&&orden[1][1]===orden[0][1]))return null;
+  return orden[0][0]==='Otro'?null:orden[0][0];
+}
+// Lo que acompaña a una sigla en su celda: las palabras de su misma columna,
+// desde la sigla hacia abajo, hasta la próxima sigla o el fin de la fila.
+function celdaDeSiglaFoto(p,anclas,palabras,g){
+  const cx=q=>(q.x0+q.x1)/2,centro=cx(p);
+  const enColumna=q=>Math.abs(cx(q)-centro)<=g.paso*0.5;
+  const siguiente=anclas.filter(a=>a!==p&&enColumna(a)&&a.y0>p.y0).reduce((m,a)=>Math.min(m,a.y0),Infinity);
+  const tope=Math.min(siguiente,p.y0+g.alto*0.9);
+  return palabras.filter(q=>q!==p&&!anclas.includes(q)&&enColumna(q)&&q.y0>=p.y0-(p.y1-p.y0)*0.3&&q.y0<tope)
+    .sort((a,b)=>a.y0-b.y0||a.x0-b.x0);
+}
+function tipoYSalaDeCelda(celda){
+  let tipo=null,sala=null;
+  celda.forEach((q,i)=>{
+    const t=textoGrillaFoto(q.texto);
+    if(!tipo&&TIPOS_FOTO[t]){tipo=TIPOS_FOTO[t];return;}
+    // "Sala K201" o "Sala: 3": lo que sigue a la palabra Sala es la sala.
+    if(t==='SALA'&&celda[i+1]){const s=String(celda[i+1].texto||'').replace(/^[(:\s]+|[).,;:\s]+$/g,'');if(!sala&&s&&s.length<=20)sala=s.toUpperCase();return;}
+    if(!sala&&SALA_FOTO_RE.test(t)&&!/^\d+$/.test(t)&&!TIPOS_FOTO[t])sala=t;
+  });
+  return {tipo,sala};
+}
+// Las celdas de cada ramo: Map(sigla → [{dia, mod, tipo, sala}]), una por día
+// y módulo. El tipo escrito en la celda manda; si no hay, el color. Con varias
+// lecturas (la foto tal cual y en blanco y negro), una clase entra si aparece
+// en al menos la mitad de las lecturas que encontraron grilla.
+function celdasDeFotoHorario(lecturas,existe,tenant){
+  const salida=new Map();
+  if(!MODULOS_HORARIO_POR_TENANT[tenant])return salida;
+  const votos=new Map();let conGrilla=0;
+  for(const l of [].concat(lecturas||[])){
+    const palabras=l&&Array.isArray(l.palabras)?l.palabras:[];
+    const g=grillaDeFotoHorario(palabras,tenant);if(!g)continue;
+    conGrilla++;
+    const px=l.pixeles&&l.pixeles.datos?l.pixeles:null,paleta=px?paletaDeFoto(palabras,px,g.bajoEncabezado):null;
+    // Ancla de una celda: una sigla con guion de sección o, con el catálogo a
+    // mano, una que exista. "BC25" tiene forma de sigla, pero es una sala.
+    const anclas=[],siglaDe=new Map();
+    palabras.forEach(p=>{
+      const t=normalizarTextoOcrHorario(String(p.texto||'').replace(/[.,;:)\]]+$/,'')).trim();
+      let m=SIGLA_FOTO_RE.exec(t);
+      // "11C1103-": con una sola letra de verdad, normalizar no se atreve. Con
+      // el catálogo a mano, se prueba 1→I y 0→O en las letras y vale solo si
+      // esa sigla existe.
+      if(existe&&(!m||!existe(siglaOcrEnCatalogo(m[1],existe)))){
+        const m2=SIGLA_FOTO_RE.exec(t.replace(/^[A-Z01|]{3}/,x=>x.replace(/[1|]/g,'I').replace(/0/g,'O')));
+        if(m2&&existe(m2[1]))m=m2;
+      }
+      if(!m)return;
+      const sigla=existe?siglaOcrEnCatalogo(m[1],existe):m[1];
+      if(existe?!existe(sigla):!m[2])return;
+      if((p.y0+p.y1)/2<=g.bajoEncabezado)return;
+      anclas.push(p);siglaDe.set(p,sigla);
+    });
+    // Todas las celdas tienen el mismo diseño, así que todas las siglas están
+    // corridas lo mismo respecto del rótulo de su fila. Ese corrimiento común
+    // decide la fila de cada una, en vez de mirar cada sigla por separado.
+    const restos=anclas.map(p=>{const v=g.fila((p.y0+p.y1)/2);return v-Math.round(v);}).sort((a,b)=>a-b);
+    // Con menos de tres siglas no hay mayoría que lo diga: se usa el rótulo tal cual.
+    const desfase=restos.length>=3?restos[Math.floor(restos.length/2)]:null;
+    const vistos=new Set();
+    anclas.forEach(p=>{
+      const sigla=siglaDe.get(p),dia=g.dia((p.x0+p.x1)/2),mod=g.modulo((p.y0+p.y1)/2,desfase);
+      if(!dia||!mod)return;
+      const clave=sigla+'|'+dia+'|'+mod;
+      if(vistos.has(clave))return;vistos.add(clave);
+      const escrito=tipoYSalaDeCelda(celdaDeSiglaFoto(p,anclas,palabras,g));
+      const tipo=escrito.tipo||(px?tipoPorColorFoto(p,px,paleta):null),sala=escrito.sala;
+      if(!votos.has(sigla))votos.set(sigla,new Map());
+      const v=votos.get(sigla),k=dia+'|'+mod;
+      const previo=v.get(k)||{dia,mod,n:0,tipos:new Map(),salas:new Map()};
+      previo.n++;
+      if(tipo)previo.tipos.set(tipo,(previo.tipos.get(tipo)||0)+1);
+      if(sala)previo.salas.set(sala,(previo.salas.get(sala)||0)+1);
+      v.set(k,previo);
+    });
+  }
+  const minimo=Math.max(1,Math.ceil(conGrilla/2));
+  const masVotado=m=>{const o=[...m].sort((a,b)=>b[1]-a[1]);return o.length&&(o.length===1||o[0][1]>o[1][1])?o[0][0]:'';};
+  votos.forEach((v,sigla)=>{
+    const celdas=[...v.values()].filter(b=>b.n>=minimo).map(b=>({dia:b.dia,mod:b.mod,tipo:masVotado(b.tipos),sala:masVotado(b.salas)}));
+    if(celdas.length)salida.set(sigla,celdas);
+  });
+  return salida;
+}
+// De celdas a bloques: cada bloque es un módulo; los días con el mismo módulo,
+// tipo y sala van juntos (lunes y miércoles, módulo 1).
+function bloquesDeCeldasHorario(tenant,celdas){
+  const grupos=new Map();
+  (celdas||[]).forEach(c=>{
+    const k=c.mod+'|'+(c.tipo||'')+'|'+(c.sala||'');
+    if(!grupos.has(k))grupos.set(k,{mod:c.mod,tipo:c.tipo||'',sala:c.sala||'',dias:[]});
+    if(!grupos.get(k).dias.includes(c.dia))grupos.get(k).dias.push(c.dia);
+  });
+  return copiarHorario([...grupos.values()].sort((a,b)=>ordenDiaFoto(a.dias[0])-ordenDiaFoto(b.dias[0])||a.mod-b.mod)
+    .flatMap(gr=>horarioDesdeModulos(tenant,gr.dias,[gr.mod],{sala:gr.sala,tipo:gr.tipo})));
+}
+// Map(sigla → bloques de horario) directo desde la foto, sin BuscaCursos.
+function clasesDeFotoHorario(lecturas,existe,tenant){
+  const salida=new Map();
+  celdasDeFotoHorario(lecturas,existe,tenant).forEach((celdas,sigla)=>{
+    const bloques=bloquesDeCeldasHorario(tenant,celdas);if(bloques.length)salida.set(sigla,bloques);
+  });
+  return salida;
+}
+// "2026 Primer Semestre" → "2026-1". Sirve para pedir a BuscaCursos el período
+// de la foto y avisar si el pantallazo es de otro semestre.
+function periodoDeFotoHorario(lecturas){
+  for(const l of [].concat(lecturas||[])){
+    const t=typeof l==='string'?l:(l&&l.texto)||'';
+    const m=/(20\d\d)\s+(Primer|Segundo)\s+Semestre/i.exec(t);
+    if(m)return m[1]+'-'+(/^p/i.test(m[2])?'1':'2');
+  }
+  return null;
+}
+// Cuándo es cada clase, de una grilla con los días arriba (LUN … SÁB) y la
+// hora de cada fila a la izquierda ("08:00 - 09:20"), como Docencia Web FEN.
+// La celda dice el código y la sala en una línea y, más abajo, (CAT) o (AYU).
+// El día es el encabezado alineado con la celda; la hora, la de la fila a la
+// altura de la celda. Una celda que no calza con ninguno queda fuera: si no se
+// leyó la hora de una fila, la clase no se corre a la de al lado.
+// Devuelve, por código leído ("ENMEM1505"), sus bloques listos para guardar.
+//
+// Lo que hace el lector con un pantallazo real de Docencia Web: pega el guion
+// a la hora ("08:00-" "09:20"), a veces se come los dos puntos de la sala
+// ("SalaP-311"), parte "Aud.Price" en dos y el "(AYU)" amarillo sale "(Avy)"
+// o "(au)". Por eso el tipo se decide por la primera letra entre paréntesis.
+const TIPO_CLASE_FOTO={C:'Cátedra',A:'Ayudantía'};
+function bloquesDeFotoHorario(lecturas,existe){
+  const plano=t=>t.normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase();
+  const hora=t=>{const m=/^[-–]?(\d{1,2})[:.](\d{2})[-–]?$/.exec(t);return m?m[1].padStart(2,'0')+':'+m[2]:null;};
+  const porCodigo=new Map();
+  for(const l of [].concat(lecturas||[])){
+    const palabras=(l&&Array.isArray(l.palabras)?l.palabras:[])
+      .map(p=>({...p,t:String(p.texto||'').trim(),cy:(p.y0+p.y1)/2,alto:Math.max(1,p.y1-p.y0)}));
+    const mismaLinea=(a,b)=>Math.abs(a.cy-b.cy)<Math.max(a.alto,b.alto)*0.6;
+    const dias=new Map();
+    for(const p of palabras){
+      const m=/^(LUN|MAR|MIE|JUE|VIE|SAB|DOM)(ES|TES|RCOLES|VES|RNES|ADO|INGO)?$/.exec(plano(p.t));
+      if(m&&(!dias.has(m[1])||p.y0<dias.get(m[1]).y0))dias.set(m[1],p);
+    }
+    // "08:00 - 09:20" llega como tres palabras, o junto si el lector lo pega.
+    const filas=[];
+    for(const p of palabras){
+      const junto=/^(\d{1,2}[:.]\d{2})[-–](\d{1,2}[:.]\d{2})$/.exec(p.t);
+      let inicio=junto?hora(junto[1]):hora(p.t),fin=junto?hora(junto[2]):null;
+      if(inicio&&!junto){
+        const sig=palabras.filter(q=>q.x0>p.x1&&q.x0-p.x1<p.alto*4&&mismaLinea(p,q)&&hora(q.t)).sort((a,b)=>a.x0-b.x0)[0];
+        fin=sig?hora(sig.t):null;
+      }
+      if(inicio&&fin&&horaHorarioValida(inicio)&&horaHorarioValida(fin)&&fin>inicio)filas.push({cy:p.cy,inicio,fin});
+    }
+    if(dias.size<2||!filas.length)continue;
+    const cerca=(lista,d)=>lista.reduce((a,b)=>d(b)<d(a)?b:a);
+    for(const p of palabras){
+      const m=SIGLA_FOTO_RE.exec(normalizarTextoOcrHorario(p.t.replace(/[.,;:)\]]+$/,'')).trim());
+      if(!m)continue;
+      const [dia,cab]=cerca([...dias],([,c])=>Math.abs(c.x0-p.x0));
+      const fila=cerca(filas,f=>Math.abs(f.cy-p.cy));
+      if(cab.y1>p.y0||Math.abs(cab.x0-p.x0)>p.alto*4||Math.abs(fila.cy-p.cy)>p.alto*3.5)continue;
+      // La sala va justo a la derecha: "Sala:P-309", o "Sala:" y "P-309". Una
+      // palabra pegada después es la misma sala partida ("Aud" "Price").
+      const der=palabras.filter(q=>q.x0>=p.x1-2&&q.x0-p.x1<p.alto*10&&mismaLinea(p,q)).sort((a,b)=>a.x0-b.x0);
+      const i=der.findIndex(q=>/^sala/i.test(q.t)&&q.x0-p.x1<p.alto*4);
+      let sala='';
+      if(i>=0){
+        let j=i;sala=der[i].t.replace(/^sala\s*[:;.]?\s*/i,'');
+        if(!sala&&der[i+1])sala=der[++j].t;
+        if(der[j+1]&&der[j+1].x0-der[j].x1<p.alto*0.6)sala+=' '+der[j+1].t;
+      }
+      const tipo=palabras.filter(q=>q.y0>p.y1&&q.y0-p.y1<p.alto*5&&Math.abs(q.x0-p.x0)<p.alto*2&&/^\([CA][A-Z]{1,2}\)$/.test(plano(q.t)))
+        .sort((a,b)=>a.y0-b.y0)[0];
+      const codigo=existe?siglaOcrEnCatalogo(m[1],existe):m[1];
+      if(!porCodigo.has(codigo))porCodigo.set(codigo,new Map());
+      // Lo mismo leído en las dos versiones de la imagen es una clase, no dos:
+      // vale la primera lectura, que es la de la imagen tal cual.
+      const clave=dia+'|'+fila.inicio+'|'+fila.fin;
+      if(!porCodigo.get(codigo).has(clave))porCodigo.get(codigo).set(clave,{dia:DIAS_HORARIO.find(([,n])=>plano(n).startsWith(dia))[0],
+        inicio:fila.inicio,fin:fila.fin,sala,tipo:tipo?TIPO_CLASE_FOTO[plano(tipo.t)[1]]:''});
+    }
+  }
+  // Misma hora, sala y tipo en varios días es un solo bloque, como lo escribe
+  // una persona en el editor.
+  return new Map([...porCodigo].map(([codigo,clases])=>{
+    const bloques=new Map();
+    for(const c of clases.values()){
+      const k=[c.inicio,c.fin,c.sala,c.tipo].join('|');
+      if(!bloques.has(k))bloques.set(k,{dias:[],inicio:c.inicio,fin:c.fin,sala:c.sala,tipo:c.tipo});
+      bloques.get(k).dias.push(c.dia);
+    }
+    return [codigo,copiarHorario([...bloques.values()])];
+  }));
+}
 const FOTO_HORARIO_MAX=20*1024*1024;
 let _horarioLeyendoFoto=false;
 // Calificar puede aprovechar la lectura sin abrir la importación de ramos.
@@ -217,8 +578,12 @@ async function leerFotoHorario(input,alLeer=reconocerHorarioBuscacursos){
       if(document.getElementById('m-horario-estado')===estado)estado.textContent=`Leyendo tu horario… ${Math.round(p*100)}%`;
     });
   }catch(e){
+    // El lector rechaza con un texto («Error attempting to read image») cuando
+    // no puede abrir el archivo: un HEIC o una imagen dañada. No es la conexión.
     if(document.getElementById('m-horario-estado')===estado)
-      estado.textContent='No pudimos leer la foto. Revisa tu conexión e intenta de nuevo.';
+      estado.textContent=/read image/i.test(String(e&&e.message||e))
+        ?'Esa imagen no se pudo abrir. Prueba con un pantallazo de tu horario.'
+        :'No pudimos leer la foto. Revisa tu conexión e intenta de nuevo.';
     return false;
   }finally{_horarioLeyendoFoto=false;input.disabled=false;input.value='';}
   // Si cerró el modal mientras se leía, lo leído no abre nada.

@@ -24,5 +24,15 @@ const run=s=>vm.runInContext(s,ctx);
     assert.match(porId('ob-course-picker').innerHTML,/id="ob-course-search"/,tenant+' sin carrera igual busca en su universidad');
     assert.match(porId('ob-course-picker').innerHTML,/obToggleManual/,'siempre permite ingreso manual');
   }
+  // Paso 3: sin catálogo, el campo para escribir la carrera va abierto y con
+  // su propio texto; con catálogo, «Otra carrera» no aparece en la web.
+  run("selectedTenant='usach';initCarreraGrid();");
+  assert.equal(porId('ob-otra-carrera').open,true,'sin catálogo, el campo de carrera va abierto');
+  assert.equal(porId('ob-otra-carrera').hidden,false);
+  assert.equal(porId('ob-carrera-sub').textContent,'Escribe el nombre de tu carrera.');
+  run("selectedTenant='uai';initCarreraGrid();");
+  assert.equal(porId('ob-otra-carrera').hidden,true,'con catálogo y en la web, «Otra carrera» no se muestra');
+  assert.equal(porId('ob-otra-carrera').open,false,'al cambiar a una con catálogo, vuelve cerrado');
+  assert.match(porId('ob-carrera-sub').textContent,/^Busca tu carrera/);
   console.log('OK: buscador universitario independiente de la malla propia y salida manual');
 })().catch(e=>{console.error(e);process.exitCode=1;});

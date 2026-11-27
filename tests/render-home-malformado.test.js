@@ -40,4 +40,20 @@ chk('no cae después de vaciar la lista',error===null);
 chk('el ramo sigue visible',filas.length===1&&filas[0].innerHTML.includes('Ramo heredado'));
 chk('la evaluación incompleta se presenta sin notas',filas[0]?.innerHTML.includes('1 evaluación'));
 
+// Un ramo cerrado con 4,8 dice «✓ Aprobado» en su ficha, pero Inicio lo contaba
+// «en riesgo»: dos pantallas con respuestas distintas (auditoría #1376).
+console.log('\n=== Los chips de Inicio no contradicen a la ficha ===');
+const ramoSint=(id,notas)=>`{id:'${id}',nombre:'Ramo ${id}',color:'#6d5dd3',categorias:[${notas.map((v,i)=>`{id:'${id}-c${i}',nombre:'Prueba ${i+1}',peso:50,directNota:true,notas:[${v===null?'':`{id:'${id}-n${i}',nombre:'Prueba ${i+1}',valor:${v},peso:1}`}]}`).join(',')}]}`;
+vm.runInContext(`
+  S={...freshState(),tenant:'uc',userName:'Persona Sintética',careerSemestre:2,onboardingDone:true,ramos:[
+    ${ramoSint('cerrado-borde',[4.8,4.8])},${ramoSint('cerrado-alto',[6.0,6.0])},
+    ${ramoSint('abierto-borde',[4.5,null])},${ramoSint('cerrado-rojo',[3.0,3.0])}
+  ]};
+`,ctx);
+error=null;try{val('renderHome')();}catch(e){error=e;}
+const chips=byId('gpa-tags').innerHTML.replace(/<[^>]+>/g,'|');
+chk('cerrado con 4,8 cuenta como aprobado, igual que el cerrado con 6,0',error===null&&/2 aprobados/.test(chips));
+chk('«en riesgo» queda para el que todavía tiene algo pendiente',/\|1 en riesgo\|/.test(chips));
+chk('el cerrado bajo 4,0 sigue «bajo 4,0»',/\|1 bajo 4,0\|/.test(chips));
+
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);process.exit(fail?1:0);

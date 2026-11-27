@@ -72,14 +72,14 @@ const probarVib = (nativa, tipo) => { const h = []; const ctx = { enAppNativa: (
   vm.createContext(ctx); vm.runInContext('let _hapticaSeleccion=null;' + vib + ';vibrar(' + JSON.stringify(tipo) + ');vibrar(' + JSON.stringify(tipo) + ')', ctx);
   return new Promise(r => setTimeout(() => r(h.join(',')), 0)); };
 const vibraciones = (async () => {
-chk('al agregar una nota, un toque suave', await probarVib(true, 'nota') === 'impact:LIGHT,impact:LIGHT');
+chk('al guardar una nota, confirmación de éxito', await probarVib(true, 'nota') === 'notification:SUCCESS,notification:SUCCESS');
 chk('al borrar, la advertencia', await probarVib(true, 'borrar') === 'notification:WARNING,notification:WARNING');
 chk('la selección prepara el generador una vez y hace un tic por cambio', await probarVib(true, 'seleccion') === 'start,tic,tic');
 chk('al levantar un ramo, un golpe medio', await probarVib(true, 'levantar') === 'impact:MEDIUM,impact:MEDIUM');
 chk('en la web no vibra', await probarVib(false, 'nota') === '' && await probarVib(false, 'seleccion') === '');
 })();
 chk('la ruleta hace tic cuando otra fila pasa por el centro', /if\(f!==filaAlCentro&&f>=0&&f<opciones\.length\)\{filaAlCentro=f;vibrar\('seleccion'\);\}/.test(app));
-chk('los interruptores hacen tic al cambiar', /t\.matches\('\.toggle input\[type=checkbox\]'\)\)vibrar\('seleccion'\)/.test(app));
+chk('los interruptores hacen tic al cambiar', /t\.matches\('\.toggle input\[type=checkbox\],input\[type=checkbox\]\[role=switch\]'\)\)vibrar\('seleccion'\)/.test(app));
 chk('levantar un ramo para reordenar se siente', /drag=\{ghost,[^\n]*\n[^\n]*\n\s*vibrar\('levantar'\);/.test(app));
 chk('se llama al guardar una nota válida (casillas, directa, agregar y editar)', (app.match(/vibrar\('nota'\)/g) || []).length === 4);
 chk('y al confirmar un borrado y al borrar una nota', /if\(borra&&typeof vibrar==='function'\)vibrar\('borrar'\);/.test(app) && /save\(\);renderRamo\(\);vibrar\('borrar'\);/.test(app));
@@ -95,7 +95,7 @@ chk('con movimiento reducido la alerta solo se funde', /prefers-reduced-motion:r
 
 console.log('\n=== Deslizar desde el borde para volver ===');
 const gesto = app.slice(app.indexOf('(function initVolverDeslizando(){'), app.indexOf('(function initVolverDeslizando(){') + 4000);
-chk('parte solo desde el borde izquierdo y solo en la app', /const BORDE=24;/.test(gesto) && /!enAppNativa\(\)/.test(gesto) && /t\.clientX>BORDE\)return;/.test(gesto));
+chk('parte solo desde el borde izquierdo y solo en el iPhone (en Android ese borde es del sistema)', /const BORDE=24;/.test(gesto) && /!enAppIOS\(\)/.test(gesto) && /t\.clientX>BORDE\)return;/.test(gesto));
 chk('no se activa con una hoja, una alerta o un menú abiertos', /\.modal-overlay\.open,\.confirm-overlay\.open,#menu-flotante/.test(gesto));
 chk('un scroll vertical no se confunde con el gesto', /Math\.abs\(dy\)>=Math\.abs\(dx\)\)\{g=null;return;\}/.test(gesto));
 chk('decide por velocidad o por la mitad, y vuelve a la pestaña de origen', /const sale=v>0\.35\|\|\(v>-0\.2&&s\.dx>w\/2\);/.test(gesto) && /showTab\(s\.destino\)/.test(gesto));
@@ -114,6 +114,19 @@ const pbx = leer('ios/App/App.xcodeproj/project.pbxproj');
 for (const f of ['ios/App/App/PrivacyInfo.xcprivacy', 'ios/App/GradeHubWidgets/PrivacyInfo.xcprivacy']) {
   const m = leer(f);
   chk(f.split('/')[2] + ': manifiesto sin rastreo y con el motivo del App Group', /<key>NSPrivacyTracking<\/key>\s*<false\/>/.test(m) && /NSPrivacyAccessedAPICategoryUserDefaults/.test(m) && /<string>1C8F\.1<\/string>/.test(m));
+}
+{
+  // Lo que junta la app tiene que calzar con el manifiesto (App Review 5.1.1/5.1.2):
+  // PostHog y visitas_diarias ligan el uso a la cuenta, los anuncios guardan qué
+  // vio cada cuenta y el profesor puede dejar un WhatsApp.
+  const m = leer('ios/App/App/PrivacyInfo.xcprivacy');
+  const ligado = t => new RegExp(`<string>NSPrivacyCollectedDataType${t}</string>\\s*<key>NSPrivacyCollectedDataTypeLinked</key>\\s*<true/>`).test(m);
+  chk('manifiesto: uso de la app ligado a la cuenta', ligado('ProductInteraction'));
+  chk('manifiesto: teléfono de contacto del profesor', ligado('PhoneNumber'));
+  chk('manifiesto: datos de los anuncios vistos', ligado('AdvertisingData'));
+  chk('manifiesto: token de avisos push', ligado('DeviceID'));
+  chk('manifiesto: universidad y carrera', ligado('OtherDataTypes'));
+  chk('manifiesto: país de Google Analytics, sin ligar', /<string>NSPrivacyCollectedDataTypeCoarseLocation<\/string>\s*<key>NSPrivacyCollectedDataTypeLinked<\/key>\s*<false\/>/.test(m));
 }
 chk('los dos manifiestos van en los recursos de la app y del widget', (pbx.match(/PrivacyInfo\.xcprivacy in Resources \*\/,/g) || []).length === 2);
 const icono = JSON.parse(leer('ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json')).images;

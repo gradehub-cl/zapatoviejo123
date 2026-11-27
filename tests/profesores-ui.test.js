@@ -9,17 +9,23 @@ const raiz=elements['ramo-profe'],boton=elements['calif-accion'];
 const r={id:'local-1',seccion:2,nombre:'Ramo sintético',color:'#123456',categorias:[{notas:[{valor:4.7}]}]};
 let llamadas=[],respuestas={},toasts=[],ediciones=0;
 const ctx={S:{tenant:'uc',ramos:[r]},currentUser:{id:'cuenta-1'},currentRamoId:r.id,
+  esCuentaProfesor:()=>ctx.S.tipoCuenta==='profesor',
   semester:()=>'2026-2',showToast:t=>toasts.push(t),openEditRamoModal:()=>ediciones++,modalColor:r.color,
   esc:s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
   document:{getElementById:id=>elements[id]||null,querySelectorAll:()=>[]},
   supabaseClient:{rpc:async(nombre,args)=>{llamadas.push({nombre,args});return {data:[respuestas[nombre]||{}]};}}};
 vm.createContext(ctx);vm.runInContext(read('data.js')+'\n'+read('render-main.js'),ctx);
 const plano=x=>JSON.parse(JSON.stringify(x)),base=JSON.stringify(ctx.S);
+// Calificar se abre con la mitad del ramo evaluada (por peso). Este test parte
+// con el ramo abierto; el umbral se prueba al final.
+let avance={pct:60,pending:40,total:100},completo=false;
+ctx.ramoProgress=()=>avance;ctx.ramoCompletamenteEvaluado=()=>completo;
 (async()=>{
   respuestas={profesor_docente_estado:{nombre_publico:null,mi_nombre:null},profesor_calificacion_estado:{total:0,puede_calificar:true}};
   await ctx.renderDocenteRamo(r);
   assert.equal(raiz.innerHTML,'');assert.equal(boton.hidden,false);assert.match(boton.innerHTML,/Calificar profesor/);
-  assert.deepEqual(plano(llamadas.map(x=>x.args)),[{p_ramo_id:'local-1',p_seccion:2,p_periodo:'2026-2'},{p_ramo_id:'local-1',p_seccion:2,p_periodo:'2026-2'}]);
+  assert.deepEqual(plano(llamadas.filter(x=>x.nombre!=='ramo_calificacion_estado').map(x=>x.args)),[{p_ramo_id:'local-1',p_seccion:2,p_periodo:'2026-2'},{p_ramo_id:'local-1',p_seccion:2,p_periodo:'2026-2'}]);
+  assert.equal(llamadas.filter(x=>x.nombre==='ramo_calificacion_estado').length,1);
   assert.equal(JSON.stringify(ctx.S),base,'no toca notas ni datos académicos');
   assert.equal(ctx.nombreCorto('Pamela Andrea Mena'),'Pamela A. Mena','segundo nombre sigue abreviado en ficha');
   respuestas.profesor_docente_estado={nombre_publico:'Lucas José Irarrázaval Bulnes',mi_nombre:'Lucas José Irarrázaval Bulnes'};
@@ -51,6 +57,18 @@ const plano=x=>JSON.parse(JSON.stringify(x)),base=JSON.stringify(ctx.S);
   ctx.currentUser=null;await ctx.renderDocenteRamo(r);assert.equal(raiz.innerHTML,'');assert.equal(boton.hidden,true);
   let secciones=0;ctx.abrirSeccionParaCalificar=()=>secciones++;
   ctx.currentUser={id:'cuenta-1'};r.seccion=null;await ctx.renderDocenteRamo(r);assert.equal(consultas,0);assert.equal(boton.hidden,false);boton.onclick();assert.equal(secciones,1);assert.equal(ediciones,0,'no abre el editor completo');
+  // Umbral: 49,9% no abre, 50% sí; cerrar el ramo abre aunque la pauta sea rara; sin pauta no.
+  for(const [a,c,esperado] of [[{pct:50,pending:50.1,total:100},false,false],[{pct:50,pending:50,total:100},false,true],[{pct:0,pending:0,total:0},false,false],[{pct:0,pending:0,total:0},true,true]]){
+    avance=a;completo=c;assert.equal(ctx.calificacionAbiertaRamo(r),esperado,JSON.stringify(a)+' '+c);
+  }
+  ctx.ramoProgress=()=>{throw Error('sin pauta');};completo=false;assert.equal(ctx.calificacionAbiertaRamo(r),false,'un error no abre calificar');
+  ctx.ramoProgress=()=>({pct:30,pending:70,total:100});
+  r.seccion=2;ctx.supabaseClient.rpc=async(nombre)=>({data:[{profesor_docente_estado:{nombre_publico:'Ana Ejemplo'},profesor_calificacion_estado:{total:0,puede_calificar:true},ramo_calificacion_estado:{puede_calificar:true,mia:null}}[nombre]]});
+  await ctx.renderDocenteRamo(r);assert.equal(boton.hidden,true,'bajo la mitad no hay botón Calificar');assert.doesNotMatch(raiz.innerHTML,/<button/,'ni el nombre del profe abre la hoja');assert.match(raiz.innerHTML,/Ana Ejemplo/);
+  ctx.supabaseClient.rpc=async(nombre)=>({data:[{profesor_docente_estado:{nombre_publico:'Ana Ejemplo'},profesor_calificacion_estado:{total:0,mi_estrellas:4,puede_calificar:true},ramo_calificacion_estado:{puede_calificar:true,mia:null}}[nombre]]});
+  await ctx.renderDocenteRamo(r);assert.match(raiz.innerHTML,/Editar tu calificación/,'lo ya calificado se puede editar');
+  r.seccion=null;await ctx.renderDocenteRamo(r);assert.equal(boton.hidden,true,'sin sección tampoco ofrece Calificar bajo la mitad');
+  ctx.ramoProgress=()=>({pct:50,pending:50,total:100});await ctx.renderDocenteRamo(r);assert.equal(boton.hidden,false,'desde la mitad sí');
   ctx.S.ramos=[];assert.equal(ctx.contextoDocente(r),null);
   console.log('OK ficha de profesor: nombre corto, promedio desde 3, sin etiquetas públicas, editar, reintentar, XSS y cambio de cuenta');
 })().then(()=>terminado=true,e=>{console.error(e);process.exitCode=1;});

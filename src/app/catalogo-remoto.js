@@ -166,8 +166,16 @@ function repintarAlCargarMallas(tenant,repintar){
   if(!ARCHIVO_MALLAS[tenant]||mallasExtraDe(tenant))return;
   cargarMallasUC(tenant).then(ok=>{if(ok)repintar();});
 }
+// Las carreras son de cada universidad: al cambiarla se olvida todo lo del
+// paso 3 —código, nombre declarado y búsqueda—. Si quedaba el nombre, el paso 3
+// se veía sin nada marcado pero «Continuar» seguía activo, y terminaba con la
+// carrera de la otra universidad y sin malla aunque esta sí la tuviera.
+// Volver a tocar la misma universidad no borra lo que ya eligió.
 function selectTenant(t){
-  selectedTenant=t;selectedCarrera=null;applyTheme();renderTenantPick();initCarreraGrid();checkOb();
+  if(t!==selectedTenant){
+    resetCarreraOnboarding();
+  }
+  selectedTenant=t;applyTheme();renderTenantPick();initCarreraGrid();checkOb();
   // En onboarding avanzamos solo: el usuario ve la selección y pasa al siguiente paso
   if(typeof obStep!=='undefined' && obStep===2 && document.getElementById('screen-onboard').classList.contains('active')){
     setTimeout(()=>{if(obStep===2)obNext();},260);
@@ -175,15 +183,24 @@ function selectTenant(t){
 }
 function renderTenantPick(){
   const g=document.getElementById('tenant-grid');if(!g)return;g.innerHTML='';
-  tenantsVisibles(selectedTenant).forEach(([code,cfg])=>{
+  const consulta=document.getElementById('ob-tenant-buscar')?.value||'';
+  const opciones=tenantsVisibles(selectedTenant,consulta);
+  const estado=document.getElementById('ob-tenant-estado');
+  if(estado)estado.textContent=consulta.trim()?(opciones.length
+    ?(opciones.length===1?'1 universidad encontrada':opciones.length+' universidades encontradas')
+    :'No encontramos universidades. Prueba con otro nombre o sigla.'):'';
+  opciones.forEach(([code,cfg])=>{
     const b=document.createElement('button');
+    b.type='button';
     b.className='tenant-opt'+(code===selectedTenant?' sel':'');
+    b.setAttribute('aria-pressed',code===selectedTenant?'true':'false');
     b.style.setProperty('--tb','var(--primary)');
     b.innerHTML=`${tenantBadge(code,'lg')}
       <span class="tenant-opt-info">
-        <span class="tenant-opt-name">${esc(cfg.label||cfg.name)}</span>
-        <span class="tenant-opt-sub">${esc(cfg.sub||'')}</span>
+        <span class="tenant-opt-name">${esc(cfg.nombreCompleto||cfg.label||cfg.name)}</span>
       </span>`;
+    // Sin subtítulo (Lucas, 2026-11-18): «Economía y Negocios» confundía más
+    // de lo que ayudaba. `cfg.sub` sigue en los datos para otros usos.
     b.onclick=()=>selectTenant(code);
     g.appendChild(b);
   });

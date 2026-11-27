@@ -23,21 +23,26 @@ async function submitAuth(){
   }
   if(!supabaseClient){authError('Falta configurar Supabase (URL y clave) en el código.');return;}
 
-  const orig=btn.textContent;
+  let orig=btn.textContent;
   btn.disabled=true;btn.textContent='Cargando...';
   try{
     if(authMode==='signup'){
-      const {data,error}=await supabaseClient.auth.signUp({email,password:p});
-      if(error)throw error;
+      const registro=await supabaseClient.auth.signUp({email,password:p});
+      // Con la confirmación por correo apagada, un correo que ya tiene cuenta
+      // no vuelve «sin sesión»: Supabase responde 422 «User already
+      // registered» (comprobado en producción, 2026-11-23). Lanzarlo dejaba a
+      // quien ya tenía cuenta atrapado en Crear cuenta aunque su contraseña
+      // fuera la correcta. Se trata igual que la respuesta sin sesión.
+      const yaRegistrado=correoYaRegistrado(registro.error);
+      if(registro.error&&!yaRegistrado)throw registro.error;
+      const data=yaRegistrado?{session:null}:registro.data;
       if(!data.session){
-        // Supabase no dice si el correo ya tenía cuenta: en ese caso responde
-        // sin sesión, igual que si hubiera que confirmar el correo. Se intenta
-        // entrar con lo mismo que se escribió: quien ya tenía cuenta y puso su
-        // contraseña queda adentro, que es lo que esperaba al registrarse. Si
-        // no calza, el mismo aviso de siempre, así que no se revela nada: la
-        // contraseña correcta ya bastaba para entrar.
+        // Se intenta entrar con lo mismo que se escribió: quien ya tenía
+        // cuenta y puso su contraseña queda adentro, que es lo que esperaba al
+        // registrarse. Si no calza, pasa a Iniciar sesión con el aviso de
+        // siempre, que no dice si el correo existe.
         const {data:entrada,error:errorEntrada}=await supabaseClient.auth.signInWithPassword({email,password:p});
-        if(errorEntrada||!entrada||!entrada.session){authError(MSG_VERIFICA,'info');btn.disabled=false;btn.textContent=orig;return;}
+        if(errorEntrada||!entrada||!entrada.session){ponerModoAuth('login');authError(MSG_VERIFICA,'info');orig=btn.textContent;return;}
         recordarMetodoLogin('correo');
         currentUser=entrada.user;
         // Volvió a aceptar los términos en este formulario: se anota, sin que
@@ -50,7 +55,14 @@ async function submitAuth(){
       await registrarAceptacionLegal();
       await afterSignup();
     }else{
-      const {data,error}=await supabaseClient.auth.signInWithPassword({email,password:p});
+      let {data,error}=await supabaseClient.auth.signInWithPassword({email,password:p});
+      // Hasta el 2026-11-23 este campo cortaba en 60 caracteres sin avisar, así
+      // que quien se registró escribiendo más quedó con los primeros 60 como
+      // contraseña. Ahora el campo deja 72 (lo mismo que Ajustes): se prueba
+      // también ese corte para no dejar fuera a esas cuentas.
+      if(error&&p.length>60&&/invalid login|credentials/i.test(String(error.message||''))){
+        ({data,error}=await supabaseClient.auth.signInWithPassword({email,password:p.slice(0,60)}));
+      }
       if(error)throw error;
       recordarMetodoLogin('correo');
       currentUser=data.user;await afterLogin();
@@ -60,6 +72,12 @@ async function submitAuth(){
   }finally{
     btn.disabled=false;btn.textContent=orig;
   }
+}
+
+function correoYaRegistrado(error){
+  if(!error)return false;
+  const codigo=String(error.code||'');
+  return codigo==='user_already_exists'||codigo==='email_exists'||/already (registered|exists)/i.test(String(error.message||''));
 }
 
 // --- ULTIMO METODO USADO PARA ENTRAR ---
@@ -87,8 +105,8 @@ function marcarUltimoLogin(){
   // La marca va ENCIMA del metodo, no dentro. Metida en el boton de Google
   // quedaba gris sobre gris —ilegible— y ademas le partia el texto en dos
   // lineas. Arriba se lee en los dos casos y no toca el boton.
-  const destino=metodo==='google'
-    ? document.getElementById('btn-google')
+  const destino=['google','apple'].includes(metodo)
+    ? document.getElementById('btn-'+metodo)
     : document.querySelector('#screen-auth .ob-card');
   if(!destino||!destino.parentNode)return;
   const marca=document.createElement('div');

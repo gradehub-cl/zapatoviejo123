@@ -42,9 +42,13 @@ function authDesde(query,tipo){
     history:{state:null,replaceState(_estado,_titulo,url){urlRestante=url;}},sessionStorage:{
     getItem:k=>almacen.get(k)||null,setItem:(k,v)=>almacen.set(k,v),removeItem:k=>almacen.delete(k)},
     track:(...args)=>eventos.push(args),currentUser:{id:'sintetica'},supabaseClient:null,
-    aislarCacheEnRegistro:()=>{throw stop;},registrarVisitaDiaria:()=>{throw stop;}};
-  ctx.restaurarCacheApartada=()=>{throw stop;};
+    // login y signup salen después de aislar la caché y de cargar la cuenta:
+    // el harness llega hasta ahí y se detiene en lo siguiente.
+    aislarCacheEnRegistro:()=>({propia:false}),registrarVisitaDiaria:()=>{},restaurarCacheApartada:()=>{},
+    enterOnboarding:()=>{throw stop},getCacheOwner:()=>'sintetica',leerBaseSync:()=>true,S:{onboardingDone:true},enterApp:()=>{},_visitaSesion:0,cargarAvisosFeedback:()=>{throw stop}};
   vm.createContext(ctx);vm.runInContext(helper+sesion.slice(inicio,fin),ctx);
+  // Entrada rápida con la copia local, para llegar a cargasAlEntrar sin red.
+  vm.runInContext('getCacheOwner=()=>"sintetica";leerBaseSync=()=>true;enterApp=()=>{};',ctx);
   return {ctx,almacen,eventos,stop,urlRestante:()=>urlRestante};
 }
 

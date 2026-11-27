@@ -74,9 +74,7 @@ function histogramaEstHTML(r,estado){
       ${r.mediana===null?'':`<span class="est-mediana" style="left:${Math.min(100,Math.max(0,x(r.mediana))).toFixed(2)}%"></span>`}</div>
     <div class="est-eje" aria-hidden="true">${marcas}</div></div>`;
 }
-function barraParalelaEstHTML(nombre,v,texto,ahora){
-  return `<div class="est-par"><span>${nombre}</span><span class="est-pista${ahora?' est-pista-ahora':''}" aria-hidden="true"><i style="width:${v===null?0:Math.round(v*100)}%"></i></span><b>${texto}</b></div>`;
-}
+
 function tarjetasEstHTML(r,metodo){
   const [sin,con]=ladosEstPanel(metodo);
   const nota=v=>v===null?null:(v-1)/6,prom=v=>v===null?'—':comaEstPanel(v);
@@ -181,6 +179,10 @@ function pintarEstadisticasPanel(raiz,estado,opciones){
   const atributo=dentro&&typeof activo.getAttributeNames==='function'?activo.getAttributeNames().find(a=>a.startsWith('data-est-')):null;
   const selector=atributo?`[${atributo}="${(activo.getAttribute(atributo)||'').replace(/["\\]/g,'\\$&')}"]`:null;
   raiz.innerHTML=estadisticasAlumnosHTML(estado.datos,estado,opciones);
+  // En celular las pestañas son una fila que se desliza y al repintar vuelve al
+  // inicio: la elegida queda a la vista aunque se llegue por «Por completar».
+  const tab=typeof raiz.querySelector==='function'?raiz.querySelector('.est-tabs [aria-pressed="true"]'):null,caja=tab&&tab.parentElement;
+  if(caja&&typeof tab.getBoundingClientRect==='function'){const d=tab.getBoundingClientRect().right-caja.getBoundingClientRect().right;if(d>0)caja.scrollLeft+=d;}
   if(selector&&typeof raiz.querySelector==='function')raiz.querySelector(selector)?.focus();
 }
 // Devuelve qué hacer: 'pintar', una acción para la pantalla o null si no era suyo.

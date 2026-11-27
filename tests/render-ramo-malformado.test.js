@@ -23,6 +23,9 @@ const ctx={
 };
 vm.createContext(ctx);vm.runInContext(src,ctx);
 const val=n=>vm.runInContext(n,ctx);
+// Biología de la Célula no es coordinado (2026-11-09): su programa es el de las
+// secciones 4 y 5. Acá se prueba ESE programa, como lo cargaría a esa sección.
+vm.runInContext("PRESETS_UC['Biología de la Célula']={...PRESETS_UC['Biología de la Célula'],...PRESETS_UC['Biología de la Célula'].porSeccion[4],coordinado:true};",ctx);
 let ok=0,fail=0;const chk=(n,c)=>{console.log(`  ${c?'OK  ':'FAIL'} ${n}`);if(c)ok++;else fail++;};
 
 console.log('\n=== La ficha tolera una categoría malformada ===');
@@ -61,7 +64,8 @@ error=null;try{val('renderRamo')();}catch(e){error=e;}
 const listaAbierta=byId('cat-list').children;
 chk('marcar varias notas no rompe el render',error===null);
 chk('mantiene visible la prueba junto a Controles',listaAbierta.length===2&&listaAbierta[0]?.innerHTML.includes('Prueba 1')&&listaAbierta[1]?.innerHTML.includes('Controles'));
-chk('Controles conserva la puerta para agregar sus notas',/Agregar nota/.test(listaAbierta[1]?.innerHTML||''));
+// Vacía se ve como nota sola (seVeComoNotaSola), con su "+ Nota".
+chk('Controles conserva la puerta para anotar su nota',/class="nota-en-fila"/.test(listaAbierta[1]?.innerHTML||''));
 
 console.log('\n=== Una pauta oficial no invita a borrar una evaluación ===');
 const pautaBiocel=val("presetRamo('Biología de la Célula','uc','ING-PC')");
@@ -115,7 +119,7 @@ const avance=val('ramoProgress')(labConInforme);
 error=null;try{val('renderRamo')();}catch(e){error=e;}
 const informesConNota=byId('cat-list').children[1];
 chk('la primera nota abre el grupo y deja visible su valor',
-  error===null&&/eval-group-body open/.test(informesConNota?.innerHTML||'')&&/value="5\.4"/.test(informesConNota?.innerHTML||''));
+  error===null&&/eval-group-body open/.test(informesConNota?.innerHTML||'')&&/value="5,4"/.test(informesConNota?.innerHTML||''));
 val('openCats')[informes.id]=false;val('renderRamo')();
 chk('si se cerró a mano conserva esa decisión',
   !/eval-group-body open/.test(byId('cat-list').children[1]?.innerHTML||''));
@@ -131,10 +135,27 @@ vm.runInContext(`S={...freshState(),ramos:${JSON.stringify(ramaRecargada.ramos)}
 error=null;try{val('renderRamo')();}catch(e){error=e;}
 const informesTrasRecargar=byId('cat-list').children[1];
 chk('Informe 0 sigue asociado a su casilla después de normalizar y recargar',
-  error===null&&informeRecargado.notas[0]?.slot===0&&/value="5\.4"/.test(informesTrasRecargar?.innerHTML||''));
+  error===null&&informeRecargado.notas[0]?.slot===0&&/value="5,4"/.test(informesTrasRecargar?.innerHTML||''));
 const respaldoSinSlot=JSON.parse(JSON.stringify(ramaRecargada));
 delete respaldoSinSlot.ramos[0].categorias.find(c=>c.nombre==='Informes').notas[0].slot;
 const legadoRecuperado=val('normalize')(respaldoSinSlot).ramos[0].categorias.find(c=>c.nombre==='Informes');
 chk('una nota ya afectada se recupera solo si su nombre identifica la casilla',legadoRecuperado.notas[0]?.slot===0);
+
+// La etiqueta decía «Ponderaciones según true estudiantes»: se imprimía el sí
+// o no de «hay consenso» en vez de cuántos lo respaldan (auditoría #1376).
+console.log('\n=== La etiqueta del consenso dice cuántos estudiantes ===');
+vm.runInContext(`
+  S={...freshState(),ramos:[{
+    id:'ramo-consenso',nombre:'Ramo de consenso sintético',color:'#6d5dd3',consensoRespaldos:3,
+    categorias:[
+      {id:'a',nombre:'Prueba 1',peso:50,directNota:true,notas:[]},
+      {id:'b',nombre:'Prueba 2',peso:50,directNota:true,notas:[]}
+    ]
+  }]};
+  currentRamoId='ramo-consenso';
+`,ctx);
+error=null;try{val('renderRamo')();}catch(e){error=e;}
+chk('«Ponderaciones según 3 estudiantes», no «según true»',
+  error===null&&byId('pauta-periodo').innerHTML==='<span>Ponderaciones según 3 estudiantes</span>');
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);process.exit(fail?1:0);

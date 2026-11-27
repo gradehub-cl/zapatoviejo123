@@ -1,5 +1,6 @@
 import ActivityKit
 import Capacitor
+import UserNotifications
 import WidgetKit
 
 // Puente de la app web a los widgets (#634). La web calcula el resumen con el
@@ -15,11 +16,15 @@ public class GradeHubWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "borrarResumen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "sincronizarActividades", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "leerSensaciones", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "guardarAmigos", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "borrarAmigos", returnType: CAPPluginReturnPromise),
     ]
 
     // Sale de Firma.xcconfig (vía Info.plist): con otra cuenta de Apple el grupo cambia.
-    static let grupo = Bundle.main.object(forInfoDictionaryKey: "GradeHubAppGroup") as? String ?? "group.cl.gradehub.app"
+    static let grupo = Bundle.main.object(forInfoDictionaryKey: "GradeHubAppGroup") as? String ?? "group.cl.gradehub.app.shared"
     static let clave = "resumen.v1"
+    // «Hoy en la u»: los bloques de clases de los amigos (ver AmigosHoy).
+    static let claveAmigos = "amigos.v1"
     // Un resumen sano pesa unos pocos KB; algo mucho más grande es un error.
     static let maximoBytes = 200_000
 
@@ -44,7 +49,29 @@ public class GradeHubWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
         if ProcessInfo.processInfo.arguments.contains("-gradehubDemoWidgets") { call.resolve(); return }
         #endif
         UserDefaults(suiteName: Self.grupo)?.removeObject(forKey: Self.clave)
+        // Tampoco el horario de los amigos de esa cuenta.
+        UserDefaults(suiteName: Self.grupo)?.removeObject(forKey: Self.claveAmigos)
         WidgetCenter.shared.reloadAllTimelines()
+        call.resolve()
+    }
+
+    // «Hoy en la u»: la app manda los bloques de sus amigos ya filtrados.
+    @objc func guardarAmigos(_ call: CAPPluginCall) {
+        guard let json = call.getString("json"),
+              json.utf8.count <= Self.maximoBytes,
+              let datos = json.data(using: .utf8),
+              (try? JSONSerialization.jsonObject(with: datos)) is [String: Any],
+              let compartido = UserDefaults(suiteName: Self.grupo) else {
+            call.reject("Datos inválidos")
+            return
+        }
+        compartido.set(json, forKey: Self.claveAmigos)
+        WidgetCenter.shared.reloadTimelines(ofKind: "hoy-en-la-u")
+        call.resolve()
+    }
+    @objc func borrarAmigos(_ call: CAPPluginCall) {
+        UserDefaults(suiteName: Self.grupo)?.removeObject(forKey: Self.claveAmigos)
+        WidgetCenter.shared.reloadTimelines(ofKind: "hoy-en-la-u")
         call.resolve()
     }
 
@@ -161,9 +188,31 @@ public class GradeHubWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
     static func demoWidgets() {
         let enDosDias = Calendar.current.date(byAdding: .day, value: 2, to: Date()) ?? Date()
         let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
+        // Clases inventadas alrededor de ahora, con el contrato «Próxima clase»
+        // (docs/guia/ios.md): una en curso, otra más tarde y una mañana.
+        let chile = TimeZone(identifier: "America/Santiago") ?? .current
+        let dia = DateFormatter(); dia.locale = f.locale; dia.timeZone = chile; dia.dateFormat = "yyyy-MM-dd"
+        let hm = DateFormatter(); hm.locale = f.locale; hm.timeZone = chile; hm.dateFormat = "HH:mm"
+        let iso = ISO8601DateFormatter(); iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let ahora = Date()
+        let clase = { (ramoId: String, ramo: String, sigla: String, sala: String, tipo: String, enMinutos: Double, dura: Double) -> String in
+            let inicio = ahora.addingTimeInterval(enMinutos * 60), fin = inicio.addingTimeInterval(dura * 60)
+            return """
+            {"id":"\(ramoId):demo:\(Int(enMinutos))","ramoId":"\(ramoId)","ramo":"\(ramo)","sigla":"\(sigla)","fecha":"\(dia.string(from: inicio))",\
+            "inicio":"\(hm.string(from: inicio))","fin":"\(hm.string(from: fin))","inicioAt":"\(iso.string(from: inicio))","finAt":"\(iso.string(from: fin))",\
+            "sala":"\(sala)","tipo":"\(tipo)","enlace":"cl.gradehub.app://ramo/\(ramoId)"}
+            """
+        }
+        let clases = [clase("demo", "Cálculo II", "MAT1620", "K201", "CLAS", -20, 70),
+                      clase("b", "Física", "FIS1514", "Lab 3", "LAB", 80, 70),
+                      clase("c", "Programación", "IIC1103", "B12", "AYUD", 24 * 60 - 20, 70),
+                      clase("demo", "Cálculo II", "MAT1620", "K201", "CLAS", 48 * 60 - 20, 70)].joined(separator: ",")
         let json = """
         {"version":1,"actualizado":"\(ISO8601DateFormatter().string(from: Date()))","promedio":{"oficial":5.3,"nivel":"good"},
-        "ramos":[{"id":"demo","nombre":"Cálculo II","promedio":4.6,"nivel":"good"},{"id":"b","nombre":"Física","promedio":3.8,"nivel":"bad"}],
+        "zonaHoraria":"America/Santiago","fechaHoy":"\(dia.string(from: ahora))","clasesProximas":[\(clases)],
+        "ramos":[{"id":"demo","nombre":"Cálculo II","color":"#7F77DD","promedio":4.6,"nivel":"good"},{"id":"b","nombre":"Física","color":"#1D9E75","promedio":3.8,"nivel":"bad"},
+        {"id":"c","nombre":"Programación","color":"#D85A30","promedio":5.9,"nivel":"good"},{"id":"d","nombre":"Economía","color":"#378ADD","promedio":4.2,"nivel":"warn"},
+        {"id":"e","nombre":"Química","color":"#BA7517","promedio":6.1,"nivel":"good"},{"id":"f","nombre":"Teología","color":"#D4537E","promedio":5.5,"nivel":"good"}],
         "agenda":[{"ramoId":"demo","ramo":"Cálculo II","sigla":"MAT1620","color":"#7F77DD","evaluacion":"Interrogación 2","fecha":"\(f.string(from: enDosDias))","hora":"17:30","necesitas":"3.7","parte":30},
         {"ramoId":"b","ramo":"Física","sigla":"FIS1514","color":"#1D9E75","evaluacion":"Control 4","fecha":"\(f.string(from: enDosDias.addingTimeInterval(86400)))"},
         {"ramoId":"c","ramo":"Programación","sigla":"IIC1103","color":"#D85A30","evaluacion":"Tarea 3","fecha":"\(f.string(from: enDosDias.addingTimeInterval(4 * 86400)))"},
@@ -173,4 +222,80 @@ public class GradeHubWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
         WidgetCenter.shared.reloadAllTimelines()
     }
     #endif
+}
+
+// MARK: - Avisos push de Amigos
+
+// Pide permiso para avisos, entrega a la app el token de este iPhone (la app
+// lo registra en Supabase: registrar_dispositivo) y abre lo que dice el aviso
+// al tocarlo. Los avisos los manda supabase/functions/avisos-push. Va en este
+// archivo para no tocar el proyecto de Xcode con un archivo nuevo.
+@objc(GradeHubAvisosPlugin)
+public class GradeHubAvisosPlugin: CAPPlugin, CAPBridgedPlugin, NotificationHandlerProtocol {
+    public let identifier = "GradeHubAvisosPlugin"
+    public let jsName = "GradeHubAvisos"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "estado", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "activar", returnType: CAPPluginReturnPromise),
+    ]
+    // AppDelegate los publica cuando iOS entrega (o no) el token.
+    static let tokenListo = Notification.Name("gradehub.avisos.token")
+    static let tokenFallo = Notification.Name("gradehub.avisos.fallo")
+    private var pendiente: CAPPluginCall?
+
+    override public func load() {
+        NotificationCenter.default.addObserver(self, selector: #selector(llegoToken(_:)), name: Self.tokenListo, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(falloToken(_:)), name: Self.tokenFallo, object: nil)
+        // Los avisos locales (pruebas) siguen con su plugin; estos son los push.
+        bridge?.notificationRouter.pushNotificationHandler = self
+    }
+
+    static func permiso(_ s: UNAuthorizationStatus) -> String {
+        switch s {
+        case .authorized, .provisional, .ephemeral: return "concedido"
+        case .denied: return "denegado"
+        default: return "sin-preguntar"
+        }
+    }
+
+    @objc func estado(_ call: CAPPluginCall) {
+        UNUserNotificationCenter.current().getNotificationSettings { s in
+            call.resolve(["permiso": Self.permiso(s.authorizationStatus)])
+        }
+    }
+
+    // Pide permiso (solo la primera vez muestra el diálogo de iOS) y registra.
+    @objc func activar(_ call: CAPPluginCall) {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { concedido, _ in
+            guard concedido else { call.resolve(["permiso": "denegado"]); return }
+            DispatchQueue.main.async {
+                self.pendiente?.reject("reemplazado")
+                self.pendiente = call
+                UIApplication.shared.registerForRemoteNotifications()
+            }
+        }
+    }
+
+    @objc private func llegoToken(_ n: Notification) {
+        guard let datos = n.object as? Data, let call = pendiente else { return }
+        pendiente = nil
+        call.resolve(["permiso": "concedido", "token": datos.map { String(format: "%02x", $0) }.joined()])
+    }
+    @objc private func falloToken(_ n: Notification) {
+        guard let call = pendiente else { return }
+        pendiente = nil
+        call.reject("No se pudo registrar este iPhone para avisos")
+    }
+
+    // Con la app abierta el aviso se muestra igual, como banner.
+    public func willPresent(notification: UNNotification) -> UNNotificationPresentationOptions {
+        [.banner, .list, .sound]
+    }
+    // Tocar el aviso abre lo que dice (cl.gradehub.app://amigos o ://amigo/<id>)
+    // por el mismo camino que los widgets.
+    public func didReceive(response: UNNotificationResponse) {
+        guard let texto = response.notification.request.content.userInfo["enlace"] as? String,
+              let url = URL(string: texto), url.scheme == "cl.gradehub.app" else { return }
+        DispatchQueue.main.async { UIApplication.shared.open(url) }
+    }
 }

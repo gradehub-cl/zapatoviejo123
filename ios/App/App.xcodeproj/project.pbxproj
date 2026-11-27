@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A6E400000000000000000002 /* AppleSignInPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E400000000000000000001 /* AppleSignInPlugin.swift */; };
+		A6E500000000000000000002 /* CanvasPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E500000000000000000001 /* CanvasPlugin.swift */; };
+		A6E500000000000000000004 /* CanvasPolitica.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E500000000000000000003 /* CanvasPolitica.swift */; };
 		A6E300000000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A6E300000000000000000001 /* PrivacyInfo.xcprivacy */; };
 		A6E300000000000000000004 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A6E300000000000000000003 /* PrivacyInfo.xcprivacy */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
@@ -24,6 +27,10 @@
 		A6E00000000000000000000B /* GradeHubWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A6E000000000000000000007 /* GradeHubWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A6E100000000000000000002 /* ActividadPrueba.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E100000000000000000001 /* ActividadPrueba.swift */; };
 		A6E100000000000000000003 /* ActividadPrueba.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E100000000000000000001 /* ActividadPrueba.swift */; };
+		A6E800000000000000000002 /* Resumen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E800000000000000000001 /* Resumen.swift */; };
+		A6E800000000000000000003 /* Resumen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E800000000000000000001 /* Resumen.swift */; };
+		A6E800000000000000000005 /* Atajos.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E800000000000000000004 /* Atajos.swift */; };
+		A6E800000000000000000007 /* AppShortcuts.strings in Resources */ = {isa = PBXBuildFile; fileRef = A6E800000000000000000006 /* AppShortcuts.strings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -51,6 +58,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A6E400000000000000000001 /* AppleSignInPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInPlugin.swift; sourceTree = "<group>"; };
+		A6E500000000000000000001 /* CanvasPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasPlugin.swift; sourceTree = "<group>"; };
+		A6E500000000000000000003 /* CanvasPolitica.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasPolitica.swift; sourceTree = "<group>"; };
 		A6E300000000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A6E300000000000000000003 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -73,6 +83,9 @@
 		A6E000000000000000000006 /* GradeHubWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GradeHubWidgets.entitlements; sourceTree = "<group>"; };
 		A6E000000000000000000007 /* GradeHubWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GradeHubWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A6E100000000000000000001 /* ActividadPrueba.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActividadPrueba.swift; sourceTree = "<group>"; };
+		A6E800000000000000000001 /* Resumen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Resumen.swift; sourceTree = "<group>"; };
+		A6E800000000000000000004 /* Atajos.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Atajos.swift; sourceTree = "<group>"; };
+		A6E800000000000000000008 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -121,6 +134,11 @@
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				A6E000000000000000000002 /* MainViewController.swift */,
 				A6E000000000000000000001 /* WidgetsPlugin.swift */,
+				A6E800000000000000000004 /* Atajos.swift */,
+				A6E800000000000000000006 /* AppShortcuts.strings */,
+				A6E400000000000000000001 /* AppleSignInPlugin.swift */,
+				A6E500000000000000000001 /* CanvasPlugin.swift */,
+				A6E500000000000000000003 /* CanvasPolitica.swift */,
 				A6E000000000000000000003 /* App.entitlements */,
 				A6E300000000000000000001 /* PrivacyInfo.xcprivacy */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
@@ -150,6 +168,7 @@
 			isa = PBXGroup;
 			children = (
 				A6E100000000000000000001 /* ActividadPrueba.swift */,
+				A6E800000000000000000001 /* Resumen.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -161,6 +180,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 504EC3161FED79650016851F /* Build configuration list for PBXNativeTarget "App" */;
 			buildPhases = (
+				A6E600000000000000000001 /* Verificar build App Store */,
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
@@ -219,6 +239,7 @@
 			knownRegions = (
 				en,
 				Base,
+				es,
 			);
 			mainGroup = 504EC2FB1FED79650016851F;
 			packageReferences = (
@@ -246,6 +267,7 @@
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
 				A6E300000000000000000002 /* PrivacyInfo.xcprivacy in Resources */,
+				A6E800000000000000000007 /* AppShortcuts.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -259,6 +281,25 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		A6E600000000000000000001 /* Verificar build App Store */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = ();
+			inputPaths = (
+				"$(SRCROOT)/../../bin/verificar-build-ios.py",
+				"$(SRCROOT)/App/capacitor.config.json",
+				"$(SRCROOT)/App/public",
+			);
+			name = "Verificar build App Store";
+			outputPaths = ();
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"$CONFIGURATION\" = \"Release\" ]; then\n  /usr/bin/python3 \"$SRCROOT/../../bin/verificar-build-ios.py\" \"$SRCROOT/App\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		504EC3001FED79650016851F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -268,7 +309,12 @@
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				A6E000000000000000000009 /* MainViewController.swift in Sources */,
 				A6E000000000000000000008 /* WidgetsPlugin.swift in Sources */,
+				A6E400000000000000000002 /* AppleSignInPlugin.swift in Sources */,
+				A6E500000000000000000002 /* CanvasPlugin.swift in Sources */,
+				A6E500000000000000000004 /* CanvasPolitica.swift in Sources */,
 				A6E100000000000000000002 /* ActividadPrueba.swift in Sources */,
+				A6E800000000000000000002 /* Resumen.swift in Sources */,
+				A6E800000000000000000005 /* Atajos.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -278,6 +324,7 @@
 			files = (
 				A6E00000000000000000000A /* GradeHubWidgets.swift in Sources */,
 				A6E100000000000000000003 /* ActividadPrueba.swift in Sources */,
+				A6E800000000000000000003 /* Resumen.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -292,6 +339,14 @@
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
+		A6E800000000000000000006 /* AppShortcuts.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				A6E800000000000000000008 /* es */,
+			);
+			name = AppShortcuts.strings;
+			sourceTree = "<group>";
+		};
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
 			isa = PBXVariantGroup;
 			children = (
@@ -426,7 +481,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -440,7 +495,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -450,7 +505,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -463,7 +518,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -473,7 +528,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = GradeHubWidgets/GradeHubWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = GradeHubWidgets/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -488,7 +543,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -498,7 +553,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = GradeHubWidgets/GradeHubWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = GradeHubWidgets/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -513,7 +568,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};

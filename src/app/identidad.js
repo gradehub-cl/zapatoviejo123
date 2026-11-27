@@ -14,7 +14,10 @@ function tenantMark(code){
 // Con caja teñida — onboarding
 function tenantBadge(code,cls){
   if(!TENANTS[code])return '';
-  return `<span class="tenant-badge ${cls||''}" style="--tb:var(--primary)" aria-hidden="true">`
+  // Con los colores de la universidad: la sigla sobre su fondo institucional.
+  const c=TENANTS[code].colores,hex=/^#[0-9a-f]{6}$/i;
+  const conColor=c&&hex.test(c.fondo)&&hex.test(c.texto);
+  return `<span class="tenant-badge ${cls||''}${conColor?' tenant-badge-color':''}" style="--tb:var(--primary)${conColor?`;--tb-fondo:${c.fondo};--tb-texto:${c.texto}`:''}" aria-hidden="true">`
     +tenantMark(code)+'</span>';
 }
 
@@ -32,8 +35,17 @@ let selectedTenant='fen';
 
 // Universidades que se ofrecen al elegir. Una oculta sigue apareciendo si el
 // estudiante ya la tiene seleccionada, para no dejarlo sin su opción actual.
-function tenantsVisibles(actual){
-  return Object.entries(TENANTS).filter(([code,cfg])=>!cfg.oculto||code===actual);
+function tenantsVisibles(actual,consulta=''){
+  const palabras=normalizarBusquedaUniversidad(consulta).split(' ').filter(Boolean);
+  return Object.entries(TENANTS).filter(([code,cfg])=>{
+    if(code!==actual&&cfg.oculto)return false;
+    if(!palabras.length)return true;
+    const nombres=normalizarBusquedaUniversidad([code,cfg.short,cfg.name,cfg.nombreCompleto,...(cfg.alias||[])].join(' '));
+    return palabras.every(p=>nombres.includes(p));
+  });
+}
+function normalizarBusquedaUniversidad(texto){
+  return normName(texto).replace(/[’']/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 }
 
 // Escribe la identidad como CSS custom properties en :root. Todos los

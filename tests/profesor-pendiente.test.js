@@ -36,7 +36,7 @@ run('misAnunciosClase=async()=>__lista; renderBorradorProfesor=(raiz,anuncio,opc
   assert.match(raiz.innerHTML,/12 de octubre de 2026/);
   assert.match(raiz.innerHTML,/Tu borrador/);
   assert.match(raiz.innerHTML,/Álgebra &lt;prueba&gt;/);
-  assert.doesNotMatch(raiz.innerHTML,/Enviar a revisión/);
+  assert.doesNotMatch(raiz.innerHTML,/Enviar a revisión|data-profesor-seccion/);
   raiz.querySelector('[data-borrador-pendiente]').eventos.click();
   assert.equal(ctx.__editor.length,1);
   assert.equal(ctx.__editor[0].anuncio.id,borrador.id);

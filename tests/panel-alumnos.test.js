@@ -258,10 +258,10 @@ function contexto({search='',sesion=false}={}){
   chk('el promedio es el de ramoAvg, el mismo de la app del alumno',html.includes(prom+'<small>promedio</small>'));
   const catProm=a.run(`(()=>{const r=ramoParaPanel(__r);const b=calculoRamoConCompuertas(r);return fmtPromedio(b.res.breakdown.find(n=>n.id==='c1').value);})()`);
   chk('las notas van agrupadas en su categoría, con el promedio del motor',
-    new RegExp('Interrogaciones<small>2 notas</small></td><td>'+catProm.replace('.','\\.')+'</td><td><span class="panel-alumnos-gh">4\\.4<small>vs. 31 estudiantes en GradeHub').test(html));
-  chk('cada nota debajo, con su comparación cuando el nombre calza',/panel-alumnos-nota"><td>Interrogación 1<\/td><td>4\.2<\/td><td><span class="panel-alumnos-gh">4\.6<small>vs. 9 estudiantes en GradeHub/.test(html));
-  chk('y "—" cuando no, sin repetir "aún pocos datos"',/Interrogación 2<\/td><td>5\.6<\/td><td><span class="panel-alumnos-sin">—/.test(html));
-  chk('el ramo completo contra GradeHub, con la etiqueta',/4\.7<small>vs. 23 estudiantes en GradeHub/.test(html));
+    new RegExp('Interrogaciones<small>2 notas</small></td><td>'+catProm+'</td><td><span class="panel-alumnos-gh">4,4<small>vs. 31 estudiantes en GradeHub').test(html));
+  chk('cada nota debajo, con su comparación cuando el nombre calza',/panel-alumnos-nota"><td>Interrogación 1<\/td><td>4,2<\/td><td><span class="panel-alumnos-gh">4,6<small>vs. 9 estudiantes en GradeHub/.test(html));
+  chk('y "—" cuando no, sin repetir "aún pocos datos"',/Interrogación 2<\/td><td>5,6<\/td><td><span class="panel-alumnos-sin">—/.test(html));
+  chk('el ramo completo contra GradeHub, con la etiqueta',/4,7<small>vs. 23 estudiantes en GradeHub/.test(html));
   chk('las categorías sin notas no aparecen',!/Examen/.test(html));
   // Como Martín: notas renombradas ("1", "(Falté)"). Igual se comparan por categoría.
   const renombradas=a.run(`ramoPanelHTML({id:'r9',nombre:'Contabilidad',sigla:'EAA1210',gates:[],categorias:[
@@ -269,9 +269,9 @@ function contexto({search='',sesion=false}={}){
     {id:'k2',nombre:'Solemne',peso:70,notas:[{id:'c',nombre:'Pero perro',valor:4.4}]}]},
     {ramo:null,evaluaciones:[],categorias:[{clave:'controles',promedio:4.9,personas:12},{clave:'solemne',promedio:4.1,personas:12}]})`);
   chk('con notas renombradas, la comparación sale igual por categoría',
-    /Controles<small>2 notas<\/small><\/td><td>[^<]+<\/td><td><span class="panel-alumnos-gh">4\.9/.test(renombradas));
+    /Controles<small>2 notas<\/small><\/td><td>[^<]+<\/td><td><span class="panel-alumnos-gh">4,9/.test(renombradas));
   chk('una categoría de una sola nota es una sola fila, con el nombre de la categoría',
-    /panel-alumnos-cat"><td>Solemne<\/td><td>4\.4<\/td><td><span class="panel-alumnos-gh">4\.1/.test(renombradas)&&!/Pero perro/.test(renombradas));
+    /panel-alumnos-cat"><td>Solemne<\/td><td>4,4<\/td><td><span class="panel-alumnos-gh">4,1/.test(renombradas)&&!/Pero perro/.test(renombradas));
 
   console.log('\n=== Próxima evaluación de cada alumno (#663) ===');
   // Hoy es el 12 de octubre. I1 ya tiene nota; I2 es el 15. Pautas escritas acá.
@@ -331,9 +331,9 @@ function contexto({search='',sesion=false}={}){
     {id:'b',nombre:'Prueba 2',peso:50,notas:[{id:'y',nombre:'Prueba 2',valor:4.0}]}]});
     globalThis.__al=(tenant)=>({id:'al-'+tenant,nombre_visible:'Alumno '+tenant,tenant,ramos:[__borde('r-'+tenant)]})`);
   const ve=(profe,alumno)=>a.run(`(S.tenant=${JSON.stringify(profe)},alumnosPanelHTML([__al(${JSON.stringify(alumno)})],()=>null))`);
-  chk('profesor UC, alumno UAndes: ve 4,0, como el alumno en su app',/4\.0<small>promedio/.test(ve('uc','uandes')));
-  chk('profesor UAndes, alumno UC: ve 3,9, no un aprobado que no es',/3\.9<small>promedio/.test(ve('uandes','uc')));
-  chk('misma universidad: igual que antes',/3\.9<small>promedio/.test(ve('uc','uc'))&&/4\.0<small>promedio/.test(ve('uandes','uandes')));
+  chk('profesor UC, alumno UAndes: ve 4,0, como el alumno en su app',/4,0<small>promedio/.test(ve('uc','uandes')));
+  chk('profesor UAndes, alumno UC: ve 3,9, no un aprobado que no es',/3,9<small>promedio/.test(ve('uandes','uc')));
+  chk('misma universidad: igual que antes',/3,9<small>promedio/.test(ve('uc','uc'))&&/4,0<small>promedio/.test(ve('uandes','uandes')));
   chk('la universidad del profesor queda como estaba',a.run(`(S.tenant='uc',alumnosPanelHTML([__al('uandes')],()=>null),S.tenant)`)==='uc');
   chk('y también si algo falla adentro',a.run(`(()=>{S.tenant='uc';try{conUniversidadPanel('uandes',()=>{throw new Error('x')});}catch(e){}return S.tenant;})()`)==='uc');
   const resCruce=a.run(`(S.tenant='uc',resumenAlumnosPanel([__al('uandes'),__al('uc')],()=>null))`);
@@ -448,12 +448,12 @@ function contexto({search='',sesion=false}={}){
   a.run(`globalThis.__sec3={seccion:3,ramo:{promedio:5.2,personas:6},evaluaciones:[{clave:'interrogacion 1',promedio:3.5,personas:6}],categorias:[{clave:'interrogacion 1',promedio:3.5,personas:6}]}`);
   const fichaSec=a.run(`ramoPanelHTML({...__antesAhora.ramos[0],seccion:3},__sec3)`);
   chk('con su sección: el promedio de la sección y la columna dice "Sección"',
-    /5\.2<small>Sección 3<\/small><small>vs. 6 estudiantes en GradeHub<\/small>/.test(fichaSec)&&/<th>Su sección<\/th>/.test(fichaSec)&&/3\.5<small>vs. 6 estudiantes en GradeHub/.test(fichaSec));
+    /5,2<small>Sección 3<\/small><small>vs. 6 estudiantes en GradeHub<\/small>/.test(fichaSec)&&/<th>Su sección<\/th>/.test(fichaSec)&&/3,5<small>vs. 6 estudiantes en GradeHub/.test(fichaSec));
   const fichaSin=a.run(`ramoPanelHTML(__antesAhora.ramos[0],SIN_SECCION_PANEL)`);
   chk('sin sección declarada: "no disponible", sin cifras ni "aún pocos datos"',
     /No disponible<small>sin sección<\/small>/.test(fichaSin)&&!/pocos datos|personas<\/small>/.test(fichaSin)&&/<th>Su sección<\/th>/.test(fichaSin));
   chk('la comparación con todo GradeHub queda como estaba',
-    /4\.5<small>vs. 30 estudiantes en GradeHub/.test(a.run(`ramoPanelHTML(__antesAhora.ramos[0],__cursoAA())`))&&/<th>GradeHub<\/th>/.test(a.run(`ramoPanelHTML(__antesAhora.ramos[0],__cursoAA())`)));
+    /4,5<small>vs. 30 estudiantes en GradeHub/.test(a.run(`ramoPanelHTML(__antesAhora.ramos[0],__cursoAA())`))&&/<th>GradeHub<\/th>/.test(a.run(`ramoPanelHTML(__antesAhora.ramos[0],__cursoAA())`)));
   const fichaSinAl=a.run(`alumnosPanelHTML([__antesAhora],()=>SIN_SECCION_PANEL)`);
   chk('un alumno sin sección en ningún ramo: el antes y ahora lo dice',/Por sección: no disponible, no declaró su sección/.test(fichaSinAl));
   chk('y sin sección no hay diferencia que inventar',a.run('metricasAlumnoPanel(__antesAhora,()=>SIN_SECCION_PANEL).ahora.nComparadas')===0);
@@ -507,7 +507,7 @@ function contexto({search='',sesion=false}={}){
   console.log('\n=== Antes y ahora: la pantalla (#697) ===');
   const gh=a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora,__poco],__cursoAA))');
   chk('las tres cifras del grupo: respecto del ramo, mejoraron y aprobación',
-    /ah-dato-principal">\+1\.7<small>puntos/.test(gh)&&/aria-label="Cambio positivo en 1 de 1 par alumno-ramo"/.test(gh)&&/width:0%/.test(gh)&&/width:100%/.test(gh)&&/>0%<\/b>/.test(gh)&&/>100%<\/b>/.test(gh));
+    /ah-dato-principal">\+1,7<small>puntos/.test(gh)&&/aria-label="Cambio positivo en 1 de 1 par alumno-ramo"/.test(gh)&&/width:0%/.test(gh)&&/width:100%/.test(gh)&&/>0%<\/b>/.test(gh)&&/>100%<\/b>/.test(gh));
   chk('dice con cuántas evaluaciones y cuántas sin fecha no cuentan',/Con 7 evaluaciones con fecha; 1 evaluación sin fecha no cuenta/.test(gh));
   const unaFecha=a.run(`antesAhoraGrupoHTML({alumnos:[{}],totalAlumnos:1,totalRamos:1,antes:{n:0,promedio:null,aprobacion:null},ahora:{n:1,promedio:4,aprobacion:1},sinFecha:0,cambioMediana:null,conCambio:0,mejoraron:0})`);
   chk('con una evaluación usa singular',/Con 1 evaluación con fecha/.test(unaFecha));
@@ -533,8 +533,8 @@ function contexto({search='',sesion=false}={}){
 
   chk('y advierte que no prueba que sea por las clases',/No prueba que la mejora sea por tus clases/.test(gh));
   const ah=ah0();
-  chk('cada alumno: subió 1.7, antes 1.0 bajo y ahora 0.7 sobre el ramo',
-    /Subió 1\.7 puntos respecto del ramo/.test(ah)&&/Antes: 1\.0 bajo el ramo/.test(ah)&&/Ahora: 0\.7 sobre el ramo/.test(ah));
+  chk('cada alumno: subió 1,7, antes 1,0 bajo y ahora 0,7 sobre el ramo',
+    /Subió 1,7 puntos respecto del ramo/.test(ah)&&/Antes: 1,0 bajo el ramo/.test(ah)&&/Ahora: 0,7 sobre el ramo/.test(ah));
   chk('el gráfico es interactivo y conserva el resumen y cada evaluación comparable',
     /aria-label="Diferencia con el ramo en 4 evaluaciones/.test(ah)&&(ah.match(/class="evolucion-punto(?: es-antes)?"/g)||[]).length===4&&/role="slider"/.test(ah)&&/Empezó/.test(ah));
   chk('y la lista con las mismas cifras, para quien no ve el gráfico',/Ver sus evaluaciones/.test(ah)&&(ah.match(/<tr><td>/g)||[]).length===4);
@@ -1011,7 +1011,7 @@ function contexto({search='',sesion=false}={}){
     (grafG.match(/<li[^>]*><button type="button" data-ver-alumno=/g)||[]).length===2
     &&grafG.indexOf('data-ver-alumno="aa"')<grafG.indexOf('data-ver-alumno="pp"'));
   chk('punto hueco antes, lleno ahora, y el texto dice lo mismo para VoiceOver',
-    /ah-dot ah-dot-antes/.test(grafG)&&/ah-dot ah-dot-ahora/.test(grafG)&&/class="sr-solo">Antes: 1\.0 bajo el ramo\. Ahora: 0\.7 sobre el ramo\./.test(grafG));
+    /ah-dot ah-dot-antes/.test(grafG)&&/ah-dot ah-dot-ahora/.test(grafG)&&/class="sr-solo">Antes: 1,0 bajo el ramo\. Ahora: 0,7 sobre el ramo\./.test(grafG));
   chk('sin el semáforo de aprobación: el resumen no se tiñe de aprobado',!/panel-resumen-(good|warn|bad)|--green|--red/.test(grafG));
   // Desde el 2026-10-26 el cambio de cada alumno dice hacia dónde se movió:
   // verde si subió frente al ramo y rojo si bajó (Lucas).
@@ -1026,15 +1026,15 @@ function contexto({search='',sesion=false}={}){
   console.log('\n=== Lectura Editorial de Alumnos ===');
   const porSeccionTexto=a.run(`antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,__cursoAA),{seccion:true})`);
   chk('la misma cifra se rotula por sección en el resumen, el gráfico y la tabla',
-    /Subió 1\.7 puntos respecto de su sección/.test(porSeccionTexto)&&
+    /Subió 1,7 puntos respecto de su sección/.test(porSeccionTexto)&&
     /Diferencia con su sección en 4 evaluaciones/.test(porSeccionTexto)&&
     /<th>Sección<\/th>/.test(porSeccionTexto)&&!/respecto del ramo|<th>Ramo<\/th>/.test(porSeccionTexto));
   const sinSeccionTexto=a.run(`antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,()=>SIN_SECCION_PANEL),{seccion:true,sinSeccion:true})`);
   chk('sin sección sigue no disponible: no se muestra un antes y ahora de otro grupo',
     /no disponible, no declaró su sección/.test(sinSeccionTexto)&&!/class="ah-alumno-lados"|<svg/.test(sinSeccionTexto));
   chk('en celular la alternativa textual conserva los dos valores y el cambio con unidad',
-    /ah-fila-valores/.test(grafG)&&/Antes <b>−1\.0/.test(grafG)&&
-    /Ahora <b>\+0\.7/.test(grafG)&&/<small>Cambio<\/small>\+1\.7<small>puntos/.test(grafG));
+    /ah-fila-valores/.test(grafG)&&/Antes <b>−1,0/.test(grafG)&&
+    /Ahora <b>\+0,7/.test(grafG)&&/<small>Cambio<\/small>\+1,7<small>puntos/.test(grafG));
   // Sin textos explicativos (Lucas, 2026-10-27): cada cifra dice su total («De 12 alumnos»).
   chk('resumen precisa el período y no explica de más',
     !/Un alumno puede estar al borde en un ramo y reprobando otro/.test(htmlR)&&/Evaluaciones en 7 días/.test(htmlR));
@@ -1153,7 +1153,7 @@ function contexto({search='',sesion=false}={}){
     /Puedes descargarlas para tu propio\s+seguimiento, pero no las publicas/.test(terminos)&&/borras lo que hayas\s+descargado/.test(terminos));
   chk('el alumno sabe al compartir que el profesor puede descargarlas',
     /puede descargarlas para hacerte seguimiento/.test(hoja)&&/puede descargarlas en un\s+archivo/.test(privacidad));
-  chk('la privacidad ya no dice "con nadie" a secas',/Con nadie, salvo que tú lo decidas/.test(privacidad)&&/Con un profesor, si tú lo eliges/.test(privacidad));
+  chk('la privacidad distingue proveedores, anuncios y compartir con un profesor',/No vendemos tus datos/.test(privacidad)&&/Con un profesor, si tú lo eliges/.test(privacidad)&&/Un profesor ve tus notas únicamente si tú eliges compartírselas/.test(privacidad));
 
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
   process.exit(fail?1:0);

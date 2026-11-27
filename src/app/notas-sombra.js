@@ -67,7 +67,7 @@ function modeloNotasSombra(r,fijas=new Map()){
   const pendientes=[];
   for(const c of cats){
     if(!(c.peso>0))continue;
-    const min=Math.max(minimo,...gates.filter(g=>g.catId===c.id).map(g=>Number(nfNecesaria(g.min))));
+    const min=Math.max(minimo,...gates.filter(g=>g.catId===c.id).map(g=>Number(nfNecesariaDato(g.min))));
     if(c.slots>1){
       hojasCategoria(c).forEach(h=>{
         const n=(c.notas||[]).find(n=>n.id===h.id);
@@ -95,7 +95,7 @@ function modeloNotasSombra(r,fijas=new Map()){
     if(menor&&necesaria>=menor[1]-1e-9){auto.delete(menor[0]);continue;}
     break;
   }
-  const valor=Math.max(minimo,Number(nfNecesaria(necesaria)));
+  const valor=Math.max(minimo,Number(nfNecesariaDato(necesaria)));
   const estado=valor>maximo?'no':valor<=minimo&&!auto.size?'ya':'ok';
   if(estado!=='no'){
     const todas=new Map([...fijadas,...auto,...libres.map(p=>[p.clave,valor])]);
@@ -110,13 +110,32 @@ function modeloNotasSombra(r,fijas=new Map()){
 
 function notasSombraDelRamo(r){
   if(sesionNotasSombra.estado!==S)sesionNotasSombra={estado:S,ramos:new Map()};
-  if(!sesionNotasSombra.ramos.has(r.id))sesionNotasSombra.ramos.set(r.id,{fijas:new Map(),abierta:null,iniciada:false});
+  if(!sesionNotasSombra.ramos.has(r.id))sesionNotasSombra.ramos.set(r.id,{fijas:notasSombraDeSensaciones(r),abierta:null,iniciada:false});
   const sesion=sesionNotasSombra.ramos.get(r.id),modelo=modeloNotasSombra(r,sesion.fijas);
   const claves=new Set(modelo?.pendientes.map(p=>p.clave)||[]);
   for(const clave of sesion.fijas.keys())if(!claves.has(clave))sesion.fijas.delete(clave);
   if(sesion.abierta&&!claves.has(sesion.abierta))sesion.abierta=null;
   if(modelo&&!sesion.iniciada){sesion.abierta=modelo.pendientes.find(esExamenSombra)?.clave||null;sesion.iniciada=true;}
   return modelo?{...modelo,sesion}:null;
+}
+// «¿Cómo te fue?» (Actividad en Vivo o aviso) mueve la sombra de esa evaluación
+// mientras no llegue la nota real (decisión de Lucas, 15-11): notas fijas con
+// «Normal» en el 4,0, escaladas a la escala del ramo. Es la nota de partida de
+// la sesión: la persona la cambia con el control como cualquier otra.
+const NOTA_SOMBRA_SENSACION={1:2.0,2:3.0,3:4.0,4:5.0,5:6.0};
+function notasSombraDeSensaciones(r){
+  const fijas=new Map();
+  if(typeof sensacionesGuardadas!=='function')return fijas;
+  const base=modeloNotasSombra(r,new Map());if(!base)return fijas;
+  const escala=v=>base.maximo===7&&base.minimo===1?v:base.minimo+(v-1)*(base.maximo-base.minimo)/6;
+  Object.entries(sensacionesGuardadas()).sort((a,b)=>(a[1].fecha||0)-(b[1].fecha||0)).forEach(([clave,x])=>{
+    const [ramoId,catId]=clave.split('|');
+    const v=NOTA_SOMBRA_SENSACION[x&&x.valor];
+    if(ramoId!==r.id||v==null)return;
+    const p=base.pendientes.find(q=>q.catId===catId&&!fijas.has(q.clave));
+    if(p)fijas.set(p.clave,Math.round(escala(v)*10)/10);
+  });
+  return fijas;
 }
 function valorNotaSombra(m,p){return m.fijas.get(p.clave)??m.auto.get(p.clave)??(m.estado==='no'?null:m.necesaria);}
 function botonNotaSombraHTML(m,p){

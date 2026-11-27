@@ -73,12 +73,13 @@ function resumenParaWidgets(ahora){
   // Lo de hoy o mañana no va: el widget lo saca de la agenda, que sabe la hora.
   const tareas=pendientes(ahora).filter(p=>p.tipo!=='hoy').slice(0,12).map(p=>({tipo:p.tipo,ramoId:p.ramo.id,ramo:p.ramo.nombre,
     sigla:sigla(p.ramo),color:p.ramo.color||null,evaluacion:p.nombre,fecha:p.fecha}));
-  // Las mismas cifras de Estadísticas (renderStats), escritas como allá.
+  // Las mismas cifras de Estadísticas (renderStats). Van con PUNTO (`…Dato`):
+  // los widgets Swift las leen con Locale en_US_POSIX; la coma es solo de pantalla.
   const proy=proyeccionSemestre(S.ramos),exige=loQueFaltaPorRamo(S.ramos)[0];
   const estadisticas={avance:avanceEvaluaciones(S.ramos).pct,
-    rango:proy&&{piso:nf(proy.piso),techo:nf(proy.techo),nivelPiso:nivelNota(proy.piso),nivelTecho:nivelNota(proy.techo)},
+    rango:proy&&{piso:nfDato(proy.piso),techo:nfDato(proy.techo),nivelPiso:nivelNota(proy.piso),nivelTecho:nivelNota(proy.techo)},
     exigente:exige?{ramoId:exige.ramo.id,ramo:exige.ramo.nombre,color:exige.ramo.color||null,
-      necesitas:exige.necesita>7.05?null:nfNecesaria(Math.max(1,exige.necesita))}:null};
+      necesitas:exige.necesita>7.05?null:nfNecesariaDato(Math.max(1,exige.necesita))}:null};
   const agenda=agendaEvents().filter(e=>e.pending&&e.fecha>=hoy).slice(0,8).map(e=>{
     const cuatro=notaParaIrConCuatro(e)||{};
     return {ramoId:e.ramo.id,ramo:e.ramo.nombre,sigla:sigla(e.ramo),color:e.ramo.color||null,
@@ -89,14 +90,17 @@ function resumenParaWidgets(ahora){
       // una nota, no se sabe cuántas habrá), no va: no se inventa un porcentaje.
       parte:(p=>typeof p==='number'&&Number.isFinite(p)&&p>0?Math.round(p*10)/10:null)(pesoEventoAgenda(e))};
   });
-  return {version:WIDGETS_VERSION,actualizado:ahora.toISOString(),tenant:S.tenant||null,
+  const clases=resumenHorarioClases(esCuentaProfesor()?[]:S.ramos,ahora);
+  return {...clases,version:WIDGETS_VERSION,actualizado:ahora.toISOString(),tenant:S.tenant||null,
     promedio:g===null?null:{oficial:notaFinalOficial(g),nivel:nivelNota(g)},ramos,agenda,pendientes:tareas,estadisticas};
 }
 let _pluginWidgets,_widgetsTimer=null;
 function pluginWidgets(){
   if(_pluginWidgets!==undefined)return _pluginWidgets;
   const cap=typeof window!=='undefined'?window.Capacitor:null;
-  const nativa=!!(cap&&typeof cap.isNativePlatform==='function'&&cap.isNativePlatform());
+  // Solo el iPhone tiene widgets: en Android registerPlugin daría un objeto
+  // que falla en cada llamada.
+  const nativa=typeof enAppIOS==='function'?enAppIOS():!!(cap&&typeof cap.isNativePlatform==='function'&&cap.isNativePlatform());
   // La app no carga @capacitor/core (no hay build), así que no hay registerPlugin:
   // el puente nativo deja cada plugin registrado en Capacitor.Plugins.
   try{_pluginWidgets=!nativa?null:(cap.Plugins&&cap.Plugins.GradeHubWidgets)
@@ -108,10 +112,11 @@ function pluginWidgets(){
 function publicarResumenWidgets(){
   // Una cuenta convertida puede dejar widgets antiguos en este iPhone.
   if(esCuentaProfesor()){borrarResumenWidgets();return;}
-  const p=pluginWidgets();if(!p)return;
+  // Android no tiene widgets, pero sí avisos de evaluación.
+  const p=pluginWidgets();if(!p&&!pluginNotificaciones())return;
   clearTimeout(_widgetsTimer);
   _widgetsTimer=setTimeout(()=>{
-    try{
+    if(p)try{
       const pedido=S.onboardingDone?p.guardarResumen({json:JSON.stringify(resumenParaWidgets())}):p.borrarResumen();
       if(pedido&&typeof pedido.catch==='function')pedido.catch(()=>{});
     }catch(e){}
@@ -124,11 +129,14 @@ function publicarResumenWidgets(){
 }
 // Al cerrar sesión no pueden quedar notas de esa cuenta en la pantalla de inicio.
 function borrarResumenWidgets(){
-  const p=pluginWidgets();if(!p)return;
+  const p=pluginWidgets();
   clearTimeout(_widgetsTimer);
-  try{const pedido=p.borrarResumen();if(pedido&&typeof pedido.catch==='function')pedido.catch(()=>{});}catch(e){}
-  // Ni avisos ni tarjetas de la cuenta que salió.
-  try{const r=p.sincronizarActividades({actividades:[]});if(r&&typeof r.catch==='function')r.catch(()=>{});}catch(e){}
+  if(p){
+    try{const pedido=p.borrarResumen();if(pedido&&typeof pedido.catch==='function')pedido.catch(()=>{});}catch(e){}
+    // Ni avisos ni tarjetas de la cuenta que salió.
+    try{const r=p.sincronizarActividades({actividades:[]});if(r&&typeof r.catch==='function')r.catch(()=>{});}catch(e){}
+  }
+  // En Android no hay widgets, pero los avisos de la cuenta que salió igual se van.
   const ln=pluginNotificaciones();
   if(ln)Promise.resolve(ln.getPending()).then(r=>{const ids=((r&&r.notifications)||[]).filter(n=>n&&n.extra&&n.extra.gradehub==='prueba').map(n=>({id:n.id}));
     return ids.length?ln.cancel({notifications:ids}):null;}).catch(()=>{});
@@ -136,10 +144,17 @@ function borrarResumenWidgets(){
 // Tocar un widget abre la pantalla exacta: cl.gradehub.app://ramo/<id>,
 // ://agenda, ://estadisticas o ://inicio. Un ramo que ya no existe deja en Inicio.
 function abrirEnlaceWidget(url){
-  const m=/^cl\.gradehub\.app:\/\/(ramo|simular|agenda|estadisticas|inicio)(?:\/([A-Za-z0-9_-]{1,64}))?\/?$/.exec(String(url||''));
+  const m=/^cl\.gradehub\.app:\/\/(ramo|simular|agenda|estadisticas|inicio|amigos|amigo)(?:\/([A-Za-z0-9_-]{1,64}))?\/?$/.exec(String(url||''));
   // Una cuenta de profesor no tiene ramos ni widgets de estudiante.
   if(!m||!S.onboardingDone||esCuentaProfesor())return false;
   if(m[1]==='agenda'){showTab('agenda');return true;}
+  // «Hoy en la u»: la pestaña Amigos, o la ficha del amigo que se tocó.
+  if(m[1]==='amigos'||m[1]==='amigo'){
+    if(typeof amigosVisible!=='function'||!amigosVisible()){showTab('home');return false;}
+    showTab('amigos');
+    if(m[1]==='amigo'&&m[2])Promise.resolve(amigosListaCache||refrescarAmigos()).then(()=>abrirAmigo(m[2]));
+    return true;
+  }
   if(m[1]==='estadisticas'){showTab('stats');return true;}
   if((m[1]==='ramo'||m[1]==='simular')&&S.ramos.some(r=>r.id===m[2])){
     openRamo(m[2]);

@@ -199,12 +199,19 @@ function showAppErrorScreen(fase){
   const nav=document.getElementById('bottom-nav');
   if(nav)nav.style.display='none';
   const comprobando=fase==='obtener_sesion';
+  // 'leer_nube': la sesión es válida, pero no se pudieron traer los ramos y
+  // este dispositivo no tiene una copia propia (ver afterLogin).
+  const sinNube=fase==='leer_nube';
   const title=document.getElementById('app-error-title');
   const desc=document.getElementById('app-error-desc');
-  if(title)title.textContent=comprobando?'No pudimos comprobar tu sesión':'No pudimos abrir GradeHub';
-  if(desc)desc.textContent=comprobando
+  if(title)title.textContent=sinNube?'Sin conexión':comprobando?'No pudimos comprobar tu sesión':'No pudimos abrir GradeHub';
+  if(desc)desc.textContent=sinNube
+    ?'Necesitamos internet para traer tus ramos a este dispositivo. No se borró nada: conéctate y vuelve a intentarlo.'
+    :comprobando
     ?'Parece un problema de conexión. Tus datos no se borraron; recarga para intentarlo de nuevo.'
     :'Tu sesión sigue activa y tus datos no se borraron. Recarga para intentarlo de nuevo.';
+  const boton=document.querySelector('#screen-app-error .btn-primary');
+  if(boton)boton.textContent=sinNube?'Reintentar':'Recargar';
   const screen=document.getElementById('screen-app-error');
   if(screen)screen.classList.add('active');
 }

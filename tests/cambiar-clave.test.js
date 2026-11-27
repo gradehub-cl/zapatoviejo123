@@ -31,6 +31,8 @@ function arnes(responder){
   const politica=sesion.slice(sesion.indexOf('const PASS_MIN'),sesion.indexOf('\n',sesion.indexOf('const PASS_MIN')))
     +'\n'+sesion.slice(sesion.indexOf('function passwordPolicyError'),sesion.indexOf('function togglePasswordVisibility'));
   vm.runInContext(politica.replace('const PASS_MIN','var PASS_MIN'),ctx);
+  // El destino del correo lo arma app.js (en la app iOS no es location.origin).
+  vm.runInContext(app.slice(app.indexOf('function enAppNativa'),app.indexOf('// La clase html.app-nativa')),ctx);
   const inicio=sesion.indexOf('function traduceAuthError');
   vm.runInContext(sesion.slice(inicio,sesion.indexOf('async function submitAuth',inicio)),ctx);
   return {ctx,ids,llamadas};

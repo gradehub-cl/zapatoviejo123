@@ -48,7 +48,7 @@ function medidorRamoAgendaHTML(e){
   if(!Number.isFinite(e.necesita)||!alertaRamoAgendaHTML(e))return '';
   const exigencia=exigenciaNotaNecesaria(e.necesita);
   const imposible=e.necesita>7.05;
-  const cifra=imposible?'—':nfNecesaria(Math.max(1,e.necesita)).replace('.',',');
+  const cifra=imposible?'—':nfNecesaria(Math.max(1,e.necesita));
   const lectura=imposible?'Lo pendiente no alcanza para aprobar el ramo':`Necesitas ${cifra} promedio en lo pendiente para aprobar el ramo`;
   return `<div class="ag-need" role="img" aria-label="${esc(lectura)}. ${exigencia.palabra}.">
     <span class="ag-need-context" aria-hidden="true"><strong>En lo pendiente</strong><span>Para llegar al 4,0</span></span>
@@ -101,7 +101,7 @@ function referenciaEvaluacionAgenda(e){
   };
   if(e.necesita===null)return {
     titulo:'Todavía no hay una meta calculable',
-    texto:'Completa la pauta del ramo para estimar cuánto necesitas.',
+    texto:'Completa las ponderaciones del ramo para estimar cuánto necesitas.',
   };
   if(e.necesita>7.05)return {
     titulo:'No alcanza solo con lo pendiente',

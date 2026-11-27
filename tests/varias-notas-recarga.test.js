@@ -49,36 +49,36 @@ comprobar('dos casillas guardan notas distintas',cat.notas.length===2&&cat.notas
 comprobar('el modelo conserva promedio 5,1 y avance 40%',run('ramoAvg(S.ramos[0])')===5.1&&run('ramoProgress(S.ramos[0]).pct')===40);
 recargar();
 let html=ficha();
-comprobar('al recargar aparecen ambas notas y la tercera casilla pendiente',/eval-group-body open/.test(html)&&/value="5\.0"/.test(html)&&/value="5\.2"/.test(html)&&html.includes(etiqueta(2)));
+comprobar('al recargar aparecen ambas notas y la tercera casilla pendiente',/eval-group-body open/.test(html)&&/value="5,0"/.test(html)&&/value="5,2"/.test(html)&&html.includes(etiqueta(2)));
 run('openPautaManualModal()');
 comprobar('el editor reabre la pauta como varias notas con tres casillas',run("pautaDraft.find(f=>f.nombre==='Controles')?.varias")===true&&run("pautaDraft.find(f=>f.nombre==='Controles')?.cantidad")===3);
 run('guardarPautaManual()');
-comprobar('guardar la pauta de nuevo no borra ni esconde las notas',/value="5\.0"/.test(ficha())&&/value="5\.2"/.test(ficha()));
+comprobar('guardar la pauta de nuevo no borra ni esconde las notas',/value="5,0"/.test(ficha())&&/value="5,2"/.test(ficha()));
 
-console.log('\n=== Lista abierta, cuando no se conoce cuántos controles habrá ===');
-run(`S={...freshState(),ramos:[{id:'r2',nombre:'Otro ramo',color:'#6d5dd3',categorias:[],gates:[]}]};currentRamoId='r2';
-  pautaDraft=[{id:null,nombre:'Controles',peso:30,tieneNotas:false,varias:true,cantidad:null},
-    {id:null,nombre:'Examen',peso:70,tieneNotas:false,varias:false,cantidad:null}];guardarPautaManual();`);
-const abierta=run("S.ramos[0].categorias.find(c=>c.nombre==='Controles')");
-comprobar('sin cantidad, no inventa casillas y ofrece Agregar nota',abierta.directNota===false&&!abierta.slots&&/Agregar nota/.test(ficha()));
-abierta.notas=[{id:'n1',nombre:'Control 1',valor:5,peso:1},{id:'n2',nombre:'Control 2',valor:5.2,peso:1}];
+console.log('\n=== Lista abierta guardada antes de los dos tipos ===');
+// Desde 2026-11-22 "varias notas" pide cuántas son; las listas abiertas que ya
+// existen se siguen leyendo igual.
+run(`S={...freshState(),ramos:[{id:'r2',nombre:'Otro ramo',color:'#6d5dd3',gates:[],categorias:[
+  {id:'ctl',nombre:'Controles',peso:30,directNota:false,notas:[{id:'n1',nombre:'Control 1',valor:5,peso:1},{id:'n2',nombre:'Control 2',valor:5.2,peso:1}]},
+  {id:'exa',nombre:'Examen',peso:70,directNota:true,notas:[]}]}]};currentRamoId='r2';`);
 recargar();
-run(`openCats['${abierta.id}']=true`);
+run(`openCats['ctl']=true`);
 html=ficha();
 comprobar('al expandir después de recargar se ven las dos notas y se pueden editar',/Control 1/.test(html)&&/Control 2/.test(html)&&/openEditNotaModal/.test(html)&&/Agregar nota/.test(html));
 run('openPautaManualModal()');
 comprobar('el editor distingue lista abierta de casillas fijas',run("pautaDraft.find(f=>f.nombre==='Controles')?.varias")===true&&run("pautaDraft.find(f=>f.nombre==='Controles')?.cantidad")===null);
+run(`pautaDraft.push({id:null,nombre:'Tareas',peso:0,tieneNotas:false,varias:true,cantidad:null});guardarPautaManual();`);
+comprobar('una evaluación nueva de varias notas sin cantidad no se guarda',!run("S.ramos[0].categorias.some(c=>c.nombre==='Tareas')")&&/cuántas notas son/.test(run('pautaDraftError')));
 
 console.log('\n=== Agregar evaluación desde la ficha, sin pasar por el editor ===');
 run("S={...freshState(),ramos:[{id:'r3',nombre:'Tercer ramo',color:'#6d5dd3',categorias:[],gates:[]}]};currentRamoId='r3';openCats={};");
-porId('m-cat-name').value='Talleres';porId('m-cat-fecha').value='';porId('m-cat-varias').checked=true;
+porId('m-cat-name').value='Talleres';porId('m-cat-fecha').value='';porId('m-cat-varias').checked=true;porId('m-cat-cantidad').value='2';
 run('confirmAddCat()');
 const talleres=run("S.ramos[0].categorias.find(c=>c.nombre==='Talleres')");
-comprobar('marcar varias en Agregar evaluación dibuja la lista y su acción',talleres?.directNota===false&&!talleres.slots&&/Agregar nota/.test(ficha()));
-porId('m-nota-name').value='Taller 1';porId('m-nota-val').value='5.1';porId('m-nota-fecha').value='';porId('m-pond-toggle').checked=false;
+comprobar('marcar varias en Agregar evaluación dibuja el grupo y su acción',talleres?.directNota===true&&talleres.slots===2&&/agregarCasilla/.test(ficha()));
 ctx.__talleresId=talleres.id;
-run('confirmAddNota(__talleresId)');
+run(`setSlotNota(__talleresId,0,'5,1')`);
 recargar();run(`openCats['${talleres.id}']=true`);
-comprobar('la nota creada desde la ficha sigue visible tras recargar',/Taller 1/.test(ficha())&&/5\.1/.test(ficha()));
+comprobar('la nota creada desde la ficha sigue visible tras recargar',/Taller 1/.test(ficha())&&/5,1/.test(ficha()));
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);process.exit(fail?1:0);

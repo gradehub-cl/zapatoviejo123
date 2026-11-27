@@ -1,10 +1,18 @@
 async function signInWithProvider(provider){
   if(!supabaseClient){authError('Falta configurar Supabase.');return;}
+  if(provider==='apple'&&intentoAppleEnCurso)return;
   authError('');
   const btn=document.getElementById('btn-'+provider);
+  if(provider==='apple'&&btn?.disabled)return;
   const orig=btn?btn.innerHTML:'';
   if(btn){btn.disabled=true;btn.style.opacity='.6';}
   try{
+    if(provider==='apple'){
+      const anterior=currentUser,cliente=supabaseClient;await confirmarAppleDisponible();
+      if(currentUser!==anterior||supabaseClient!==cliente){reactivarBotonesOAuth();return;}
+    }
+    if(provider==='apple'&&APP_IOS){await entrarConAppleNativo();return;}
+    if(provider==='apple')guardarEntradaApple(contextoEntradaApple());
     if(APP_NATIVA){
       const {data,error}=await supabaseClient.auth.signInWithOAuth({
         provider,
@@ -25,14 +33,14 @@ async function signInWithProvider(provider){
     // vuelta a este codigo si el login sale bien.
     recordarMetodoLogin(provider);
   }catch(e){
+    if(provider==='apple')consumirEntradaApple();
     authError(traduceAuthError(e));
     if(btn){btn.disabled=false;btn.style.opacity='';btn.innerHTML=orig;}
   }
 }
 
 function reactivarBotonesOAuth(){
-  const b=document.getElementById('btn-google');
-  if(b){b.disabled=false;b.style.opacity='';}
+  ['google','apple'].forEach(p=>{const b=document.getElementById('btn-'+p);if(b){b.disabled=false;b.style.opacity='';}});
 }
 // La vuelta de Google en la app nativa. Cerrar la hoja sin terminar no es un
 // error: solo reactiva el botón.
@@ -70,16 +78,25 @@ if(typeof APP_NATIVA!=='undefined'&&APP_NATIVA&&window.Capacitor.Plugins){
     const extra=ev&&ev.notification&&ev.notification.extra;
     if(extra&&extra.gradehub==='prueba'&&typeof abrirEnlaceWidget==='function')abrirEnlaceWidget(extra.url);
   });
-  if(App)App.addListener('appUrlOpen',ev=>{
+  // Android tiene botón atrás; el iPhone, el gesto desde el borde.
+  if(App&&!APP_IOS&&typeof atrasAndroid==='function')App.addListener('backButton',ev=>atrasAndroid(!!(ev&&ev.canGoBack)));
+  const abrirEnlaceNativo=ev=>{
     const url=ev&&ev.url;
     if(typeof url==='string'&&url.startsWith(VUELTA_NATIVA))volverDeOAuthNativo(url);
+    else if(typeof recibirLinkAmigo==='function'&&recibirLinkAmigo(url))return;
     else if(typeof abrirEnlaceWidget==='function')abrirEnlaceWidget(url);
-  });
+  };
+  if(App){
+    if(typeof registrarEnlacesUniversales==='function')registrarEnlacesUniversales(App,abrirEnlaceNativo);
+    else App.addListener('appUrlOpen',abrirEnlaceNativo);
+  }
   // Lo que se respondió en la Actividad en Vivo con la app cerrada.
   if(typeof recogerSensaciones==='function'){
     setTimeout(recogerSensaciones,0);
     if(App)App.addListener('resume',()=>recogerSensaciones());
   }
+  // Volver a la app trae solicitudes e invitaciones nuevas de Amigos.
+  if(App&&typeof revisarAmigos==='function')App.addListener('resume',()=>{if(Date.now()-_amigosRevisadoAt>5e3)revisarAmigos();});
   if(Browser)Browser.addListener('browserFinished',()=>{if(!currentUser)reactivarBotonesOAuth();});
 }
 
@@ -94,7 +111,7 @@ async function forgotPassword(){
   if(boton&&boton.disabled)return;
   if(boton)boton.disabled=true;
   try{
-    const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+    const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:paginaPublica()});
     if(error)throw error;
     authError('');showToast('Te enviamos un correo para recuperar tu contraseña');
   }catch(e){authError(traduceAuthError(e));}

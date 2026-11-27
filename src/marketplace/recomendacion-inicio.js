@@ -20,6 +20,16 @@
 // RECOMENDACIONES_CLASES_ACTIVAS es el interruptor. Apagarlo esconde el banner
 // sin tocar el catálogo, que es la puerta abierta a todos.
 const RECOMENDACIONES_CLASES_ACTIVAS=true;
+// «Usar mis notas para elegir anuncios» (Ajustes, Lucas 2026-11-17): prendido
+// salvo que la persona lo apague. Apagado no hay recomendación en Inicio, que
+// es lo único que compara notas y avance; Apoyo y el catálogo siguen abiertos.
+// Campo opcional de la cuenta: sin él (cuentas existentes) cuenta como prendido.
+function anunciosConNotasActivos(){return !(S&&S.anunciosConNotas===false);}
+function cambiarAnunciosConNotas(activo){
+  S.anunciosConNotas=activo===true;
+  save();
+  track(activo?'anuncios_con_notas_prendido':'anuncios_con_notas_apagado');
+}
 const CLAVE_MARKETPLACE='gradehub_marketplace_v1';
 let estadoMarketplaceMemoria={},marketplaceSoloMemoria=false;
 
@@ -324,18 +334,18 @@ function lineaDatosClase(a){
 }
 // El mismo contenido para el banner de Inicio y para la vista previa que ve el
 // profesor al armar su clase: lo que ve uno es exactamente lo que verá el otro.
-function contenidoRecomendacionClase(anuncio,{logoUrl='',vistaPrevia=false}={}){
+function contenidoRecomendacionClase(anuncio,{logoUrl='',vistaPrevia=false,enPanelProfesor=false}={}){
   const a=anuncio||{},linea=lineaDatosClase(a);
-  return `<button type="button" class="clase-apoyo-abrir"${vistaPrevia?' tabindex="-1" aria-hidden="true"':''}>
+  return `<button type="button" class="clase-apoyo-abrir"${vistaPrevia&&!enPanelProfesor?' tabindex="-1" aria-hidden="true"':''}>
       <span class="clase-apoyo-texto">
         <span class="ca-cabeza"><small>Publicidad · ${etiquetaTipoClase(a)}</small><strong>${esc(a.titulo||(esMaterialClase(a)?'Tu material':'Tu clase'))}</strong></span>
-        <span class="ca-pie">${linea||(vistaPrevia&&!esMaterialClase(a))?`<span class="clase-apoyo-datos">${esc(linea||'Formato · Lugar')}</span>`:''}<span class="clase-apoyo-ver">${esMaterialClase(a)?'Ver material':'Ver clase'} ›</span></span>
+        <span class="ca-pie">${linea||(vistaPrevia&&!enPanelProfesor&&!esMaterialClase(a))?`<span class="clase-apoyo-datos">${esc(linea||'Formato · Lugar')}</span>`:''}<span class="clase-apoyo-ver">${esMaterialClase(a)?'Ver material':'Ver clase'} ›</span></span>
       </span>
     </button>
     <span class="clase-apoyo-logo" aria-hidden="true"${logoUrl?'':' hidden'}>${logoUrl?imgLogoClase(logoUrl):''}</span>
-    <button type="button" class="clase-apoyo-cerrar" aria-label="Ocultar este anuncio por hoy"${vistaPrevia?' tabindex="-1"':''}>
+    ${enPanelProfesor?'':`<button type="button" class="clase-apoyo-cerrar" aria-label="Ocultar este anuncio por hoy"${vistaPrevia?' tabindex="-1"':''}>
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
-    </button>`;
+    </button>`}`;
 }
 
 let timerRecomendacionClase=null;
@@ -365,6 +375,7 @@ function pintarRecomendacionClase(contenedor){
   contenedor.querySelectorAll('.clase-apoyo').forEach(b=>b.remove());
   contenedor.querySelectorAll('.tiene-clase-apoyo').forEach(f=>{f.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');f.style.removeProperty('--info-mitad');});
   limpiarPosicionesRecomendaciones(contenedor);
+  if(!anunciosConNotasActivos())return;
   const uid=currentUser.id,cierre=cierreAnunciosCuenta(uid);
   if(!cierre.leido){
     sincronizarCierreAnuncios().then(()=>{if(currentUser?.id===uid&&contenedor.isConnected)pintarRecomendacionClase(contenedor);});

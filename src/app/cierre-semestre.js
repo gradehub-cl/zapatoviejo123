@@ -7,7 +7,7 @@ function revisionCierreSemestre(base){
     const {res,estructura}=calculoRamoConCompuertas(r);
     const faltantes=res.emptyLeaves.filter(n=>n.effectiveWeight>0).map(n=>n.name||'Evaluación sin nota');
     for(const c of estructura.children||[]){if(c.weight>0&&!c.children.length)faltantes.push(c.name||'Evaluaciones sin registrar');}
-    if(!Number.isFinite(ramoAvg(r,undefined,base.ramos)))faltantes.push('Revisa la pauta y las notas de este ramo');
+    if(!Number.isFinite(ramoAvg(r,undefined,base.ramos)))faltantes.push('Revisa las ponderaciones y las notas de este ramo');
     if(faltantes.length)pendientes.push({id:r.id,nombre:r.nombre,evaluaciones:[...new Set(faltantes)]});
   }
   // Un ramo que incorpora un laboratorio pendiente tampoco tiene final cerrada.
@@ -60,7 +60,7 @@ function datosCierreRamo(r,ramos,periodo){
   return {tenant:(r.origen&&r.origen.tenant)||S.tenant,sigla:claveReporte(r),periodo,
     huella:huellaEstructura(estructuraParaConsenso(estructuraDe(r))),
     calculada:notaFinalCierreRamo(r,ramoAvg({...r,avgOverride:undefined,notaOficial:undefined},undefined,ramos)),
-    pauta_origen:r.origen&&r.pautaHuella&&!r.consensoRespaldos&&!r.pautaSugerida?.aceptada&&presetRamo(r.nombre,(r.origen&&r.origen.tenant)||S.tenant,(r.origen&&r.origen.carrera)||S.carrera)&&!pautaEditada(r)?'oficial':'editada'};
+    pauta_origen:r.origen&&r.pautaHuella&&!r.consensoRespaldos&&!r.pautaSugerida?.aceptada&&presetRamo(r.nombre,(r.origen&&r.origen.tenant)||S.tenant,(r.origen&&r.origen.carrera)||S.carrera,undefined,siglaParaPrograma(r))&&!pautaEditada(r)?'oficial':'editada'};
 }
 let archivoSemestreDraft=null,archivoSemestreNotas=null;
 function prepararArchivoSemestre(){
@@ -100,6 +100,74 @@ function guardarArchivoRevisado(){
   });
   S.historial.unshift({id:uid(),label,archivedAt:Date.now(),careerSemestre:S.careerSemestre,gpa:gpa(copias),ramos:copias});
   S.ramos=[];archivoSemestreDraft=null;archivoSemestreNotas=null;save();track('archive_semester',{label});closeModal();renderHome();
+  if(siguientePasoCierreDisponible())ofrecerSiguientePasoCierre(copias,label);
+  else ofrecerCalificarTrasCierre(copias,label);
+}
+function ofrecerCalificarTrasCierre(copias,label){if(typeof ofrecerCalificarRamosCerrados==='function')ofrecerCalificarRamosCerrados(copias,label);}
+
+// ─── SIGUIENTE PASO AL ARCHIVAR (solo app; Lucas, 2026-11-23) ───────────────
+// Archivar dejaba Inicio vacío y el semestre de carrera igual. Ahora una hoja
+// propone pasar al siguiente semestre y lleva a la toma de ramos: armar el
+// próximo semestre (UC) o agregar los ramos de la malla. Nada se aplica solo:
+// el semestre cambia únicamente si la casilla queda marcada, y se puede
+// corregir en Ajustes. Solo app: hasta el lanzamiento, lo nuevo va a la app.
+function siguientePasoCierreDisponible(){
+  return typeof enAppNativa==='function'&&enAppNativa()&&!esCuentaProfesor();
+}
+// N+1 si cabe en la carrera. En temporada de verano no se sube de semestre.
+function semestreSiguienteCierre(estado,enTav){
+  const e=estado||S,n=Number(e.careerSemestre);
+  if(enTav||!Number.isInteger(n)||n<1)return null;
+  const total=typeof semestresDeCarrera==='function'?semestresDeCarrera(e.tenant,e.carrera):14;
+  return n+1<=total?n+1:null;
+}
+// Qué ofrece la hoja, en orden: una sola acción principal. Función pura.
+function opcionesSiguientePaso({conProximo,conMalla}){
+  const lista=[];
+  if(conProximo)lista.push(['proximo','Arma tu próximo semestre','Revisa requisitos y horarios sin topes']);
+  if(conMalla)lista.push(['malla','Agregar ramos de tu malla','Los obligatorios de tu semestre']);
+  if(!conProximo)lista.push(['agregar','Agregar ramos','Busca cualquier ramo de tu universidad']);
+  return lista;
+}
+function mallaTieneSemestre(estado,sem){
+  const e=estado||S;
+  return !!(e.carrera&&sem&&(((mallaFor(e.tenant)||{})[e.carrera]||{})[sem]||[]).length);
+}
+function ofrecerSiguientePasoCierre(copias,label){
+  const caja=document.getElementById('modal-content');if(!caja)return;
+  const tav=typeof enVerano==='function'&&enVerano();
+  const siguiente=semestreSiguienteCierre(S,tav);
+  const conProximo=typeof proximoSemestreDisponible==='function'&&proximoSemestreDisponible();
+  const conMalla=!tav&&mallaTieneSemestre(S,siguiente||Number(S.careerSemestre));
+  const opciones=opcionesSiguientePaso({conProximo,conMalla});
+  const pendientes=copias.filter(r=>r.cierreIncompleto).length;
+  caja.innerHTML=`<div class="modal-title">Archivaste ${esc(label)}</div>
+    ${pendientes?`<p>${pendientes===1?'Un ramo quedó':`${pendientes} ramos quedaron`} sin nota final. Cuando la tengas, agrégala en tus semestres pasados.</p>`:''}
+    ${siguiente?`<label class="sp-semestre"><input type="checkbox" id="sp-subir" checked><span>Ahora estoy en ${siguiente}° semestre</span></label>`:''}
+    <p class="sp-pregunta">¿Qué sigue?</p>
+    <div class="sp-opciones">${opciones.map(([clave,titulo,detalle],i)=>`<button type="button" data-sp="${clave}"${i===0?' class="sp-principal"':''}><span><strong>${esc(titulo)}</strong><span>${esc(detalle)}</span></span><span aria-hidden="true">›</span></button>`).join('')}</div>
+    <div class="modal-btns"><button type="button" class="btn-cancel" data-sp="no">Ahora no</button></div>`;
+  caja.querySelectorAll('[data-sp]').forEach(b=>b.addEventListener('click',()=>{
+    const subir=document.getElementById('sp-subir');
+    elegirSiguientePaso(b.dataset.sp,{siguiente,subir:!!(subir&&subir.checked),copias,label});
+  }));
+  openModal();
+}
+// Solo sube si el semestre sigue siendo el de antes: si otra pantalla ya lo
+// cambió, no se pisa.
+function elegirSiguientePaso(clave,{siguiente,subir,copias,label}){
+  const subio=!!(siguiente&&subir&&Number(S.careerSemestre)===siguiente-1);
+  if(subio){S.careerSemestre=siguiente;save();renderHome();}
+  if(typeof track==='function')track('cierre_siguiente_paso',{accion:clave,subio});
+  closeModal();
+  const acciones={
+    proximo:()=>abrirProximoSemestre(),
+    malla:()=>openMallaModal(),
+    agregar:()=>openAddRamoModal(),
+    no:()=>ofrecerCalificarTrasCierre(copias,label),
+  };
+  if(acciones[clave])acciones[clave]();
+  return subio;
 }
 function abrirNotaOficialHistorial(histId,ramoId){
   const h=S.historial.find(x=>x.id===histId),r=h&&(h.ramos||[]).find(x=>x.id===ramoId);if(!r)return;

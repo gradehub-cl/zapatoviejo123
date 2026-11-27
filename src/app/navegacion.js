@@ -1,8 +1,9 @@
-const NAV_TABS_BASE=['stats','home','agenda'];
-let NAV_TABS=NAV_TABS_BASE.slice();
+// Inicio va primero, a la izquierda, donde lo deja cualquier app (HIG: Tab bars).
+const NAV_TABS_BASE=['home','agenda','stats'];
+let NAV_TABS=[...NAV_TABS_BASE,'perfil'];
 // Todas las pestañas que pueden existir. Pedir una que esta cuenta no tiene
 // (un widget, un enlace) lleva a su pestaña de entrada en vez de a una pantalla vacía.
-const PESTANAS=['stats','home','agenda','profesor','alumnos','admin'];
+const PESTANAS=['stats','home','agenda','amigos','profesor','alumnos','admin','perfil'];
 // Dónde abre la app y a dónde se vuelve: Clases para una cuenta de profesor,
 // Inicio para todas las demás, incluidas las de estudiante que además dan clases.
 function pestanaInicial(){return esCuentaProfesor()?'profesor':'home';}
@@ -20,8 +21,13 @@ function recalcularNavTabs(){
   // pestañas separadas (#697).
   // Un admin puede ocultarle Alumnos a un profesor (2026-10-23).
   const conAlumnos=conProfesor&&!(typeof panelAlumnosOculto==='function'&&panelAlumnosOculto());
-  const nuevas=[...(soloProfesor?[]:NAV_TABS_BASE),...(conProfesor?['profesor']:[]),...(conAlumnos?['alumnos']:[]),...(conAdmin?['admin']:[])];
-  [...NAV_TABS_BASE.map(t=>[t,!soloProfesor]),['profesor',conProfesor],['alumnos',conAlumnos],['admin',conAdmin]].forEach(([t,ver])=>{
+  // Amigos (2026-11-19): solo estudiantes con sesión y con el SQL aplicado. Va
+  // al medio, entre Agenda y Estadísticas: Inicio · Agenda · Amigos · Estadísticas · Perfil.
+  const conAmigos=!soloProfesor&&typeof amigosVisible==='function'&&amigosVisible();
+  const base=conAmigos?['home','agenda','amigos','stats']:NAV_TABS_BASE;
+  const nuevas=[...(soloProfesor?[]:base),...(conProfesor?['profesor']:[]),...(conAlumnos?['alumnos']:[]),...(conAdmin?['admin']:[]),'perfil'];
+  // Perfil la tiene toda cuenta y va siempre al final (HIG: Tab bars).
+  [...NAV_TABS_BASE.map(t=>[t,!soloProfesor]),['profesor',conProfesor],['alumnos',conAlumnos],['admin',conAdmin],['amigos',conAmigos],['perfil',true]].forEach(([t,ver])=>{
     const btn=document.getElementById('nav-'+t);if(btn)btn.hidden=!ver;
     const pantalla=document.getElementById('screen-'+t);if(pantalla)pantalla.hidden=!ver;
   });
@@ -34,7 +40,7 @@ function recalcularNavTabs(){
   return true;
 }
 let currentTab='home';
-let currentTabIdx=1;
+let currentTabIdx=0;
 
 // ─── VISTAS DE CLASES Y ALUMNOS EN LA BARRA (Lucas, 2026-10-22) ──────────────
 // En pantalla ancha, Clases y Alumnos son grupos de la barra lateral, como en
@@ -121,6 +127,8 @@ function showTab(tab,skipAnim){
     else if(tab==='profesor'&&typeof renderProfesor==='function')renderProfesor();
     else if(tab==='alumnos'&&typeof renderAlumnosTab==='function')renderAlumnosTab();
     else if(tab==='admin'&&typeof renderAdmin==='function')renderAdmin();
+    else if(tab==='perfil'&&typeof renderPerfil==='function')renderPerfil();
+    else if(tab==='amigos'&&typeof renderAmigos==='function')renderAmigos();
     track('screen_view',{screen_name:tab});
   } else {
     // Modo overlay (ramo, auth, etc.)
@@ -230,7 +238,7 @@ function goHome(){
     [['transform',ramo],['transition',ramo],['boxShadow',ramo],['transition',atras],['filter',atras]].forEach(([k,el])=>{if(el)el.style[k]='';});
   }
   document.addEventListener('touchstart',e=>{
-    if(animando||!enAppNativa()||!e.touches||e.touches.length!==1)return;
+    if(animando||!enAppIOS()||!e.touches||e.touches.length!==1)return;
     const ramo=document.getElementById('screen-ramo');
     if(!ramo||!ramo.classList.contains('active')||document.documentElement.dataset.nav)return;
     if(document.querySelector('.modal-overlay.open,.confirm-overlay.open,#menu-flotante'))return;

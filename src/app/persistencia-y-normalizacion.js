@@ -25,13 +25,13 @@ function estadoPeriodoPauta(periodo,ahora){
   const fin=semestre===1?`${anio}-08-01`:`${anio+1}-01-01`;
   return hoy<fin?'vigente':'vencido';
 }
-function definicionPreset(nombre,tenant,carrera){
+function definicionPreset(nombre,tenant,carrera,sigla){
   if(tenant!=='uc'){
     const presets=PRESETS_POR_TENANT[tenant];if(!presets)return null;
     const clave=claveCatalogo(nombre,Object.keys(presets),tenant);
     return clave?presets[clave]:null;
   }
-  if(tenant!=='uc'||!presetUcDisponible(nombre,carrera))return null;
+  if(tenant!=='uc'||!presetUcDisponible(nombre,carrera,sigla))return null;
   const clave=claveUc(nombre);
   return clave?PRESETS_UC[clave]:null;
 }
@@ -52,7 +52,7 @@ function evalsDePreset(def){return Array.isArray(def)?def:(def&&def.evals||[]);}
 function periodoDePreset(def){return !Array.isArray(def)&&def&&typeof def.periodo==='string'?def.periodo:null;}
 function infoPeriodoPauta(r){
   if(!r||!r.origen||!r.origen.tenant)return null;
-  const def=definicionPreset(r.nombre,r.origen.tenant,r.origen.carrera);
+  const def=definicionPreset(r.nombre,r.origen.tenant,r.origen.carrera,siglaParaPrograma(r));
   const evals=Array.isArray(def)?def:(def&&def.evals||[]);
   if(!evals.length||!pautaPresetSuficiente(evals))return null;
   const periodo=periodoDePreset(def);
@@ -85,14 +85,14 @@ function pautaCalzaParaFechas(r,evals){
 function origenParaFechasOficiales(r,contexto){
   if(r&&r.origen&&r.origen.tenant)return r.origen;
   if(!r||!contexto||!contexto.tenant||!Array.isArray(r.categorias))return null;
-  const def=definicionPreset(r.nombre,contexto.tenant,contexto.carrera);
+  const def=definicionPreset(r.nombre,contexto.tenant,contexto.carrera,siglaParaPrograma(r));
   const evals=Array.isArray(def)?def:(def&&def.evals||[]);
   return def&&pautaCalzaParaFechas(r,evals)?contexto:null;
 }
 function completarFechasOficiales(r,contexto){
   const origen=origenParaFechasOficiales(r,contexto);
   if(!origen)return;
-  const def=definicionPreset(r.nombre,origen.tenant,origen.carrera);
+  const def=definicionPreset(r.nombre,origen.tenant,origen.carrera,siglaParaPrograma(r));
   if(!def||estadoPeriodoPauta(periodoDePreset(def))!=='vigente')return;
   const evals=Array.isArray(def)?def:(def.evals||[]);
   const porNombre=new Map();
@@ -151,7 +151,9 @@ const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 // nada. El rojo acá NO es el del semáforo —no dice nada sobre la nota— sino el
 // de urgencia que la app ya usa en errores y en "no alcanza".
 const RECORRECCION_DIAS_URGENTE = 2;
-const ORIGENES_FECHA=new Set(['usuario','catalogo','calendario','desconocido']);
+// 'consenso': la persona usó la fecha que pusieron sus compañeros. No es un
+// voto nuevo (ver fechaAportaRespaldo); sí lo es si después la edita.
+const ORIGENES_FECHA=new Set(['usuario','catalogo','calendario','consenso','desconocido']);
 
 function origenFechaSeguro(origen){return ORIGENES_FECHA.has(origen)?origen:null;}
 
@@ -162,7 +164,7 @@ function horaAportaRespaldo(item){return !!item&&item.horaOrigen==='usuario';}
 
 function fechasOficialesRamo(r){
   if(!r||!r.origen||!r.origen.tenant)return new Map();
-  const def=definicionPreset(r.nombre,r.origen.tenant,r.origen.carrera);
+  const def=definicionPreset(r.nombre,r.origen.tenant,r.origen.carrera,siglaParaPrograma(r));
   const evals=Array.isArray(def)?def:(def&&def.evals||[]);
   const fechas=new Map();
   evals.forEach(([nombre,,extra])=>{if(extra&&extra.fecha)fechas.set(normName(nombre),extra.fecha);});
@@ -198,6 +200,21 @@ function marcarFechaUsuario(item,fecha,hora){
   else{item.horaOrigen=null;if(teniaHora)item.horaQuitada=true;}
   if(!item.fecha){item.hora=null;item.horaOrigen=null;item.horaQuitada=true;}
   return item;
+}
+// Guardar una hoja sin tocar la fecha no es elegirla: abrir la evaluación para
+// poner la nota o cambiar el peso convertía una fecha adoptada de compañeros
+// ('consenso') en 'usuario', y desde ahí contaba como voto propio (#1338).
+// Los editores marcan solo si la fecha o la hora cambiaron; si no, el origen y
+// la marca de quitada quedan como estaban. Confirmar explícitamente una fecha
+// (propuesta, grupo) sigue usando marcarFechaUsuario.
+function fechaHoraSinCambio(item,fecha,hora){
+  const f=fecha||null,h=f&&HORA_RE.test(hora||'')?hora:null;
+  return (item&&item.fecha||null)===f&&(item&&item.fecha&&item.hora||null)===h;
+}
+function marcarFechaUsuarioSiCambio(item,fecha,hora){
+  if(fechaHoraSinCambio(item,fecha,hora))return false;
+  marcarFechaUsuario(item,fecha,hora);
+  return true;
 }
 
 function copiarRecuperativo(regla){
@@ -290,7 +307,7 @@ function resolverBonus(def,categorias){
       if(evals.length!==categorias.length||evals.some(([nombre,peso])=>!categorias.some(c=>normName(c.nombre)===normName(nombre)&&c.peso===peso&&(c.slots||1)===1)))return;
       const ids=(b.evals||[]).map(idDe);
       if(!ids.length||ids.some(x=>!x)||!['sumar','promediar','distribuir'].includes(b.operacion))return;
-      out.push({id:b.id,pregunta:String(b.pregunta||''),ayuda:String(b.ayuda||''),entrada:b.entrada,destino:'grupo',catIds:ids,operacion:b.operacion,valor:b.valor,etapa:b.etapa,
+      out.push({id:b.id,...(Array.isArray(b.secciones)?{secciones:b.secciones.slice()}:{}),pregunta:String(b.pregunta||''),ayuda:String(b.ayuda||''),entrada:b.entrada,destino:'grupo',catIds:ids,operacion:b.operacion,valor:b.valor,etapa:b.etapa,
         pauta:categorias.map(c=>({catId:c.id,nombre:c.nombre,peso:c.peso,slots:c.slots||1,dropLowest:c.dropLowest||null}))});
       return;
     }
@@ -302,9 +319,9 @@ function resolverBonus(def,categorias){
       if(!ids.length||ids.some(x=>!x)||typeof b.si.mayorQue!=='number')return;
       si={catIds:ids,mayorQue:b.si.mayorQue};
     }
-    out.push({id:b.id,pregunta:String(b.pregunta||''),ayuda:String(b.ayuda||''),entrada:b.entrada,destino,
+    out.push({id:b.id,...(Array.isArray(b.secciones)?{secciones:b.secciones.slice()}:{}),pregunta:String(b.pregunta||''),ayuda:String(b.ayuda||''),entrada:b.entrada,destino,
       ...(typeof b.max==='number'?{max:b.max}:{}),...(typeof b.hasta==='number'?{hasta:b.hasta}:{}),
-      ...(typeof b.suma==='number'?{suma:b.suma}:{}),...(si?{si}:{})});
+      ...(typeof b.suma==='number'?{suma:b.suma}:{}),...(si?{si}:{}),...(b.alCompletar===true?{alCompletar:true}:{})});
   });
   return out.length?out:null;
 }
@@ -337,6 +354,8 @@ function normalize(data) {
   data.ramos = comoLista(data.ramos).map(r => ({
     ...r,
     id: idSeguro(r.id),
+    ...(r.horario!==undefined?{horario:copiarHorario(r.horario)}:{}),
+    ...(r.programaCanvas!==undefined?{programaCanvas:copiarProgramaCanvas(r.programaCanvas)}:{}),
     color: r.color || '#2563eb',
     // Créditos SCT — opcional. Si todos los ramos lo tienen, el promedio se pondera.
     // El 0 se conserva: es un dato exacto, no un faltante. Ver tieneCreditos().
@@ -421,6 +440,10 @@ function normalize(data) {
         // Si se pierde `slot` al recargar, Informe 0 sigue guardado pero ya no
         // puede volver a dibujarse en ninguna de las seis casillas.
         ...(Number.isInteger(n.slot) ? {slot:n.slot} : {}),
+        // De qué puntaje salió la nota, si se anotó en puntos. Es un
+        // dato para mostrar: el motor usa `valor`, que ya es la nota.
+        ...(Number.isFinite(n.valor) && n.puntos && [n.puntos.obtenido,n.puntos.total,n.puntos.exigencia].every(Number.isFinite)
+          ? {puntos:{obtenido:n.puntos.obtenido,total:n.puntos.total,exigencia:n.puntos.exigencia}} : {}),
         // Una nota puede tener su propia fecha y todavía no tener valor: es una
         // evaluación que viene. La fecha de la categoría sirve cuando todo el
         // grupo cae el mismo día; no alcanza para "Casos y ensayos", que son
@@ -498,7 +521,7 @@ function normalize(data) {
     if (Array.isArray(corregibles) && corregibles.some(p => huellaPauta(p.map(([nombre, peso]) => ({ nombre, peso }))) === tiene)) {
       r.pautaHuella = tiene;
       const cambio = cambioDePauta(r);
-      if (cambio && !cambio.notasFueraDePauta) aplicarCambioDePauta(r, cambio);
+      if (cambio && !cambio.notasFueraDePauta && !juntaFilasAMedias(r, cambio)) aplicarCambioDePauta(r, cambio);
     }
     // Un mínimo que el catálogo sacó a propósito (`retiraCompuertas`) seguía
     // topando la nota en los ramos creados antes: el aviso de pauta cambiada
@@ -530,6 +553,21 @@ function normalize(data) {
     const bonusOficial=resolverBonus(definicionPresetDelRamo(r),r.categorias);
     if(bonusOficial)r.bonus=bonusOficial;
     else delete r.bonus;
+    // Las reglas informativas del curso (lo que el promedio no incluye, como el
+    // 1,0 a una evaluación no rendida sin justificación) y las que el motor
+    // todavía no calcula también viven solo en el catálogo. El conector MCP no
+    // lo tiene, así que viaja una copia de solo texto que se renueva en cada
+    // carga y sigue al catálogo (Lucas, 2026-11-17). Nada se calcula con ella;
+    // un ramo manual no recibe ninguna.
+    const textosDelPrograma=campo=>{
+      const lista=(typeof reglasDelPreset==='function'?reglasDelPreset(r,campo):[])
+        .filter(t=>typeof t==='string'&&t.trim()).map(t=>t.slice(0,400)).slice(0,20);
+      return lista.length?lista:null;
+    };
+    const delCurso=textosDelPrograma('reglasDelCurso');
+    if(delCurso)r.reglasDelCurso=delCurso;else delete r.reglasDelCurso;
+    const noCalculadas=textosDelPrograma('noCalcula');
+    if(noCalculadas)r.reglasNoCalculadas=noCalculadas;else delete r.reglasNoCalculadas;
     // La regla usa los ids actuales. Una pauta editada no hereda reglas de otra.
     const defOptativo=definicionPresetDelRamo(r);
     const oficialOptativo=defOptativo&&huellaPauta(catsDePauta(r.categorias))===
@@ -567,6 +605,8 @@ function normalize(data) {
   data.onboardingDone = Boolean(data.onboardingDone);
   data.careerSemestre = Number(data.careerSemestre) || 1;
   data.userName = data.userName || '';
+  // Apellido (2026-11-18): las cuentas anteriores no lo tienen y quedan vacías.
+  data.userApellido = typeof data.userApellido === 'string' ? data.userApellido.replace(/\s+/g,' ').trim().slice(0, 60) : '';
   // Lo que el estudiante DECLARÓ que estudia. Es lo único que hay cuando su
   // carrera no tiene malla, y es el dato que dice qué malla construir después.
   data.carreraNombre = typeof data.carreraNombre === 'string' && data.carreraNombre.trim()
@@ -585,6 +625,8 @@ function normalize(data) {
     ramos: (h.ramos || []).map(r => ({
       ...r,
       id: idSeguro(r.id),
+      ...(r.horario!==undefined?{horario:copiarHorario(r.horario)}:{}),
+    ...(r.programaCanvas!==undefined?{programaCanvas:copiarProgramaCanvas(r.programaCanvas)}:{}),
       categorias: comoLista(r.categorias).map(c => ({
         ...c,
         id: idSeguro(c.id),

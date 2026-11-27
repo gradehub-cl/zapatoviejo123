@@ -45,11 +45,11 @@ chk('lo vencido no aparece',!r.agenda.some(e=>e.evaluacion==='Control 0'));
 // Cálculo I (sintético): I1 = 4,2 (30%), I2 (30%) y Examen (40%) pendientes.
 // Para ir con 4 tras la I2: (4,2·30 + x·30)/60 ≥ 3,95 → x ≥ 3,7.
 chk('"para ir con 4" cuenta lo evaluado más esa evaluación, nada de lo que viene',r.agenda[0].necesitas==='3.7');
-chk('no es el promedio que necesitas en todo lo pendiente',r.agenda[0].necesitas!==a.run('nfNecesaria(notaNecesaria(S.ramos[0]))'));
+chk('no es el promedio que necesitas en todo lo pendiente',r.agenda[0].necesitas!==a.run('nfNecesariaDato(notaNecesaria(S.ramos[0]))'));
 chk('en la última evaluación del ramo es la nota para cerrarlo con 4',
   a.run(`(()=>{const r=normalize({ramos:[{id:'u',nombre:'Última',color:'#000',gates:[],categorias:[
     {id:'p',nombre:'Prueba',peso:60,notas:[{id:'q',valor:5.0}]},{id:'f',nombre:'Final',peso:40,fecha:'2026-12-01',notas:[]}]}]}).ramos[0];
-    const e={ramo:r,cat:r.categorias[1],nota:null};return notaParaIrConCuatro(e).nota===nfNecesaria(notaNecesaria(r));})()`));
+    const e={ramo:r,cat:r.categorias[1],nota:null};return notaParaIrConCuatro(e).nota===nfNecesariaDato(notaNecesaria(r));})()`));
 chk('con margen: aunque te saques un 1,0 sigues con 4',
   a.run(`(()=>{const r=normalize({ramos:[{id:'m',nombre:'Holgado',color:'#000',gates:[],categorias:[
     {id:'p',nombre:'Prueba',peso:80,notas:[{id:'q',valor:6.5}]},{id:'f',nombre:'Control',peso:20,fecha:'2026-12-01',notas:[]}]}]}).ramos[0];
@@ -68,8 +68,8 @@ chk('lleva el color del ramo para su línea lateral',r.agenda[0].color==='#7F77D
 chk('lleva cuánto del ramo define, el mismo de la Agenda',r.agenda[0].parte===30&&r.agenda[1].parte===40);
 chk('cada ramo lleva su color para la línea lateral',r.ramos[0].color==='#7F77DD');
 chk('las estadísticas son las mismas de la pantalla Estadísticas',r.estadisticas.avance===a.run('avanceEvaluaciones(S.ramos).pct')
-  &&r.estadisticas.rango.piso===a.run('nf(proyeccionSemestre(S.ramos).piso)')&&r.estadisticas.rango.techo===a.run('nf(proyeccionSemestre(S.ramos).techo)')
-  &&r.estadisticas.exigente.ramoId===a.run('loQueFaltaPorRamo(S.ramos)[0].ramo.id')&&r.estadisticas.exigente.necesitas===a.run('nfNecesaria(loQueFaltaPorRamo(S.ramos)[0].necesita)'));
+  &&r.estadisticas.rango.piso===a.run('nfDato(proyeccionSemestre(S.ramos).piso)')&&r.estadisticas.rango.techo===a.run('nfDato(proyeccionSemestre(S.ramos).techo)')
+  &&r.estadisticas.exigente.ramoId===a.run('loQueFaltaPorRamo(S.ramos)[0].ramo.id')&&r.estadisticas.exigente.necesitas===a.run('nfNecesariaDato(loQueFaltaPorRamo(S.ramos)[0].necesita)'));
 chk('no lleva notas individuales ni nombres de personas',!JSON.stringify(r).includes('"valor"')&&!('userName' in r));
 
 console.log('\n=== Pendientes, en orden de urgencia (#639) ===');
@@ -125,10 +125,12 @@ chk('la extensión de widgets es un target y va embebida en la app',/productType
 // El grupo vive en Firma.xcconfig: con otra cuenta de Apple cambia, y cada uno
 // lo pone en su Firma.local.xcconfig sin tocar el proyecto ni el Swift.
 const firma=leer('ios/App/Firma.xcconfig');
-chk('app y widget comparten el mismo App Group',['ios/App/App/App.entitlements','ios/App/GradeHubWidgets/GradeHubWidgets.entitlements'].every(f=>/<string>\$\(GRADEHUB_APP_GROUP\)<\/string>/.test(leer(f)))&&/^GRADEHUB_APP_GROUP = group\.cl\.gradehub\.app$/m.test(firma));
+chk('app y widget comparten el mismo App Group',['ios/App/App/App.entitlements','ios/App/GradeHubWidgets/GradeHubWidgets.entitlements'].every(f=>/<string>\$\(GRADEHUB_APP_GROUP\)<\/string>/.test(leer(f)))&&/^GRADEHUB_APP_GROUP = group\.cl\.gradehub\.app\.shared$/m.test(firma));
 chk('el Swift lee el grupo del Info.plist de su target',['ios/App/App/Info.plist','ios/App/GradeHubWidgets/Info.plist'].every(f=>/<key>GradeHubAppGroup<\/key>\s*<string>\$\(GRADEHUB_APP_GROUP\)<\/string>/.test(leer(f)))
-  &&['ios/App/App/WidgetsPlugin.swift','ios/App/GradeHubWidgets/GradeHubWidgets.swift','ios/App/Shared/ActividadPrueba.swift'].every(f=>/static let grupo = Bundle\.main\.object\(forInfoDictionaryKey: "GradeHubAppGroup"\)/.test(leer(f))));
-chk('el plugin y el widget usan la misma clave',/"resumen\.v1"/.test(leer('ios/App/App/WidgetsPlugin.swift'))&&/"resumen\.v1"/.test(leer('ios/App/GradeHubWidgets/GradeHubWidgets.swift')));
+  &&['ios/App/App/WidgetsPlugin.swift','ios/App/Shared/Resumen.swift','ios/App/Shared/ActividadPrueba.swift'].every(f=>/static let grupo = Bundle\.main\.object\(forInfoDictionaryKey: "GradeHubAppGroup"\)/.test(leer(f))));
+chk('el plugin y el lector compartido usan la misma clave',/"resumen\.v1"/.test(leer('ios/App/App/WidgetsPlugin.swift'))&&/"resumen\.v1"/.test(leer('ios/App/Shared/Resumen.swift')));
+// Resumen.swift lo compilan los dos targets: Siri y los widgets leen lo mismo.
+chk('el lector del resumen entra a la app y a la extensión',(pbx.match(/\/\* Resumen\.swift in Sources \*\//g)||[]).length===4);
 
 console.log('\n=== La firma de cada uno no entra al proyecto ===');
 chk('el proyecto no trae Team ni Bundle ID escritos',!/DEVELOPMENT_TEAM =/.test(pbx)&&!/PRODUCT_BUNDLE_IDENTIFIER = cl\./.test(pbx)
@@ -136,8 +138,10 @@ chk('el proyecto no trae Team ni Bundle ID escritos',!/DEVELOPMENT_TEAM =/.test(
 chk('Debug y Release de los dos targets parten de Firma.xcconfig',/#include "App\/Firma\.xcconfig"/.test(leer('ios/debug.xcconfig'))
   &&(pbx.match(/baseConfigurationReference = [0-9A-F]+ \/\* Firma\.xcconfig \*\//g)||[]).length===2&&(pbx.match(/baseConfigurationReference = [0-9A-F]+ \/\* debug\.xcconfig \*\//g)||[]).length===3);
 chk('la firma personal va en un archivo que git ignora',/^GRADEHUB_BUNDLE_ID = cl\.gradehub\.app$/m.test(firma)&&/#include\? "Firma\.local\.xcconfig"/.test(firma)&&/^ios\/App\/Firma\.local\.xcconfig$/m.test(leer('.gitignore')));
-chk('el widget no calcula notas: no hay promedios ni ponderaciones en Swift',!/\bpeso\b|ponderad|ramoAvg|\.reduce\(/i.test(leer('ios/App/GradeHubWidgets/GradeHubWidgets.swift')));
+chk('el widget y los atajos no calculan notas: no hay promedios ni ponderaciones en Swift',['ios/App/GradeHubWidgets/GradeHubWidgets.swift','ios/App/Shared/Resumen.swift','ios/App/App/Atajos.swift'].every(f=>!/\bpeso\b|ponderad|ramoAvg|\.reduce\(/i.test(leer(f))));
 chk('la nota en el widget es privada en la pantalla de bloqueo',/privacySensitive/.test(leer('ios/App/GradeHubWidgets/GradeHubWidgets.swift')));
+// Siri dice ramos, salas y notas en voz alta: con el iPhone bloqueado pide desbloquear antes.
+chk('los atajos de Siri piden desbloquear el iPhone',(leer('ios/App/App/Atajos.swift').match(/authenticationPolicy: IntentAuthenticationPolicy = \.requiresAuthentication/g)||[]).length===2);
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
 process.exit(fail?1:0);

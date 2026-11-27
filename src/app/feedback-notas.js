@@ -13,7 +13,7 @@ function duracionMovimiento(token){
   return raw.endsWith('ms')?n:raw.endsWith('s')?n*1000:0;
 }
 function promedioMarkup(valor,tipo){
-  const s=fmtPromedio(valor);const dot=s.indexOf('.');
+  const s=fmtPromedio(valor);const dot=s.indexOf(',');
   const decimal=tipo==='ramo'?'ramo-decimal':'gpa-decimal';
   return `${s.slice(0,dot)}<span class="${decimal}">${s.slice(dot)}</span>`;
 }
@@ -93,18 +93,19 @@ function asignarCalificacionNota(n,raw,valor,tenant){
 function textoCalificacionNota(n,tenant){
   return calificacionConceptualGuardada(n,tenant)||fmtNota(n&&n.valor!=null?n.valor:null);
 }
-// Una nota se muestra como se escribió: 5.1 o 5.14. Los promedios siguen con fmt.
-function fmtNota(n){return n===null?'·':Math.round(n*100)%10?n.toFixed(2):n.toFixed(1);}
+// Una nota se muestra como se escribió: 5,1 o 5,14. Los promedios siguen con fmt.
+// También llena los campos editables; `parseNota` lee la coma de vuelta.
+function fmtNota(n){return n===null?'·':nf(n,Math.round(n*100)%10?2:1);}
 function conceptosNota(tenant){
   const tenantActual=typeof tenant==='string'?tenant:(typeof S!=='undefined'&&S?S.tenant:null);
   return Object.keys(CALIFICACIONES_CONCEPTUALES_POR_TENANT[tenantActual]||{});
 }
 function etiquetaNotaEntrada(tenant){
   const conceptos=conceptosNota(tenant);
-  return `Nota (1.0 – 7.0${conceptos.length?', '+conceptos.slice(0,-1).join(', ')+(conceptos.length>1?' o ':'')+conceptos[conceptos.length-1]:''})`;
+  return `Nota (1,0 – 7,0${conceptos.length?', '+conceptos.slice(0,-1).join(', ')+(conceptos.length>1?' o ':'')+conceptos[conceptos.length-1]:''})`;
 }
 function inputModeNota(tenant){return conceptosNota(tenant).length?'text':'decimal';}
-function ejemploNotaEntrada(tenant){return conceptosNota(tenant).length?'Ej: 5.5 o A':'Ej: 5.5';}
+function ejemploNotaEntrada(tenant){return conceptosNota(tenant).length?'Ej: 5,5 o A':'Ej: 5,5';}
 
 // Parser de notas: acepta "6.5", "6,5", "65" (autocorrige a 6.5), "70" → 7.0.
 // En tenants que lo declaran en data.js acepta además sus conceptos oficiales.
@@ -126,5 +127,27 @@ function parseNota(raw,tenant){
   if(v<1||v>7)return NaN;
   return Math.round(v*100)/100;
 }
+// Una evaluación con puntaje total se anota en puntos: «38» de 60
+// con 60 % de exigencia es un 4,6. Usa su exigencia, o la del ramo. Solo lo
+// usa el campo «+ Nota» de la ficha, que entrega la nota ya convertida a
+// setSlotNota/setDirectNota; una nota que se corrige sigue siendo nota.
+function puntajeDeCategoria(r,cat){
+  const total=Number(cat&&cat.puntajeTotal);
+  // La del ramo: la de Canvas (Editar ramo) o la última de la calculadora.
+  const delRamo=exigenciaValida(r&&r.exigencia)??exigenciaValida(r&&r.exigenciaPuntaje)??EXIGENCIA_DEFECTO;
+  return total>0?{total,exigencia:exigenciaValida(cat.exigencia)??delRamo}:null;
+}
+// {valor, puntos?}: valor es NaN si el texto no sirve.
+function leerNotaEnCategoria(raw,r,cat){
+  const p=puntajeDeCategoria(r,cat);
+  if(!p)return {valor:parseNota(raw)};
+  const txt=String(raw==null?'':raw).trim().replace(',','.');
+  const obtenido=/^\d+(\.\d{1,2})?$/.test(txt)?Number(txt):NaN;
+  const valor=obtenido<=p.total?notaDesdePuntaje(obtenido,p.total,p.exigencia):null;
+  return valor===null?{valor:NaN}:{valor,puntos:{obtenido,total:p.total,exigencia:p.exigencia}};
+}
+// Guarda (o quita) de qué puntaje salió la nota, para poder mostrarlo.
+function asignarPuntosNota(n,puntos){if(puntos)n.puntos={...puntos};else delete n.puntos;return n;}
+function textoPuntosNota(p){return `${nf(p.obtenido,Number.isInteger(p.obtenido)?0:1)} de ${nf(p.total,Number.isInteger(p.total)?0:1)} pts con ${nf(p.exigencia,Number.isInteger(p.exigencia)?0:1)} %`;}
 // initials recibe texto plano; esc() se aplica después sobre el resultado
 function initials(s){return s.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();}

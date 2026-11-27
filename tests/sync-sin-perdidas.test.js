@@ -30,9 +30,13 @@ function crearNube(){
     from(tabla){
       if(tabla!=='user_ramos')return cualquiera();
       return {
-        select:()=>({eq:(_c,uid)=>({maybeSingle:async()=>{sinRed();
-          return {data:filas.has(uid)?{data:JSON.parse(JSON.stringify(filas.get(uid)))}:null,error:null};}})}),
+        select:cols=>({eq:(_c,uid)=>({maybeSingle:async()=>{sinRed();nube.lecturas=(nube.lecturas||0)+1;
+          if(!filas.has(uid))return {data:null,error:null};
+          // `rev:data->>_rev` (revisarNubeALaVista) trae solo la versión, como texto.
+          if(/_rev/.test(cols||''))return {data:{rev:leerRev(filas.get(uid))},error:null};
+          return {data:{data:JSON.parse(JSON.stringify(filas.get(uid)))},error:null};}})}),
         upsert:async fila=>{sinRed();nube.escrituras++;filas.set(fila.user_id,JSON.parse(JSON.stringify(fila.data)));return {error:null};},
+        insert:async fila=>{sinRed();if(filas.has(fila.user_id))return {error:{code:"23505"}};nube.escrituras++;filas.set(fila.user_id,JSON.parse(JSON.stringify(fila.data)));return {error:null};},
         update(valores){
           const filtros=[];
           const q={
@@ -100,6 +104,47 @@ async function preparar(nube,uid='u1'){
 const esperar=ms=>new Promise(r=>setTimeout(r,ms));
 
 (async()=>{
+  console.log('=== Primer respaldo en dos dispositivos sin base ===');
+  {
+    const nube=crearNube();
+    const cel=dispositivo(nube),pc=dispositivo(nube);
+    await Promise.all([cel.entrar('u1'),pc.entrar('u1')]);
+    for(const d of [cel,pc]) d.run('S=normalize('+JSON.stringify(estadoInicial())+')');
+    cel.anotar(0,6.2,'cel-sin-base');
+    pc.anotar(1,4.8,'pc-sin-base');
+    const respaldos=await Promise.all([cel.subir(),pc.subir()]);
+    chk('ambas subidas se respaldan',respaldos.every(Boolean));
+    chk('la segunda subida conserva la nota del primer respaldo',JSON.stringify(notasEnNube(nube))==='[[[6.2],[4.8]]]');
+    chk('el segundo dispositivo recibe ambas notas',JSON.stringify(pc.notas())==='[[[6.2],[4.8]]]');
+  }
+
+  console.log('=== Editar mientras se confirma el primer respaldo ===');
+  {
+    const nube=crearNube();
+    const cel=dispositivo(nube);await cel.entrar('u1');
+    cel.run('S=normalize('+JSON.stringify(estadoInicial())+')');
+    cel.anotar(0,6.2,'enviado');
+    const from=nube.cliente.from;
+    let confirmarInsert;
+    nube.cliente.from=tabla=>{
+      const tablaNube=from(tabla);
+      if(tabla!=='user_ramos')return tablaNube;
+      return {...tablaNube,insert:async fila=>{
+        const resultado=await tablaNube.insert(fila);
+        await new Promise(r=>{confirmarInsert=r;});
+        return resultado;
+      }};
+    };
+    const envio=cel.subir();await esperar(0);
+    cel.anotar(1,4.8,'durante-el-envio');
+    confirmarInsert();
+    chk('termina el respaldo de la primera nota',await envio);
+    chk('la edición hecha durante la petición sigue pendiente',cel.run('hayCambiosSinSubir()')===true);
+    nube.cliente.from=from;
+    cel.disparar('online');await esperar(20);
+    chk('al reintentar también se respalda la segunda nota',JSON.stringify(notasEnNube(nube))==='[[[6.2],[4.8]]]');
+  }
+
   console.log('=== 1. Una nota anotada sin conexión sobrevive al reabrir con red ===');
   {
     const nube=createNubeYa();
@@ -187,6 +232,95 @@ const esperar=ms=>new Promise(r=>setTimeout(r,ms));
     const d=dispositivo(nube,almacen);await d.entrar('u1');
     chk('una copia vieja sin ids no se fusiona: manda la nube, sin duplicar',JSON.stringify(d.notas())===JSON.stringify([[[4.4],[]]]));
   }
+
+  console.log('\n=== 6b. Volver a la app trae lo anotado en otro dispositivo (2026-11-20) ===');
+  {
+    const nube=createNubeYa();
+    const cel=await preparar(nube);                         // la app queda en segundo plano
+    const pc=dispositivo(nube);await pc.entrar('u1');
+    pc.anotar(0,6.3,'del-pc');await pc.subir();
+    chk('antes del arreglo: el celular abierto no se entera solo',JSON.stringify(cel.notas())===JSON.stringify([[[],[]]]));
+    cel.run('_ultimaLecturaNube=0');
+    chk('al volver a la pantalla, pide la nube',cel.run('traerNubeAlVolver()')===true);
+    await esperar(50);
+    chk('y muestra la nota del computador',JSON.stringify(cel.notas())===JSON.stringify([[[6.3],[]]]));
+    chk('y avisa por qué cambió',cel.avisos.some(m=>/Actualizamos con lo que anotaste en otro dispositivo/.test(m)));
+    chk('volver otra vez enseguida no vuelve a pedir (30 s)',cel.run('traerNubeAlVolver()')===false);
+  }
+  {
+    // Lo anotado en el celular sin subir se conserva junto con lo del computador.
+    const nube=createNubeYa();
+    const cel=await preparar(nube);
+    const pc=dispositivo(nube);await pc.entrar('u1');
+    pc.anotar(0,6.3,'del-pc');await pc.subir();
+    nube.red=false;cel.anotar(1,5.4,'del-cel');await cel.subir();nube.red=true;
+    cel.run('_ultimaLecturaNube=0;traerNubeAlVolver()');await esperar(80);
+    chk('al volver, quedan las dos notas en el celular',JSON.stringify(cel.notas())===JSON.stringify([[[6.3],[5.4]]]));
+    chk('y las dos en la nube',JSON.stringify(notasEnNube(nube))===JSON.stringify([[[6.3],[5.4]]]));
+  }
+  {
+    // Sin red al volver: la copia local sigue, sin avisos que asusten.
+    const nube=createNubeYa();
+    const cel=await preparar(nube);
+    const antes=cel.avisos.length;nube.red=false;
+    cel.run('_ultimaLecturaNube=0;traerNubeAlVolver()');await esperar(30);
+    chk('sin red no hay aviso de «sin conexión» al volver',cel.avisos.length===antes);
+    nube.red=true;
+  }
+  {
+    // Con una hoja abierta no se toca S; se intenta en la próxima vuelta.
+    const nube=createNubeYa();
+    const cel=await preparar(nube);
+    const pc=dispositivo(nube);await pc.entrar('u1');
+    pc.anotar(0,6.0,'p');await pc.subir();
+    cel.setModal(true);cel.run('_ultimaLecturaNube=0;traerNubeAlVolver()');await esperar(50);
+    chk('con una hoja abierta no cambia lo que se está editando',JSON.stringify(cel.notas())===JSON.stringify([[[],[]]]));
+    cel.setModal(false);
+    chk('y la próxima vuelta sí lo trae',cel.run('traerNubeAlVolver()')===true);await esperar(50);
+    chk('ahí aparece la nota',JSON.stringify(cel.notas())===JSON.stringify([[[6],[]]]));
+  }
+  {
+    // Una nota a medio escribir en la fila no se pisa: se espera a soltarla.
+    const nube=createNubeYa();
+    const cel=await preparar(nube);
+    const pc=dispositivo(nube);await pc.entrar('u1');
+    pc.anotar(0,6.1,'p');await pc.subir();
+    cel.run(`document.activeElement={tagName:'INPUT',type:'text'};_ultimaLecturaNube=0`);
+    chk('con un campo de nota con el foco no pide la nube',cel.run('traerNubeAlVolver()')===false);
+    await esperar(30);
+    chk('y no cambia lo que se está escribiendo',JSON.stringify(cel.notas())===JSON.stringify([[[],[]]]));
+    cel.run(`document.activeElement={tagName:'BUTTON'}`);
+    chk('un botón con el foco no lo frena',cel.run('traerNubeAlVolver()')===true);await esperar(50);
+    chk('y ahí aparece la nota',JSON.stringify(cel.notas())===JSON.stringify([[[6.1],[]]]));
+    cel.run('document.activeElement=null');
+  }
+  {
+    // La pestaña del computador queda abierta y a la vista mientras se anota en
+    // el celular: ningún evento avisa. La revisión de cada minuto la trae.
+    const nube=createNubeYa();
+    const pc=await preparar(nube);
+    const cel=dispositivo(nube);await cel.entrar('u1');
+    chk('sin cambios en la nube, la revisión no trae nada',(await pc.run('revisarNubeALaVista()'))===false);
+    cel.anotar(0,6.6,'del-cel');await cel.subir();
+    chk('con la versión de la nube nueva, la revisión la trae',(await pc.run('revisarNubeALaVista()'))===true);
+    await esperar(50);
+    chk('y aparece la nota del celular en el computador',JSON.stringify(pc.notas())===JSON.stringify([[[6.6],[]]]));
+    chk('la siguiente revisión, ya al día, no trae nada',(await pc.run('revisarNubeALaVista()'))===false);
+    cel.anotar(1,5.1,'otra');await cel.subir();
+    pc.run(`document.visibilityState='hidden'`);
+    chk('con la pantalla escondida no pregunta',(await pc.run('revisarNubeALaVista()'))===false);
+    pc.run(`document.visibilityState='visible';document.activeElement={tagName:'INPUT',type:'text'}`);
+    chk('con un campo de nota con el foco no pregunta',(await pc.run('revisarNubeALaVista()'))===false);
+    pc.run('document.activeElement=null');
+    nube.red=false;
+    chk('sin red no pasa nada',(await pc.run('revisarNubeALaVista()'))===false);
+    nube.red=true;
+  }
+  chk('la revisión corre cada minuto, solo con la pantalla a la vista',
+    /setInterval\(\(\)=>\{revisarNubeALaVista\(\)/.test(fs.readFileSync(path.join(raiz,'src/app-session/visitas-y-subidas.js'),'utf8')));
+  chk('volver a la pantalla, a la ventana o recuperar la red llaman a traerNubeAlVolver',
+    /else\{reintentarSubida\(\);traerNubeAlVolver\(\);\}/.test(fs.readFileSync(path.join(raiz,'src/app-session/visitas-y-subidas.js'),'utf8'))
+    &&/addEventListener\('focus',\(\)=>traerNubeAlVolver\(\)\)/.test(fs.readFileSync(path.join(raiz,'src/app-session/visitas-y-subidas.js'),'utf8')));
 
   console.log('\n=== 7. Lo que no debe cambiar ===');
   {
