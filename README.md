@@ -25,7 +25,7 @@ La aplicación usa HTML, CSS y JavaScript sin framework. Las fuentes por tema de
 Necesitas Node.js 22 o superior.
 
 ```bash
-git clone https://github.com/gradehub-cl/GradeHub.git
+git clone https://github.com/gradehub-cl/zapatoviejo123.git GradeHub
 cd GradeHub
 npm ci                 # también genera los scripts de la app
 python3 -m http.server 8080
@@ -88,6 +88,6 @@ No publiques credenciales, tokens, correos, notas ni exportaciones reales. Los r
 
 ## Licencia
 
-Todavía no se ha elegido una licencia para GradeHub. Mientras no exista un archivo `LICENSE`, el código puede consultarse y bifurcarse mediante las funciones de GitHub, pero no se concede un permiso general para usarlo, modificarlo o redistribuirlo.
+GradeHub es software propietario. Copyright © 2026 Martín Sotomayor y Lucas Irarrázaval, en partes iguales. Todos los derechos reservados — ver [`LICENSE`](LICENSE).
 
-La licencia se incorporará cuando los responsables del proyecto definan el equilibrio deseado entre reutilización, contribuciones y protección frente a copias comerciales.
+No se concede permiso para usar, copiar, modificar, redistribuir ni publicar este código, ni para extraer el catálogo de cursos y mallas, sin autorización previa y por escrito de ambos titulares. Que el repositorio sea consultable o bifurcable no constituye licencia. Para pedir autorización: gradehub.app@gmail.com

@@ -59,33 +59,7 @@ function mostRiskyRamo(){
 }
 
 // Progreso del ramo: % de peso evaluado
-function ramoProgress(r){
-  const categorias=categoriasVigentes(r);
-  const pesoDeclarado=(r.categorias||[]).reduce((s,c)=>s+(Number(c.peso)||0),0);
-  if(pesoDeclarado<=0)return {pct:0,pending:0,total:0};
-  const pesoVigente=categorias.reduce((s,c)=>s+(Number(c.peso)||0),0);
-  // La parte todavía sin pauta sigue pendiente. Una eximición, en cambio,
-  // cubre el peso de esa categoría sin necesitar una nota.
-  const total=Math.max(100,pesoDeclarado);
-  const pesoEximido=pesoDeclarado-pesoVigente;
-  let done=0;
-  categorias.forEach(c=>{
-    // Una categoría con casillas fijas se evalúa proporcionalmente: una de
-    // seis notas de Informes no puede cerrar el 70% del ramo. Solo cuentan
-    // notas con valor; una anotada con fecha para rendir después sigue pendiente.
-    const notas=Array.isArray(c.notas)?c.notas:[];
-    const objetivo=Number.isInteger(c.slots)&&c.slots>1?c.slots:1;
-    // Se cuentan CASILLAS con nota, no notas: dos valores de la misma casilla
-    // son un dato pisado, no dos evaluaciones rendidas. Sin esto, un duplicado
-    // hace que el ramo se declare más evaluado de lo que está.
-    const evaluadas=objetivo>1
-      ? new Set(notas.filter(n=>typeof n.valor==='number'&&Number.isInteger(n.slot)).map(n=>n.slot)).size
-      : notas.filter(n=>typeof n.valor==='number').length;
-    done+=c.peso*Math.min(1,evaluadas/objetivo);
-  });
-  done+=pesoEximido;
-  return {pct:Math.round(done/total*100),pending:total-done,total};
-}
+function ramoProgress(r){return calculoRamo.avanceRamo(r);}
 function ramoRecienCerrado(anterior,actual){return Number.isFinite(anterior)&&anterior<100&&actual===100;}
 
 function nombreEventoAgenda(e){return e.nota?nombreNotaCasilla(e.ramo,e.cat,e.nota):e.cat.nombre;}
@@ -150,4 +124,63 @@ function agendaEvents(ramos){
   });
   out.sort((a,b)=>a.fecha.localeCompare(b.fecha)||(a.hora||'').localeCompare(b.hora||''));
   return out;
+}
+
+// ─── FECHAS DE COMPAÑEROS ────────────────────────────────────────────────────
+// La RPC date_consensus (supabase/date_consensus.sql) devuelve la fecha en que
+// coinciden 3 o más cuentas para una evaluación del mismo ramo. Es solo una
+// sugerencia: nunca llena ni pisa una fecha sola. Se lee una vez por sesión y
+// no se guarda en el estado: "3 compañeros" envejece.
+let _fechasCompartidas=null,_fechasCompartidasClave=null,_fechasCompartidasPromesa=null;
+const normFechaCompartida=s=>String(s||'').trim().toLowerCase()
+  .replace(/[áéíóúüñ]/g,c=>({á:'a',é:'e',í:'i',ó:'o',ú:'u',ü:'u',ñ:'n'})[c]).replace(/\s+/g,' ');
+function cargarFechasCompartidas(){
+  if(typeof currentUser==='undefined'||!currentUser||typeof supabaseClient==='undefined'||!supabaseClient||!S.tenant)return Promise.resolve(false);
+  const clave=currentUser.id+'|'+S.tenant;
+  if(_fechasCompartidasClave===clave)return _fechasCompartidasPromesa;
+  _fechasCompartidasClave=clave;_fechasCompartidas=null;
+  const tenant=S.tenant;
+  _fechasCompartidasPromesa=supabaseClient.rpc('date_consensus',{p_tenant:tenant}).then(({data,error})=>{
+    if(error||_fechasCompartidasClave!==clave||!Array.isArray(data))return false;
+    _fechasCompartidas=new Map(data.filter(f=>FECHA_RE.test(f.fecha||'')&&Number.isSafeInteger(f.fecha_respaldos))
+      .map(f=>[[tenant,f.ramo_key,f.categoria_key,f.nota_key||''].join('|'),{fecha:f.fecha,hora:HORA_RE.test(f.hora||'')?f.hora:null,respaldos:f.fecha_respaldos}]));
+    return _fechasCompartidas.size>0;
+  // Sin la función aplicada o sin red, la app sigue igual, sin sugerencias.
+  },()=>false);
+  return _fechasCompartidasPromesa;
+}
+// Sugerencia para una evaluación (nota=null) o para una casilla por su nombre.
+// Solo si todavía no tiene fecha y la persona no la quitó a propósito.
+function fechaCompartida(r,cat,nombreNota,item){
+  if(!_fechasCompartidas||!r||!cat||!r.origen||!r.origen.ramoKey||item&&(item.fecha||item.fechaQuitada))return null;
+  const f=_fechasCompartidas.get([r.origen.tenant,r.origen.ramoKey,normFechaCompartida(cat.nombre),nombreNota==null?'':normFechaCompartida(nombreNota)].join('|'));
+  return f&&f.respaldos>=3?f:null;
+}
+function textoFechaCompartida(f){
+  const d=formatEventDate(f.fecha);
+  return `${f.respaldos} compañeros la tienen el ${d.dow} ${d.day} ${d.mon}${f.hora?`, ${f.hora}`:''}`;
+}
+// En el editor: una línea bajo el campo de fecha con un botón que la copia.
+// Guardar decide; el botón solo llena los campos.
+function sugerenciaFechaHTML(idBase,f){
+  if(!f)return '';
+  return `<p id="${idBase}-compartida" style="display:flex;align-items:center;gap:8px;margin:-6px 0 14px;font-size:0.8125rem;color:var(--fg2);line-height:1.35;">
+      <span style="flex:1;min-width:0;">${esc(textoFechaCompartida(f))}</span>
+      <button type="button" onclick="usarFechaCompartida('${idBase}','${f.fecha}','${f.hora||''}')" style="flex:0 0 auto;min-height:44px;padding:0 14px;background:var(--muted);border:none;border-radius:8px;color:var(--fg);font-size:0.8125rem;font-weight:600;cursor:pointer;">Usar</button>
+    </p>`;
+}
+function usarFechaCompartida(idBase,fecha,hora){
+  const f=document.getElementById(idBase+'-fecha'),h=document.getElementById(idBase+'-hora');
+  if(!f)return;
+  f.value=fecha;f.dataset.compartida=fecha;sincronizarHora(idBase);
+  if(h&&hora){h.value=hora;h.dataset.compartida=hora;}
+  const linea=document.getElementById(idBase+'-compartida');if(linea)linea.hidden=true;
+}
+// Después de marcarFechaUsuario: si lo guardado es lo que vino de compañeros
+// (sin cambios), queda como 'consenso' y no cuenta como un voto más.
+function marcarOrigenCompartido(item,idBase){
+  const f=document.getElementById(idBase+'-fecha'),h=document.getElementById(idBase+'-hora');
+  if(!item.fecha||!f||f.dataset.compartida!==item.fecha)return;
+  item.fechaOrigen='consenso';
+  if(item.hora&&h&&h.dataset.compartida===item.hora)item.horaOrigen='consenso';
 }

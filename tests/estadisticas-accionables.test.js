@@ -53,11 +53,14 @@ console.log('\n=== Evolución del promedio por semestre ===');
   const vm=require('vm');
   const bloque=render.slice(render.indexOf('    // Un punto por semestre'),render.indexOf('    if(validos.length>0)',render.indexOf('    // Un punto por semestre')));
   const app=fs.readFileSync(path.join(raiz,'app.js'),'utf8');
-  const contexto={g:5.5,periodo:'anterior',hist:'',validos:[],
+  const contexto={g:5.5,periodo:'anterior',hist:'',validos:[],S:{tenant:'uc'},
     gpaHistorial:h=>h.gpa??null,semester:()=> '2026-2',
     fmtPromedio:n=>n.toFixed(1),nf:(n,d)=>n.toFixed(d),
     esc:s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')};
   vm.createContext(contexto);
+  vm.runInContext(fs.readFileSync(path.join(raiz,'engine.js'),'utf8'),contexto);
+  vm.runInContext(app.match(/function notaFinalOficial\(.*\n/)[0],contexto);
+  vm.runInContext(app.match(/function fmtPromedioGeneral\([\s\S]*?\n\}/)[0],contexto);
   vm.runInContext(app.match(/function parseEtiquetaSemestre\([\s\S]*?\n\}/)[0],contexto);
   ['serieEvolucionSemestres','trazoEvolucionNotas','htmlGraficoEvolucion'].forEach(n=>vm.runInContext(render.match(new RegExp('function '+n+'\\([\\s\\S]*?\\n\\}'))[0],contexto));
   const dibujar=periodo=>{contexto.periodo=periodo;contexto.hist='';vm.runInContext(bloque,contexto);return contexto.hist;};

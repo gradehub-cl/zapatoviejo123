@@ -9,25 +9,39 @@
 // HTML y sus scripts ya pueden traer la versión nueva. Se compara el ?v= del
 // script que está ejecutándose con la versión del SW que acaba de activarse.
 //
-// No recargamos solos a propósito: el estudiante puede estar escribiendo una
-// nota, y perdérsela por una actualización es peor que ver la versión vieja un
-// rato más.
-function avisarActualizacion(){
-  const t=document.getElementById('toast-update');
-  if(t){t.classList.add('show');return;}
-  const d=document.createElement('div');
-  d.id='toast-update';
-  d.className='update-toast show';
-  d.setAttribute('role','status');
-  d.innerHTML=`<span>Hay una versión nueva.</span>`;
-  const b=document.createElement('button');
-  b.textContent='Actualizar';
-  b.onclick=()=>{try{track('sw_update_accept');}catch(e){} location.reload();};
-  d.appendChild(b);
-  document.body.appendChild(d);
+// Se actualiza sola, sin botón (Lucas, 2026-11-17: con tantos deploys el
+// aviso «Actualizar» molestaba). Nunca a mitad de algo: solo recarga cuando
+// no hay un campo con el cursor, un formulario a medias ni una subida a la
+// nube pendiente. Y solo en momentos en que nadie pierde el hilo:
+// - recién abierta, si todavía no tocó nada (el SW nuevo llega a los segundos);
+// - cuando sale de la app o vuelve a ella.
+// Si no es seguro, espera a la próxima ocasión; la versión vieja sigue
+// funcionando mientras tanto.
+let actualizacionPendiente=false,interactuoActualizacion=false;
+const cargaActualizacion=Date.now();
+function recargaSeguraActualizacion(){
+  try{if(typeof cambiosSinGuardarNav==='function'&&cambiosSinGuardarNav())return false;}catch(e){}
+  try{if(_syncTimer||_subida)return false;}catch(e){}
+  try{if(typeof hayCambiosSinSubir==='function'&&hayCambiosSinSubir())return false;}catch(e){}
+  const activo=document.activeElement;
+  if(activo&&(activo.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(activo.tagName||'')))return false;
+  return true;
+}
+function aplicarActualizacion(motivo){
+  if(!actualizacionPendiente||!recargaSeguraActualizacion())return false;
+  actualizacionPendiente=false;
+  try{track('sw_update_auto',{motivo});}catch(e){}
+  location.reload();
+  return true;
+}
+function marcarActualizacion(){
+  actualizacionPendiente=true;
+  if(!interactuoActualizacion&&Date.now()-cargaActualizacion<15000)aplicarActualizacion('al_abrir');
 }
 
 if('serviceWorker' in navigator){
+  for(const tipo of ['pointerdown','keydown'])
+    window.addEventListener(tipo,()=>{interactuoActualizacion=true;},{capture:true,passive:true});
   // El deploy sella este ?v= y el cache del SW con el mismo SHA. Se captura
   // mientras se ejecuta app.js: después currentScript deja de apuntar a él.
   let versionCargada=null;
@@ -43,19 +57,19 @@ if('serviceWorker' in navigator){
     canal.port1.onmessage=evento=>{
       cerrar();
       // Un SW anterior puede responder después de otro relevo. No debe
-      // volver a mostrar un aviso que ya dejó de corresponder.
+      // dejar pendiente una recarga que ya dejó de corresponder.
       if(revision!==revisionVersion||controlador!==navigator.serviceWorker.controller)return;
       const version=evento.data?.version;
       if(typeof version!=='string'||!/^[a-f0-9]{7}$/.test(version))return;
-      if(version===versionCargada)document.getElementById('toast-update')?.remove();
-      else avisarActualizacion();
+      if(version===versionCargada)actualizacionPendiente=false;
+      else marcarActualizacion();
     };
     try{controlador.postMessage({tipo:'GH_VERSION'},[canal.port2]);}
     catch(e){cerrar();}
   };
   // Guardado ANTES de registrar: si ya había un controlador, un relevo posterior
   // es una actualización de verdad. En la primera visita no hay ninguno y el
-  // relevo es solo la instalación inicial — ahí no hay nada que avisar.
+  // relevo es solo la instalación inicial — ahí no hay nada que hacer.
   let habiaControlador = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if(habiaControlador) revisarVersionActivada();
@@ -63,29 +77,32 @@ if('serviceWorker' in navigator){
     // sin cerrar la página: solo se omite el primer relevo, no los futuros.
     habiaControlador = !!navigator.serviceWorker.controller;
   });
+  // La app instalada en el teléfono casi nunca recarga: se abre desde el
+  // ícono, queda en segundo plano y se vuelve a ella. Por eso, al volver al
+  // primer plano se le pide al navegador que revise si sw.js cambió (con un
+  // mínimo entre revisiones: cada una es una petición de red).
+  let reg=null,ultimaRevision=Date.now();
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState==='hidden'){
+      // Al salir, la subida pendiente arranca en este mismo evento: se
+      // reintenta un rato hasta que termine. Si el teléfono congela la
+      // página antes, queda para cuando vuelva.
+      let intentos=0;
+      const probar=()=>{
+        if(!actualizacionPendiente||document.visibilityState!=='hidden'||aplicarActualizacion('al_salir')||++intentos>10)return;
+        setTimeout(probar,500);
+      };
+      probar();
+      return;
+    }
+    if(aplicarActualizacion('al_volver'))return;
+    if(!reg||Date.now() - ultimaRevision < 60000)return;
+    ultimaRevision = Date.now();
+    reg.update().catch(() => {});
+  });
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
-      .then(reg => {
-        // El aviso de arriba solo podía dispararse durante una carga de página:
-        // es `register()` quien hace al navegador comprobar si sw.js cambió. En
-        // la app instalada en el teléfono eso casi nunca pasa —se abre desde el
-        // ícono, queda en segundo plano y se vuelve a ella sin recargar—, así
-        // que alguien podía usar la versión vieja durante días sin que nada se
-        // lo dijera. El aviso existía y no llegaba a aparecer nunca.
-        //
-        // Al volver al primer plano se le pide al navegador que revise. Si hay
-        // algo nuevo, el service worker se instala, toma el control y ahí sí
-        // salta `controllerchange` con el aviso.
-        let ultimaRevision = Date.now();
-        document.addEventListener('visibilitychange', () => {
-          if(document.visibilityState !== 'visible')return;
-          // Con un mínimo entre revisiones: cambiar de app y volver es un gesto
-          // constante, y cada revisión es una petición de red.
-          if(Date.now() - ultimaRevision < 60000)return;
-          ultimaRevision = Date.now();
-          reg.update().catch(() => {});
-        });
-      })
+      .then(r => {reg=r;ultimaRevision=Date.now();})
       .catch(err => console.warn('SW no registrado:', err));
   });
 }

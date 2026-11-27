@@ -47,7 +47,7 @@ run(`S=normalize({tenant:'uc',ramos:[
     {id:'e1',nombre:'Prueba E1',peso:50,fecha:'2026-09-22',notas:[{id:'ne1',nombre:'Prueba E1',valor:2.0,peso:1}]},
     {id:'e2',nombre:'Prueba E2',peso:50,fecha:'2026-10-26',notas:[]}]}
 ]})`);
-run('agendaOrdenActual="fecha";agendaRestantesAbiertas=true;renderAgenda()');
+run('agendaOrdenActual="fecha";agendaRestantesAbiertas=true;(agendaVista="evaluaciones",renderAgenda())');
 const h=stub.innerHTML;
 // La misma elegibilidad y una sola meta por ramo, ahora como medidor.
 const apariciones=[];const re=/(ag-priority-name|ag-row-name)">([^<]*)<[\s\S]*?(?=ag-priority-name|ag-row-name|$)/g;let m;
@@ -73,7 +73,7 @@ assert.match(bloque('Control D'),/ag-need-value[^]*?<strong>—<\/strong>/,'impo
 assert.equal(run('medidorRamoAgendaHTML({necesita:null})'),'','sin meta calculable no inventa un medidor');
 
 console.log('\n=== Recomendado no prioriza un ramo imposible ===');
-run('agendaOrdenActual="recomendado";renderAgenda()');
+run('agendaOrdenActual="recomendado";(agendaVista="evaluaciones",renderAgenda())');
 const tarjetas=[...stub.innerHTML.matchAll(/ag-priority-name">([^<]*)</g)].map(x=>x[1]);
 assert.ok(!tarjetas.includes('Control D'),'el control de mañana del ramo imposible no es prioridad: '+tarjetas.join(', '));
 assert.match(stub.innerHTML,/Control D/,'pero sigue en la Agenda');
@@ -86,7 +86,7 @@ const aviso20=run(`(()=>{const cat=(id,nombre,peso,notas,fecha)=>({id,nombre,pes
     cat('k1','Prueba 1',30,[{id:'n1',nombre:'Prueba 1',valor:3.7}],'2026-09-20'),
     cat('k2','Prueba 2',20,[],'2026-10-22'),cat('k3','Examen',50,[],'2026-11-28')]};
   const e=withPriority(agendaEvents([ramo]).find(x=>x.cat.id==='k2'));return alertaRamoAgendaHTML(e);})()`);
-assert.match(aviso20,/Es importante: si sacas un 4\.\d, estarás aprobando el ramo\./);
+assert.match(aviso20,/Es importante: si sacas un 4,\d, estarás aprobando el ramo\./);
 assert.doesNotMatch(aviso20,/pesa poco/);
 // Una de 8% que sí lo deja en 4,0 dice la nota, aunque pese poco: la regla 1 manda.
 const aviso8=run(`(()=>{const cat=(id,nombre,peso,notas,fecha)=>({id,nombre,peso,fecha,notas});
@@ -94,7 +94,7 @@ const aviso8=run(`(()=>{const cat=(id,nombre,peso,notas,fecha)=>({id,nombre,peso
     cat('k1','Prueba 1',30,[{id:'n1',nombre:'Prueba 1',valor:3.9}],'2026-09-20'),
     cat('k2','Quiz',8,[],'2026-10-22'),cat('k3','Examen',62,[],'2026-11-28')]};
   return alertaRamoAgendaHTML(withPriority(agendaEvents([ramo]).find(x=>x.cat.id==='k2')));})()`);
-assert.match(aviso8,/Es importante: si sacas un \d\.\d, estarás aprobando el ramo\./,'si la deja en 4,0, se dice la nota aunque pese poco');
+assert.match(aviso8,/Es importante: si sacas un \d,\d, estarás aprobando el ramo\./,'si la deja en 4,0, se dice la nota aunque pese poco');
 // Una de 15% que sola no alcanza no es «pesa poco» (vale 10% o más): sigue el caso general.
 const aviso15=run(`(()=>{const cat=(id,nombre,peso,notas,fecha)=>({id,nombre,peso,fecha,notas});
   const ramo={id:'r15',nombre:'Ramo sintético',sigla:'TST215',gates:[],categorias:[
@@ -102,6 +102,6 @@ const aviso15=run(`(()=>{const cat=(id,nombre,peso,notas,fecha)=>({id,nombre,pes
     cat('k2','Control',15,[],'2026-10-22'),cat('k3','Examen',45,[],'2026-11-28')]};
   return alertaRamoAgendaHTML(withPriority(agendaEvents([ramo]).find(x=>x.cat.id==='k2')));})()`);
 assert.doesNotMatch(aviso15,/pesa poco/,'15% del ramo no pesa poco');
-assert.match(aviso15,/Una buena nota en esta evaluación te ayudará: necesitas un \d\.\d en lo pendiente para aprobar el ramo\./);
+assert.match(aviso15,/Una buena nota en esta evaluación te ayudará: necesitas un \d,\d en lo pendiente para aprobar el ramo\./);
 assert.doesNotMatch(h+aviso15,/no alcanzas a quedar aprobando/,'ya no se explica que sola no alcanza (Lucas, 2026-10-22)');
 console.log('OK: medidor con meta del ramo, elegibilidad y cálculos existentes conservados');

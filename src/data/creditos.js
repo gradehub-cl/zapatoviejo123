@@ -28,6 +28,8 @@
 // registran tal cual: el dato oficial es 0 y falsearlo para que el promedio
 // funcione sería exactamente lo que este proyecto no hace.
 const CREDITOS_UC={
+  ...Object.fromEntries(Object.values(RAMOS_MALLA_UC_MEDICINA).flat()
+    .map(([nombre,sigla,creditos])=>[nombre,[creditos,sigla]])),
   'Introducción a la Arquitectura':[10,'AQH0000'],
   'Taller de Formación y Representación I':[20,'AQT0000'],
   'Ciudad y Paisaje I: Introducción a la Forma Urbana y Territorial':[10,'AQU0000'],
@@ -380,6 +382,24 @@ const CREDITOS_FEN={
 // MEM1505 (Métodos Matemáticos II), sección 2; es el mismo EN que se le saca
 // a las siglas de Docencia Web arriba. Sin entrada no se ofrece la foto.
 const PREFIJO_SIGLA_HORARIO={uc:'',fen:'EN'};
+// "Subir foto de tu horario": dónde lo ve cada universidad y un código como lo
+// escribe ahí. Sin entrada no se ofrece. `horas`: la grilla trae los días
+// arriba y la hora de cada fila a la izquierda ("08:00 - 09:20"), así que de
+// la foto sale también cuándo es cada clase. Así se ve el horario de Docencia
+// Web FEN (Primavera 2026); en la UC la fila dice el módulo y no la hora.
+const HORARIO_FOTO_POR_TENANT={
+  uc:{donde:'Mi UC o BuscaCursos',ejemplo:'MAT1610-1'},
+  fen:{donde:'Docencia Web',url:'https://docenciaweb.fen.uchile.cl/',ejemplo:'ENMEM1505/02',horas:true},
+};
+// Calendario de Canvas fuera de la app (la "Fuente de calendario", .ics): el
+// Canvas de cada universidad y cómo se llama. Sin entrada no se ofrece.
+// functions/canvas-calendario.js repite estos hosts en su lista cerrada; un
+// test comprueba que coincidan. La FEN usa canvas.fen.uchile.cl en pregrado
+// (Martín, 2026-11-26).
+const CANVAS_ICS_POR_TENANT={
+  uc:{host:'cursos.canvas.uc.cl',nombre:'Canvas UC',universidad:'la UC'},
+  fen:{host:'canvas.fen.uchile.cl',nombre:'Canvas FEN',universidad:'la FEN'},
+};
 
 // Siglas de TODOS los ramos UC que hoy se pueden cargar desde una malla.
 //

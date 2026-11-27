@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Estadísticas de alumnos</title>
+<!-- Maqueta para Lucas (2026-11-04). Datos sintéticos, no se conecta a nada.
+     Desvíos pedidos o decididos: color solo por dirección (no semáforo), sin Editorial. -->
+<style>
+:root{
+  color-scheme:light dark;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --bg:#f4f4f2;--card:#fff;--tile:#f4f4f2;--ctl:#e8e8e5;--hover:#f0f0ee;--line:rgb(0 0 0/.08);--line2:rgb(0 0 0/.16);
+  --ink:#19191c;--ink2:#54545b;--muted:#6c6c74;
+  --sel:#0d7a6b;--sel-soft:rgb(13 122 107/.1);--up:#0c7f56;--up-soft:rgb(12 127 86/.12);--down:#c02b3f;--down-soft:rgb(192 43 63/.1);
+  --flat:#b4b4ba;--flat-ink:#6c6c74;--tip:#1f1f24;--tip-ink:#fff;
+  --shadow:0 1px 2px rgb(0 0 0/.04);--pop:0 16px 40px -12px rgb(0 0 0/.25),0 0 0 1px rgb(0 0 0/.06);
+  --glow:none;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#080809;--card:#121214;--tile:#1b1b1f;--ctl:#1b1b1f;--hover:#19191c;--line:rgb(255 255 255/.08);--line2:rgb(255 255 255/.18);
+  --ink:#f4f4f6;--ink2:#b4b4bd;--muted:#92929c;
+  --sel:#2dd4bf;--sel-soft:rgb(45 212 191/.12);--up:#34d399;--up-soft:rgb(52 211 153/.13);--down:#ff6b81;--down-soft:rgb(255 107 129/.12);
+  --flat:#4a4a52;--flat-ink:#92929c;--tip:#2a2a30;--tip-ink:#fff;
+  --shadow:none;--pop:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);
+  --glow:0 0 22px rgb(52 211 153/.22);
+}}
+:root[data-theme="dark"]{
+  --bg:#080809;--card:#121214;--tile:#1b1b1f;--ctl:#1b1b1f;--hover:#19191c;--line:rgb(255 255 255/.08);--line2:rgb(255 255 255/.18);
+  --ink:#f4f4f6;--ink2:#b4b4bd;--muted:#92929c;
+  --sel:#2dd4bf;--sel-soft:rgb(45 212 191/.12);--up:#34d399;--up-soft:rgb(52 211 153/.13);--down:#ff6b81;--down-soft:rgb(255 107 129/.12);
+  --flat:#4a4a52;--flat-ink:#92929c;--tip:#2a2a30;--tip-ink:#fff;
+  --shadow:none;--pop:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);
+  --glow:0 0 22px rgb(52 211 153/.22);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 var(--font);-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:6px}
+.num{font-variant-numeric:tabular-nums}
+.page{max-width:1240px;margin:0 auto;padding:28px 24px 64px}
+
+/* Encabezado */
+.head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.head h1{font-size:26px;font-weight:650;letter-spacing:-.02em;margin:0}
+.tag{font-size:12px;color:var(--muted);background:var(--tile);border-radius:99px;padding:3px 10px}
+.tools{display:flex;align-items:center;gap:8px;margin-left:auto;position:relative}
+.seg{display:inline-flex;background:var(--tile);border-radius:12px;padding:3px}
+.seg button{min-height:38px;padding:0 14px;border-radius:9px;color:var(--ink2);font-size:14px;transition:background .15s,color .15s}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);font-weight:550;box-shadow:0 1px 2px rgb(0 0 0/.12)}
+.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:12px;background:var(--tile);color:var(--ink);font-size:14px;transition:background .15s}
+.pill:hover{background:var(--line)}
+.pill .n[hidden]{display:none}
+.pill .n{font-size:12px;color:var(--bg);background:var(--ink);border-radius:99px;min-width:18px;height:18px;display:grid;place-items:center;padding:0 5px}
+.icon-btn{width:44px;min-height:44px;justify-content:center;padding:0}
+.tools>.seg,.tools>.pill,.tag{background:var(--ctl)}
+.pop{position:absolute;right:0;top:calc(100% + 8px);width:300px;background:var(--card);border-radius:16px;box-shadow:var(--pop);padding:16px;z-index:20}
+.pop h3{font-size:13px;font-weight:500;color:var(--muted);margin:0 0 8px}
+.pop .seg{display:flex;margin-bottom:16px}.pop .seg:last-child{margin-bottom:0}.pop .seg button{flex:1}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:-8px 0 16px}
+.chips:empty{display:none}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;border-radius:99px;background:var(--ink);color:var(--bg);font-size:13px;font-weight:500}
+.chip span{opacity:.7}
+
+/* Primera fila */
+.top{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:16px;align-items:stretch}
+.card{background:var(--card);border-radius:24px;box-shadow:var(--shadow);padding:24px}
+.card-title{font-size:15px;font-weight:600;margin:0}
+.hero-grid{display:grid;grid-template-columns:270px minmax(0,1fr);gap:24px;align-items:stretch}
+#hero{display:flex;flex-direction:column;min-width:0}
+#hero .big{margin-top:auto}
+.eyebrow{font-size:14px;color:var(--ink2);display:flex;align-items:center;gap:6px}
+.q{width:18px;height:18px;border-radius:50%;background:var(--tile);font-size:11px;color:var(--muted);display:inline-grid;place-items:center;cursor:help}
+.big{font-size:84px;line-height:1;font-weight:600;letter-spacing:-.045em;margin:14px 0 6px;color:var(--up);text-shadow:var(--glow)}
+.big.down{color:var(--down);text-shadow:none}.big.flat{color:var(--ink);text-shadow:none}.big.few{color:var(--muted);text-shadow:none}
+.big small{font-size:17px;font-weight:500;letter-spacing:0;color:var(--muted);margin-left:6px;text-shadow:none}
+.sub{font-size:14px;color:var(--ink2);margin:0}.sub b{color:var(--ink);font-weight:600}
+
+/* Histograma */
+.hist{position:relative}
+.zones{display:grid;grid-template-columns:repeat(18,minmax(0,1fr));margin-bottom:8px}
+.zone{text-align:left;font-size:13px;color:var(--muted);min-height:44px;padding:2px 6px;border-radius:10px;line-height:1.2;transition:background .15s}
+.zone:hover{background:var(--tile)}
+.zone b{display:block;font-size:20px;font-weight:600;letter-spacing:-.02em;color:var(--ink)}
+.zone[data-z="down"] b{color:var(--down)}.zone[data-z="up"] b{color:var(--up)}
+.zone[aria-pressed="true"]{background:var(--tile);box-shadow:inset 0 0 0 1px var(--line2)}
+.bars{display:grid;grid-template-columns:repeat(18,minmax(0,1fr));gap:3px;height:128px;align-items:end;border-bottom:1px solid var(--line2);position:relative}
+.bar{height:100%;display:flex;align-items:flex-end;border-radius:4px}
+.bar i{display:block;width:100%;min-height:0;border-radius:4px 4px 1px 1px;transform-origin:bottom;transition:height .28s cubic-bezier(.2,.8,.2,1),opacity .15s}
+.bar[data-z="down"] i{background:var(--down)}.bar[data-z="flat"] i{background:var(--flat)}.bar[data-z="up"] i{background:var(--up)}
+.bar:hover i{opacity:.75}
+.hist.sel .bar:not(.on) i{opacity:.28}
+.median{position:absolute;top:-4px;bottom:0;width:0;border-left:1.5px dashed var(--ink);pointer-events:none;transition:left .28s}
+.axis{position:relative;font-size:12px;color:var(--muted);margin-top:6px;height:16px}
+.axis span{position:absolute;white-space:nowrap;transform:translateX(-50%)}
+
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:22px}
+.tile{background:var(--tile);border-radius:16px;padding:14px 16px;min-width:0;text-align:left}
+.tile h3{font-size:13px;font-weight:500;color:var(--ink2);margin:0 0 10px}
+.pair{display:grid;grid-template-columns:70px minmax(0,1fr) 40px;gap:8px;align-items:center;font-size:12.5px;color:var(--muted);margin-top:6px}
+.pair b{font-weight:600;color:var(--ink);text-align:right;font-size:13.5px}
+.track{height:6px;border-radius:99px;background:var(--line);overflow:hidden}
+.track i{display:block;height:100%;border-radius:99px;background:var(--flat);transition:width .28s}
+.track.now i{background:var(--ink)}
+.tile-btn{display:block;width:100%;transition:background .15s}.tile-btn:hover{background:var(--line)}
+.tile-fig{font-size:34px;font-weight:600;letter-spacing:-.03em;line-height:1.1}
+.tile-fig small{font-size:13px;font-weight:400;letter-spacing:0;color:var(--muted);margin-left:4px}
+.tile-act{font-size:13px;color:var(--ink2);margin-top:6px}
+
+/* Por ramo */
+.ramos{display:flex;flex-direction:column;padding:24px 12px 12px}
+.ramos .card-title{padding:0 12px 2px}
+.hint{font-size:13px;color:var(--muted);margin:0;padding:0 12px 10px}
+.ramo{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 72px;gap:4px 12px;align-items:center;width:100%;min-height:60px;padding:6px 12px;border-radius:14px;text-align:left;transition:background .15s}
+.ramo:hover{background:var(--tile)}
+.ramo[aria-pressed="true"]{background:var(--sel-soft);box-shadow:inset 0 0 0 1.5px var(--sel)}
+.ramo b{display:block;font-size:14px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ramo small{font-size:12.5px;color:var(--muted)}
+.mini{position:relative;height:6px;border-radius:99px;background:var(--line)}
+.mini::before{content:"";position:absolute;left:50%;top:-4px;bottom:-4px;width:1px;background:var(--line2)}
+.mini i{position:absolute;top:0;bottom:0;border-radius:99px;transition:all .28s}
+.ramo .v{font-size:14px;font-weight:600;text-align:right}
+.ramo .mini{height:5px}
+.up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--flat-ink)}
+
+/* Partieron igual */
+.same{margin-top:16px}
+.same-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.same-ctl{display:flex;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+.same-ctl label,.same-ctl>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.same-ctl select{min-height:44px;max-width:230px;padding:0 12px;border:0;border-radius:12px;background:var(--tile);color:var(--ink);font:inherit;font-size:14px}
+.same-ctl .seg{flex-direction:row}
+.same-res{display:grid;grid-template-columns:170px minmax(0,1fr);gap:24px;align-items:center}
+.same-big{font-size:44px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.same-big+small{display:block;margin-top:6px;color:var(--muted);font-size:13px}
+.same-row{display:grid;grid-template-columns:190px minmax(0,1fr) 44px;gap:12px;align-items:center;min-height:36px;font-size:14px}
+.same-row small{color:var(--muted);margin-left:6px;font-size:13px}
+.same-row b{text-align:right;font-weight:600}
+.same-row .track{height:8px}.same-row .track.now i{background:var(--up)}
+.same-none{color:var(--muted);font-size:14px;margin:0;padding:6px 0}
+
+/* Lista */
+.list{margin-top:16px;padding:8px 0 8px}
+.list-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 24px 12px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{min-height:44px;padding:0 13px;border-radius:12px;color:var(--ink2);font-size:14px;transition:background .15s,color .15s}
+.tab span{color:var(--muted);margin-left:3px;font-size:13px}
+.tab:hover{background:var(--tile)}
+.tab[aria-pressed="true"]{background:var(--ink);color:var(--bg);font-weight:550}
+.tab[aria-pressed="true"] span{color:inherit;opacity:.65}
+.search{margin-left:auto;width:220px;min-height:44px;padding:0 14px;border-radius:12px;border:0;background:var(--tile);outline-offset:0}
+.search::placeholder{color:var(--muted)}
+.cols{display:grid;grid-template-columns:270px minmax(0,1fr) 92px 20px;gap:16px;padding:6px 24px;font-size:12.5px;color:var(--muted);align-items:center}
+.scale{position:relative;height:16px}
+.scale span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.scale span:first-child{transform:none}.scale span:last-child{transform:translateX(-100%)}
+.legend{display:inline-flex;gap:12px;align-items:center}
+.legend .m{display:none}
+.group{font-size:13px;font-weight:550;color:var(--ink2);padding:16px 24px 6px}
+.group span{color:var(--muted);font-weight:400;margin-left:4px}
+.row{display:grid;grid-template-columns:270px minmax(0,1fr) 92px 20px;gap:16px;align-items:center;width:100%;min-height:60px;padding:8px 24px;text-align:left;transition:background .12s}
+.row+.row{box-shadow:inset 0 1px 0 var(--line)}
+.row:hover{background:var(--hover)}
+.who{display:flex;gap:12px;align-items:center;min-width:0}
+.ava{flex:none;width:36px;height:36px;border-radius:50%;background:var(--tile);color:var(--ink2);display:grid;place-items:center;font-size:13px;font-weight:600}
+.who div{min-width:0}
+.who b{display:block;font-size:14.5px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who small{display:block;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dumb{position:relative;height:28px}
+.dumb::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line2)}
+.dumb .ln{position:absolute;top:50%;height:3px;margin-top:-1.5px;border-radius:99px;opacity:.5}
+.dumb .a,.dumb .b{position:absolute;top:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%}
+.dumb .a{border:2px solid var(--muted);background:var(--card)}
+.dumb .b{background:currentColor}
+.dumb.ghost .a{border-style:dashed}
+.delta{text-align:right;font-size:17px;font-weight:600;letter-spacing:-.01em}
+.delta small{display:block;font-size:12.5px;font-weight:400;color:var(--muted);letter-spacing:0}
+.lack{font-size:13px;color:var(--muted);text-align:right;line-height:1.25}
+.chev{color:var(--muted);font-size:17px;text-align:right}
+.more{display:block;margin:12px auto 10px;min-height:44px;padding:0 18px;border-radius:12px;background:var(--tile);font-size:14px}
+.more:hover{background:var(--line)}
+.none{padding:48px 24px;text-align:center;color:var(--muted)}
+.none button{display:block;margin:10px auto 0;min-height:44px;padding:0 16px;border-radius:12px;background:var(--tile);color:var(--ink)}
+
+.foot{display:flex;gap:24px;justify-content:space-between;flex-wrap:wrap;color:var(--muted);font-size:13px;padding:16px 8px 0}
+.foot details{max-width:640px}.foot summary{cursor:pointer;color:var(--ink2);min-height:24px}
+.foot details p{margin:8px 0 0;line-height:1.5}
+
+/* Detalle */
+.scrim{position:fixed;inset:0;background:rgb(0 0 0/.42);opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(480px,100%);background:var(--card);box-shadow:var(--pop);z-index:31;transform:translateX(102%);transition:transform .26s cubic-bezier(.2,.8,.2,1);overflow:auto;padding:20px 24px calc(24px + env(safe-area-inset-bottom));visibility:hidden}
+.drawer.on{transform:none;visibility:visible}
+.d-top{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.d-top div{min-width:0;flex:1}
+.d-top h2{font-size:19px;font-weight:600;letter-spacing:-.01em;margin:0}
+.d-top p{margin:0;color:var(--muted);font-size:14px}
+.d-close{width:44px;height:44px;border-radius:50%;background:var(--tile);font-size:18px;flex:none}
+.d-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:20px}
+.d-tiles .tile{padding:12px 14px}.d-tiles h3{margin-bottom:6px}
+.d-tiles strong{font-size:24px;font-weight:600;letter-spacing:-.02em}
+.d-prom{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;align-items:baseline;background:var(--tile);border-radius:14px;padding:12px 14px;margin:-12px 0 20px;font-size:13px;color:var(--ink2)}
+.d-prom b{font-size:18px;font-weight:600;color:var(--ink)}.d-prom small{grid-column:1/-1;font-size:12.5px;color:var(--down)}
+.d-sec{font-size:14px;font-weight:600;margin:0 0 10px}
+.chart{display:block;width:100%;height:auto;margin-bottom:6px}
+.key{display:flex;gap:16px;font-size:12.5px;color:var(--muted);margin:-4px 0 8px}
+.key i{display:inline-block;width:16px;margin-right:6px;vertical-align:middle;border-top:2px solid var(--ink)}
+.key i.ref{border-top:2px dashed var(--flat-ink)}
+.chart text{font:11.5px var(--font);fill:var(--muted)}
+.sw{position:relative;width:44px;height:44px;display:grid;place-items:center}
+.sw i{display:block;position:relative;width:38px;height:23px;border-radius:99px;background:var(--line2);transition:background .15s}
+.sw i::after{content:"";position:absolute;left:2px;top:2px;width:19px;height:19px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgb(0 0 0/.3)}
+.sw[aria-checked="true"] i{background:var(--up)}.sw[aria-checked="true"] i::after{transform:translateX(15px)}
+.ev-head{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px;font-size:12.5px;color:var(--muted)}
+.ev-head .d-sec{margin-bottom:4px}
+.key b{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.key .k-con{background:var(--up)}.key .k-sin{border:2px solid var(--muted)}
+.ev{display:grid;grid-template-columns:minmax(0,1fr) 34px 44px 44px;gap:8px;align-items:center;min-height:44px;font-size:14px}
+.ev+.ev{box-shadow:inset 0 1px 0 var(--line)}
+.ev small{display:block;font-size:12.5px;color:var(--muted)}
+.ev b{font-weight:600;text-align:right}.ev span{text-align:right;font-size:13px}
+.ev-sep{font-size:12.5px;color:var(--muted);padding:12px 0 4px}
+.d-main{display:block;width:100%;min-height:48px;margin-top:20px;border-radius:14px;background:var(--ink);color:var(--bg);font-weight:600}
+
+#tip{position:fixed;z-index:50;max-width:260px;background:var(--tip);color:var(--tip-ink);font-size:12.5px;line-height:1.4;padding:8px 10px;border-radius:10px;pointer-events:none;opacity:0;transition:opacity .1s;left:0;top:0}
+#tip.on{opacity:1}#tip b{display:block;font-size:17px;font-weight:600}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translate(-50%,16px);background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:12px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:60;max-width:calc(100vw - 32px)}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:1080px){
+  .top{grid-template-columns:minmax(0,1fr)}
+  .ramos{padding-bottom:12px}
+  #ramos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}
+}
+@media (max-width:760px){
+  .page{padding:16px 16px 48px}
+  .head h1{font-size:24px}
+  .tools{margin-left:0;width:100%}.tools .seg{flex:1}.tools .seg button{flex:1}
+  .export{display:none}
+  .pop{left:0;right:0;width:auto}
+  .card{border-radius:20px;padding:18px}
+  .hero-grid{grid-template-columns:minmax(0,1fr);gap:16px}
+  .big{font-size:68px;margin-top:8px}
+  .zone{font-size:12px;padding:2px 4px}.zone b{font-size:18px}
+  .bars{height:96px;gap:2px}
+  .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.tile-btn{grid-column:1/-1}
+  #ramos{grid-template-columns:minmax(0,1fr)}
+  .ramos{padding:18px 6px 6px}.ramos .card-title{padding:0 12px 2px}
+  .list-head{padding:12px 14px 8px}.search{width:100%;margin:0}
+  .tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}.tab{padding:0 4px;font-size:13px;white-space:nowrap}.tab[data-tab="todos"],.tab[data-tab="sin"]{grid-column:span 1}
+  .same-ctl,.same-ctl label,.same-ctl>div,.same-ctl select{width:100%;max-width:none}.same-ctl .seg button{flex:1;padding:0 6px}
+  .same-res{grid-template-columns:minmax(0,1fr);gap:12px}
+  .same-row{grid-template-columns:minmax(0,1fr) 40px;gap:4px 8px}.same-row .track{grid-column:1/-1;grid-row:2}
+  .cols{display:block;padding:2px 16px 0}.cols>:not(.legend){display:none}.legend .m{display:inline}
+  .card.list{padding:6px 0}
+  .pair{grid-template-columns:minmax(0,1fr) auto;gap:3px 8px;margin-top:8px}.pair .track{grid-column:1/-1;grid-row:2}
+  .seg button{min-height:44px}
+  .group{padding:14px 16px 4px}
+  .row{grid-template-columns:minmax(0,1fr) 76px;gap:6px 10px;padding:10px 16px}
+  .row .dumb{grid-column:1/-1;grid-row:2;height:20px}
+  .chev{display:none}
+  .drawer{top:auto;width:100%;max-height:90dvh;border-radius:22px 22px 0 0;transform:translateY(102%);padding-top:14px}
+  .foot{padding:14px 4px 0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="head">
+    <h1>Estadísticas</h1><span class="tag">Datos de ejemplo</span>
+    <div class="tools">
+      <div class="seg" role="group" aria-label="Medir en">
+        <button data-unit="pts" aria-pressed="true">Puntos</button>
+        <button data-unit="per" aria-pressed="false">Percentil</button>
+      </div>
+      <button class="pill" id="btn-filtros" aria-expanded="false" aria-haspopup="true">Filtros<span class="n" id="n-filtros" hidden></span></button>
+      <button class="pill export" id="btn-exportar">Exportar</button>
+      <button class="pill icon-btn" id="btn-tema" aria-label="Cambiar entre claro y oscuro">◐</button>
+      <div class="pop" id="pop" hidden>
+        <h3>Comparar con</h3>
+        <div class="seg" role="group" aria-label="Comparar con">
+          <button data-comp="ramo" aria-pressed="true">Todo el ramo</button>
+          <button data-comp="seccion" aria-pressed="false">Su sección</button>
+        </div>
+        <h3>Evaluaciones</h3>
+        <div class="seg" role="group" aria-label="Evaluaciones">
+          <button data-solo="0" aria-pressed="true">Todas</button>
+          <button data-solo="1" aria-pressed="false">Solo pruebas</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="chips" id="chips"></div>
+
+  <div class="top">
+    <section class="card" aria-label="Resumen">
+      <div class="hero-grid">
+        <div id="hero"></div>
+        <div class="hist" id="hist"></div>
+      </div>
+      <div class="tiles" id="tiles"></div>
+    </section>
+    <section class="card ramos" aria-label="Por ramo"><h2 class="card-title">Por ramo</h2><p class="hint">Elige uno o más para ver solo sus datos</p><div id="ramos"></div></section>
+  </div>
+
+  <section class="card same" aria-label="Alumnos que partieron igual">
+    <div class="same-head"><h2 class="card-title">Alumnos que partieron igual</h2>
+      <div class="same-ctl">
+        <label>Ramo<select id="same-ramo"></select></label>
+        <label>Evaluación<select id="same-base"></select></label>
+        <div><span>Nota</span><div class="seg" role="group" aria-label="Rango de nota" id="same-rango"></div></div>
+      </div>
+    </div>
+    <div id="same-res"></div>
+  </section>
+
+  <section class="card list" aria-label="Alumnos">
+    <div class="list-head"><div class="tabs" id="tabs"></div><input class="search" id="q" type="search" placeholder="Buscar alumno" aria-label="Buscar alumno"></div>
+    <div class="cols" aria-hidden="true"><span class="legend"><span>○ Sin clases</span><span>● Con clases</span><span class="m" id="leg-ref">│ El ramo</span></span><div class="scale" id="scale"></div><span style="text-align:right">Diferencia</span><span></span></div>
+    <div id="rows"></div>
+  </section>
+
+  <footer class="foot">
+    <span>La diferencia no demuestra que se deba a las clases.</span>
+    <details><summary>Cómo se calcula</summary><p id="metodo"></p></details>
+  </footer>
+</div>
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="d-nombre" tabindex="-1"></aside>
+<div id="tip" role="tooltip"></div><div id="toast" role="status"></div>
+
+<script>
+// ---- Datos sintéticos: una sola fuente; todo lo demás se calcula de aquí ----
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const R=rng(20261104),norm=(m,s)=>{const u=Math.max(R(),1e-9),v=R();return m+s*Math.sqrt(-2*Math.log(u))*Math.cos(6.2832*v)};
+const RAMOS=[
+ {id:'mat1620',nombre:'Cálculo II',sigla:'MAT1620',personas:312,base:4.4,lab:0,peso:.62},
+ {id:'mat1203',nombre:'Álgebra Lineal',sigla:'MAT1203',personas:268,base:4.7,lab:0,peso:.42},
+ {id:'fis1514',nombre:'Dinámica',sigla:'FIS1514',personas:186,base:4.3,lab:1,peso:.38},
+ {id:'iic1103',nombre:'Introducción a la Programación',sigla:'IIC1103',personas:341,base:4.9,lab:0,peso:.3},
+ {id:'fis1533',nombre:'Electricidad y Magnetismo',sigla:'FIS1533',personas:144,base:4.2,lab:1,peso:.22},
+ {id:'eyp1113',nombre:'Probabilidades y Estadística',sigla:'EYP1113',personas:97,base:4.5,lab:0,peso:.05}];
+const EVALS=[['Control 1','2026-08-28','prueba'],['Interrogación 1','2026-09-11','prueba'],['Control 2','2026-09-25','prueba'],['Interrogación 2','2026-10-09','prueba'],['Control 3','2026-10-23','prueba'],['Interrogación 3','2026-11-03','prueba']];
+const LABS=[['Laboratorio 1','2026-09-04','lab'],['Laboratorio 2','2026-10-02','lab'],['Laboratorio 3','2026-10-30','lab']];
+const NOMBRES='Sofía,Benjamín,Isidora,Valentina,Tomás,Matías,Antonia,Vicente,Emilia,Martín,Florencia,Joaquín,Catalina,Lucas,Josefa,Diego,Amanda,Maximiliano,Trinidad,Cristóbal,Agustina,Sebastián,Fernanda,Nicolás,Javiera,Gabriel,Rocío,Ignacio,Constanza,Felipe,Magdalena,Alonso,Paz,Andrés,Colomba,Rodrigo'.split(',');
+const LETRAS='ABCDEFGHIJLMNOPRSTUV';
+RAMOS.forEach(r=>{r.evals=[...EVALS,...(r.lab?LABS:[])].sort((a,b)=>a[1]<b[1]?-1:1).map(([nombre,fecha,tipo],i)=>{const ref=+(r.base+(tipo==='lab'?.35:0)+norm(0,.28)).toFixed(1);return{nombre,fecha,tipo,ref,sec:+(ref+norm(0,.22)).toFixed(1),i}})});
+const PARES=[];let pid=0;
+for(let i=0;i<72;i++){
+  const nombre=NOMBRES[i%NOMBRES.length]+' '+LETRAS[(i*7)%LETRAS.length]+'.',nivel=norm(-.3,.62);
+  const toma=RAMOS.filter(r=>R()<r.peso);if(!toma.length)toma.push(RAMOS[i%4]);
+  toma.forEach(r=>{
+    // Toman clases para algunas evaluaciones y otras no: la marca es por evaluación.
+    const efecto=norm(.52,.5),seccion=1+Math.floor(R()*4),ganas=.38+R()*.34,marcado=R()>.1;
+    const notas=r.evals.flatMap(e=>{
+      const lab=e.tipo==='lab',con=R()<(lab?.1:ganas);
+      if(R()<.07)return[];
+      const v=e.ref+nivel*(lab?.4:1)+(con?efecto*(lab?.3:1):0)+norm(0,.32);
+      return[{...e,con:marcado&&con,nota:+Math.min(7,Math.max(1,v)).toFixed(1)}];
+    });
+    PARES.push({id:++pid,nombre,ramo:r,seccion,marcado,notas,proximas:[{nombre:'Examen',fecha:'2026-11-24',con:marcado&&R()<.5}]});
+  });
+}
+
+// Caso sintético del tope: notas de prueba sobre 4 y laboratorio bajo el mínimo.
+{const p=PARES.find(x=>x.ramo.id==='fis1514'&&x.marcado&&x.notas.some(e=>e.tipo==='lab'));p.notas.forEach(e=>{e.nota=e.tipo==='lab'?3.9:Math.max(e.nota,4.3)})}
+// Resto de GradeHub, solo para comparar grupos: nunca se muestra por persona.
+RAMOS.forEach(r=>{r.control=Array.from({length:Math.round(r.personas*.5)},()=>{const nivel=norm(-.25,.65);return r.evals.filter(e=>e.tipo==='prueba').map(e=>({...e,nota:Math.min(7,Math.max(1,e.ref+nivel+norm(0,.32)))}))})});
+
+// ---- Cálculo: misma regla del panel (mínimo 2 evaluaciones por lado) ----
+const MIN=2,UMBRAL={pts:.3,per:6},LEJOS={pts:-1,per:25};
+const st={unit:'pts',comp:'ramo',solo:false,ramos:new Set(),tab:'todos',q:'',vistos:24,abierto:null};
+const phi=z=>{const t=1/(1+.2316419*Math.abs(z)),d=.3989423*Math.exp(-z*z/2),p=d*t*(.3193815+t*(-.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p};
+const refDe=e=>st.comp==='seccion'?e.sec:e.ref;
+const valorDe=e=>st.unit==='pts'?e.nota-refDe(e):100*phi((e.nota-refDe(e))/.95);
+const media=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+const mediana=a=>{if(!a.length)return null;const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
+function medir(p){
+  const ev=p.notas.filter(e=>!st.solo||e.tipo==='prueba'),sin=ev.filter(e=>!e.con),con=ev.filter(e=>e.con);
+  const a=media(sin.map(valorDe)),b=media(con.map(valorDe)),ok=p.marcado&&sin.length>=MIN&&con.length>=MIN,dif=ok?+(b-a).toFixed(st.unit==='pts'?1:0):null,u=UMBRAL[st.unit];
+  const estado=!ok?'sin':dif<=-u?'down':dif>=u?'up':'flat',lejos=ok&&b<=LEJOS[st.unit];
+  return{p,ev,sin,con,a,b,cambio:dif,estado,lejos,revisar:estado==='down'||lejos,faltan:[Math.max(0,MIN-sin.length),Math.max(0,MIN-con.length)]};
+}
+const enFiltro=p=>!st.ramos.size||st.ramos.has(p.ramo.id);
+function grupo(lista){
+  const c=lista.filter(m=>m.cambio!==null);
+  const pool=k=>c.flatMap(m=>m[k]),aprob=x=>x.length?x.filter(e=>e.nota>=4).length/x.length:null;
+  return{todas:lista,comp:c,mediana:mediana(c.map(m=>m.cambio)),
+    down:c.filter(m=>m.estado==='down').length,flat:c.filter(m=>m.estado==='flat').length,up:c.filter(m=>m.estado==='up').length,
+    sin:lista.length-c.length,apA:aprob(pool('sin')),apB:aprob(pool('con')),prA:media(pool('sin').map(e=>e.nota)),prB:media(pool('con').map(e=>e.nota))};
+}
+
+// ---- Formato ----
+const coma=(v,d=1)=>Math.abs(v).toFixed(d).replace('.',',');
+const signo=(v,u)=>{const s=u==='per'?Math.round(v):+v.toFixed(1);return (s>0?'+':s<0?'−':'')+(u==='per'?Math.abs(s):coma(s))};
+const pct=v=>v===null?'—':Math.round(v*100)+'%';
+const unidad=()=>st.unit==='pts'?'puntos':'percentiles';
+const fecha=s=>{const d=new Date(s+'T12:00');return d.getDate()+' '+['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getMonth()]};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const iniciales=n=>n.split(' ').map(x=>x[0]).join('');
+const clsDir=c=>c==='up'?'up':c==='down'?'down':'flat';
+const refNombre=()=>st.comp==='seccion'?'su sección':'el ramo';
+const frente=()=>st.comp==='seccion'?'frente a su sección':'frente al ramo';
+
+// ---- Pintar ----
+const $=id=>document.getElementById(id);
+function pintar(){
+  const metr=PARES.filter(enFiltro).map(medir),g=grupo(metr);
+  pintarHero(g);pintarHist(g);pintarTiles(g);pintarRamos();pintarChips();pintarParecidos();pintarLista(metr,g);
+  $('metodo').textContent=`Cada alumno cuenta una vez por ramo. Comparamos las evaluaciones que marcaste como preparadas contigo con las que no, y hacen falta ${MIN} de cada una. Cada nota se mide frente a su evaluación, así una prueba difícil no castiga. Bajo ${UMBRAL.pts.toString().replace('.',',')} puntos de diferencia se considera igual. Muchos toman clases justo cuando van peor, así que la diferencia puede quedarse corta. La referencia sale de al menos 5 estudiantes de GradeHub; nunca ves quiénes son.`;
+}
+function pintarHero(g){
+  const n=g.comp.length,poca=n<5,m=g.mediana,mr=m===null?null:+m.toFixed(st.unit==='pts'?1:0),est=m===null?'few':poca?'few':mr>=UMBRAL[st.unit]?'':mr<=-UMBRAL[st.unit]?'down':'flat';
+  $('hero').innerHTML=`<div class="eyebrow">Con clases, ${frente()}<span class="q" tabindex="0" data-tip="Mediana de la diferencia entre las evaluaciones que prepararon contigo y las que no. Cada alumno cuenta una vez por ramo.">?</span></div>
+   <div class="big num ${est}">${m===null?'—':signo(m,st.unit)}<small>${m===null?'':unidad()}</small></div>
+   <p class="sub num">${poca?`Solo ${n} con datos suficientes`:`<b>${g.up} de ${n}</b> rinden mejor con clases`}</p>`;
+}
+const BINS=18,BIN0=-1.5,PASO=.2;
+function pintarHist(g){
+  const k=st.unit==='pts'?1:20,cuenta=Array(BINS).fill(0);
+  g.comp.forEach(m=>{const [lo,hi]={down:[0,5],flat:[6,8],up:[9,BINS-1]}[m.estado];cuenta[Math.min(hi,Math.max(lo,Math.floor((m.cambio/k-BIN0)/PASO+1e-9)))]++});
+  const max=Math.max(1,...cuenta),z=i=>i<6?'down':i<9?'flat':'up';
+  const sel=['down','flat','up'].includes(st.tab)?st.tab:null;
+  const rango=i=>{const a=(BIN0+i*PASO)*k,b=a+PASO*k;return st.unit==='pts'?`${signo(a,'pts')} a ${signo(b,'pts')}`:`${signo(a,'per')} a ${signo(b,'per')}`};
+  const zona=(id,txt,n,c0,c1)=>`<button class="zone num" data-z="${id}" aria-pressed="${st.tab===id}" style="grid-column:${c0}/${c1}"><b>${n}</b>${txt}</button>`;
+  const x=v=>(v/k-BIN0)/(PASO*BINS)*100;
+  const marcas=[-1,0,1,2].map(v=>`<span style="left:${x(v*k)}%">${st.unit==='pts'?signo(v,'pts').replace(',0',''):signo(v*20,'per')}</span>`).join('');
+  $('hist').className='hist'+(sel?' sel':'');
+  $('hist').innerHTML=`<div class="zones">${zona('down','Peor',g.down,1,7)}${zona('flat','Igual',g.flat,7,10)}${zona('up','Mejor',g.up,10,19)}</div>
+   <div class="bars">${cuenta.map((n,i)=>`<button class="bar${z(i)===sel?' on':''}" data-z="${z(i)}" aria-label="${n} con diferencia de ${rango(i)}" data-tip="<b>${n}</b>${rango(i)} ${unidad()}"><i style="height:${n?Math.max(3,n/max*100):0}%"></i></button>`).join('')}
+   ${g.mediana===null?'':`<span class="median" style="left:${Math.min(100,Math.max(0,x(g.mediana)))}%" data-tip=""></span>`}</div>
+   <div class="axis num">${marcas}</div>`;
+}
+function pintarTiles(g){
+  const barra=(l,v,t,cl)=>`<div class="pair num"><span>${l}</span><div class="track ${cl}"><i style="width:${v===null?0:v*100}%"></i></div><b>${t}</b></div>`;
+  const nota=v=>v===null?null:(v-1)/6;
+  $('tiles').innerHTML=`<div class="tile"><h3>Evaluaciones aprobadas</h3>${barra('Sin clases',g.apA,pct(g.apA))}${barra('Con clases',g.apB,pct(g.apB),'now')}</div>
+   <div class="tile"><h3>Promedio de notas</h3>${barra('Sin clases',nota(g.prA),g.prA===null?'—':coma(g.prA))}${barra('Con clases',nota(g.prB),g.prB===null?'—':coma(g.prB),'now')}</div>
+   <button class="tile tile-btn" data-ir="sin"><h3>Por completar</h3><div class="tile-fig num">${g.sin}<small>de ${g.todas.length}</small></div><div class="tile-act">Marcar evaluaciones o pedir notas ›</div></button>`;
+}
+function pintarRamos(){
+  const filas=RAMOS.map(r=>{const m=PARES.filter(p=>p.ramo===r).map(medir),g=grupo(m);return{r,g,al:new Set(m.map(x=>x.p.nombre)).size}}).sort((a,b)=>b.al-a.al);
+  const tope=st.unit==='pts'?.8:16;
+  $('ramos').innerHTML=filas.map(({r,g,al})=>{
+    const v=g.mediana,poca=g.comp.length<5,w=v===null?0:Math.min(50,Math.abs(v)/tope*50),u=v!==null&&v>=0;
+    const color=poca?'var(--flat)':u?'var(--up)':'var(--down)';
+    return `<button class="ramo" data-ramo="${r.id}" aria-pressed="${st.ramos.has(r.id)}" data-tip="${al} alumnos tuyos, de ${r.personas} estudiantes con este ramo en GradeHub. ${g.comp.length} con datos suficientes.">
+      <b>${esc(r.nombre)}</b><span class="v num ${poca?'flat':u?'up':'down'}">${v===null?'—':signo(v,st.unit)}</span>
+      <small class="num">${al} de ${r.personas} en GradeHub</small><span class="mini"><i style="${u?'left:50%':'right:50%'};width:${w}%;background:${color}"></i></span></button>`}).join('');
+}
+function pintarChips(){
+  const c=[...st.ramos].map(id=>{const r=RAMOS.find(x=>x.id===id);return`<button class="chip" data-quitar-ramo="${id}" aria-label="Quitar ${esc(r.nombre)}">${esc(r.nombre)}<span>✕</span></button>`});
+  if(st.comp==='seccion')c.push('<button class="chip" data-quitar="comp" aria-label="Volver a comparar con todo el ramo">Su sección<span>✕</span></button>');
+  if(st.solo)c.push('<button class="chip" data-quitar="solo" aria-label="Ver todas las evaluaciones">Solo pruebas<span>✕</span></button>');
+  $('chips').innerHTML=c.join('');$('chips').hidden=!c.length;
+  const n=(st.comp==='seccion')+st.solo;$('n-filtros').hidden=!n;$('n-filtros').textContent=n;
+  document.querySelectorAll('[data-unit]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.unit===st.unit));
+  document.querySelectorAll('[data-comp]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.comp===st.comp));
+  document.querySelectorAll('[data-solo]').forEach(b=>b.setAttribute('aria-pressed',(b.dataset.solo==='1')===st.solo));
+  $('leg-ref').textContent=st.unit==='per'?'│ p50':st.comp==='seccion'?'│ Su sección':'│ El ramo';
+  $('scale').innerHTML=st.unit==='pts'?`<span style="left:0">2 bajo</span><span style="left:50%">${refNombre()==='el ramo'?'El ramo':'Su sección'}</span><span style="left:100%">2 sobre</span>`:'<span style="left:0">p0</span><span style="left:50%">p50</span><span style="left:100%">p100</span>';
+}
+const pos=v=>{const x=st.unit==='pts'?v/2:(v-50)/50;return 50+Math.max(-1,Math.min(1,x))*48};
+function filaHTML(m){
+  const {p}=m,c=m.cambio!==null,dir=clsDir(m.estado);
+  const dA=m.a===null||!p.marcado?'':`<span class="a" style="left:${pos(m.a)}%"></span>`,dB=m.b===null||!p.marcado?'':`<span class="b" style="left:${pos(m.b)}%"></span>`;
+  const ln=c?`<span class="ln" style="left:${Math.min(pos(m.a),pos(m.b))}%;width:${Math.abs(pos(m.a)-pos(m.b))}%;background:currentColor"></span>`:'';
+  const falta=!p.marcado?'Sin marcar':m.faltan[1]?`Falta ${m.faltan[1]} con clases`:`Falta ${m.faltan[0]} sin clases`;
+  const tip=c?`Sin clases ${signo(m.a,st.unit)} en ${m.sin.length} evaluaciones. Con clases ${signo(m.b,st.unit)} en ${m.con.length}.`:falta;
+  return `<button class="row" data-par="${p.id}" aria-label="${esc(p.nombre)}, ${esc(p.ramo.nombre)}: ${c?'diferencia '+signo(m.cambio,st.unit):falta}">
+    <span class="who"><span class="ava">${iniciales(p.nombre)}</span><div><b>${esc(p.nombre)}</b><small>${esc(p.ramo.nombre)}</small></div></span>
+    <span class="dumb ${dir} ${c?'':'ghost'}" data-tip="${esc(tip)}" style="color:var(--${c?(m.estado==='flat'?'flat-ink':m.estado):'muted'})">${ln}${dA}${dB}</span>
+    ${c?`<span class="delta num ${dir}">${signo(m.cambio,st.unit)}${m.lejos?`<small>${st.unit==='pts'?coma(-m.b)+' bajo':'p'+Math.round(m.b)}</small>`:''}</span>`:`<span class="lack">${falta}</span>`}
+    <span class="chev" aria-hidden="true">›</span></button>`;
+}
+function pintarLista(metr,g){
+  const tabs=[['todos','Todos',metr.length],['up','Mejor',g.up],['flat','Igual',g.flat],['down','Peor',g.down],['sin','Por completar',g.sin]];
+  $('tabs').innerHTML=tabs.map(([id,t,n])=>`<button class="tab num" data-tab="${id}" aria-pressed="${st.tab===id}">${t}<span>${n}</span></button>`).join('');
+  const q=st.q.trim().toLowerCase();
+  let lista=metr.filter(m=>(st.tab==='todos'||m.estado===st.tab)&&(!q||m.p.nombre.toLowerCase().includes(q)));
+  // Lo que pide acción primero; dentro, lo más grave arriba.
+  const rango=m=>m.revisar?0:m.cambio!==null?1:2;
+  lista.sort((a,b)=>rango(a)-rango(b)||(st.tab==='up'?(b.cambio??0)-(a.cambio??0):(a.cambio??0)-(b.cambio??0))||a.p.id-b.p.id);
+  if(!lista.length){$('rows').innerHTML=`<div class="none">Nadie en este grupo.<button data-limpiar>Ver todos</button></div>`;return}
+  const vis=lista.slice(0,st.vistos),nR=lista.filter(m=>m.revisar).length,nO=lista.filter(m=>rango(m)===1).length;
+  let html='',ult=-1;
+  vis.forEach(m=>{const r=rango(m);if(st.tab==='todos'&&r!==ult){ult=r;html+=`<div class="group num">${['Por revisar','El resto','Por completar'][r]}<span>${[nR,nO,lista.length-nR-nO][r]}</span></div>`}html+=filaHTML(m)});
+  if(lista.length>st.vistos)html+=`<button class="more num" data-mas>Ver ${Math.min(24,lista.length-st.vistos)} más de ${lista.length-st.vistos}</button>`;
+  $('rows').innerHTML=html;
+}
+
+// ---- Alumnos que partieron igual ----
+const RANGOS=[[1,3.9,'1 a 3,9'],[4,4.9,'4 a 4,9'],[5,7,'5 a 7']];
+const par={ramo:'mat1620',base:'Interrogación 1',rango:0};
+function pintarParecidos(){
+  if(st.ramos.size===1)par.ramo=[...st.ramos][0];
+  const r=RAMOS.find(x=>x.id===par.ramo),bases=['Control 1','Interrogación 1','Control 2','Interrogación 2'],[lo,hi]=RANGOS[par.rango];
+  $('same-ramo').innerHTML=RAMOS.map(x=>`<option value="${x.id}"${x===r?' selected':''}>${esc(x.nombre)}</option>`).join('');
+  $('same-base').innerHTML=bases.map(b=>`<option${b===par.base?' selected':''}>${b}</option>`).join('');
+  $('same-rango').innerHTML=RANGOS.map((x,i)=>`<button data-rango="${i}" aria-pressed="${i===par.rango}">${x[2]}</button>`).join('');
+  const propios=PARES.filter(p=>p.ramo===r&&p.marcado).flatMap(p=>{const b=p.notas.find(e=>e.nombre===par.base&&e.nota>=lo&&e.nota<=hi);if(!b)return[];const post=p.notas.filter(e=>e.fecha>b.fecha&&e.con&&e.tipo==='prueba');return post.length?[{i:b.nota,f:media(post.map(e=>e.nota))}]:[]});
+  const resto=r.control.flatMap(c=>{const b=c.find(e=>e.nombre===par.base&&e.nota>=lo&&e.nota<=hi);if(!b)return[];const post=c.filter(e=>e.fecha>b.fecha);return post.length?[{i:b.nota,f:media(post.map(e=>e.nota))}]:[]});
+  if(propios.length<1||resto.length<5){$('same-res').innerHTML='<p class="same-none">No hay suficientes estudiantes en este rango. Prueba con otro rango o evaluación.</p>';return}
+  const fA=media(propios.map(x=>x.f)),fB=media(resto.map(x=>x.f)),d=+(fA-fB).toFixed(1),fila=(t,n,v,c)=>`<div class="same-row num"><span>${t}<small>${n}</small></span><div class="track ${c}"><i style="width:${(v-1)/6*100}%"></i></div><b>${coma(v)}</b></div>`;
+  $('same-res').innerHTML=`<div class="same-res"><div><div class="same-big num ${propios.length<5?'flat':d>=.3?'up':d<=-.3?'down':''}">${signo(d,'pts')}</div><small>${propios.length<5?'Muestra chica':'puntos de diferencia'}</small></div>
+   <div>${fila('Tus alumnos con clases',propios.length,fA,'now')}${fila('Resto de GradeHub',resto.length,fB)}</div></div>`;
+}
+
+// ---- Detalle ----
+let origen=null;
+function promedioDe(p){
+  const lab=media(p.notas.filter(e=>e.tipo==='lab').map(e=>e.nota)),prom=media(p.notas.map(e=>e.nota));
+  if(prom===null)return null;
+  return lab!==null&&lab<4&&prom>lab?{final:lab,motivo:`Laboratorio va ${coma(lab)} (mín. 4,0): la nota final queda en ${coma(lab)}`}:{final:prom,motivo:''};
+}
+function abrir(id,boton){
+  const p=PARES.find(x=>x.id===id),m=medir(p),c=m.cambio!==null;if(boton)origen=boton;st.abierto=id;
+  const W=420,H=176,L=26,T=14,B=H-22,x=i=>L+(W-L-14)*(p.notas.length>1?i/(p.notas.length-1):.5),y=v=>T+(B-T)*(7-v)/6;
+  const pts=p.notas.map((e,i)=>`${x(i)},${y(e.nota)}`).join(' '),ref=p.notas.map((e,i)=>`${x(i)},${y(refDe(e))}`).join(' ');
+  const svg=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Notas de ${esc(p.nombre)} ${frente()}, por evaluación">
+   ${[1,4,7].map(v=>`<line x1="${L}" x2="${W-10}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end">${v}</text>`).join('')}
+   <polyline points="${ref}" fill="none" stroke="var(--flat-ink)" stroke-width="1.5" stroke-dasharray="4 4"/>
+   <polyline points="${pts}" fill="none" stroke="var(--line2)" stroke-width="2" stroke-linejoin="round"/>
+   ${p.notas.map((e,i)=>e.con?`<circle cx="${x(i)}" cy="${y(e.nota)}" r="6" fill="var(--up)"/>`:`<circle cx="${x(i)}" cy="${y(e.nota)}" r="4.5" fill="var(--card)" stroke="var(--muted)" stroke-width="2"/>`).join('')}</svg>`;
+  const llave=(cual,i,on,nom)=>`<button class="sw" role="switch" aria-checked="${on}" aria-label="${esc(nom)} con clases" data-marca="${cual}:${i}"><i></i></button>`;
+  const ev=(e,i)=>{const d=e.nota-refDe(e);return`<div class="ev num"><div>${esc(e.nombre)}<small>${fecha(e.fecha)}</small></div><b>${coma(e.nota)}</b><span class="${d>=.05?'up':d<=-.05?'down':'flat'}">${signo(d,'pts')}</span>${llave('n',i,e.con,e.nombre)}</div>`};
+  const prox=(e,i)=>`<div class="ev num"><div>${esc(e.nombre)}<small>${fecha(e.fecha)}</small></div><b>—</b><span></span>${llave('p',i,e.con,e.nombre)}</div>`;
+  const dr=$('drawer');
+  dr.innerHTML=`<div class="d-top"><span class="ava">${iniciales(p.nombre)}</span><div><h2 id="d-nombre">${esc(p.nombre)}</h2><p>${esc(p.ramo.nombre)} ${p.ramo.sigla}, sección ${p.seccion}</p></div><button class="d-close" data-cerrar aria-label="Cerrar">✕</button></div>
+   <div class="d-tiles"><div class="tile"><h3>Sin clases</h3><strong class="num">${m.a===null||!p.marcado?'—':signo(m.a,st.unit)}</strong></div><div class="tile"><h3>Con clases</h3><strong class="num">${m.b===null||!p.marcado?'—':signo(m.b,st.unit)}</strong></div><div class="tile"><h3>Diferencia</h3><strong class="num ${c?clsDir(m.estado):''}">${c?signo(m.cambio,st.unit):'—'}</strong></div></div>
+   ${(q=>q?`<div class="d-prom"><span>Promedio actual</span><b class="num">${coma(q.final)}</b>${q.motivo?`<small>${q.motivo}</small>`:''}</div>`:'')(promedioDe(p))}
+   <h3 class="d-sec">Notas ${frente()}</h3><div class="key"><span><b class="k-con"></b>Con clases</span><span><b class="k-sin"></b>Sin clases</span><span><i class="ref"></i>${st.comp==='seccion'?'Su sección':'GradeHub'}</span></div>${svg}
+   <div class="ev-head"><h3 class="d-sec">Evaluaciones</h3><span>Preparó contigo</span></div>
+   ${p.notas.map(ev).join('')}
+   <div class="ev-sep">Próximas</div>${p.proximas.map(prox).join('')}
+   <button class="d-main" data-ficha>Abrir ficha completa</button>`;
+  dr.classList.add('on');$('scrim').classList.add('on');if(boton)dr.querySelector('[data-cerrar]').focus();
+}
+function cerrar(){if(st.abierto===null)return;st.abierto=null;$('drawer').classList.remove('on');$('scrim').classList.remove('on');origen?.isConnected&&origen.focus()}
+
+// ---- Interacción ----
+const aviso=t=>{const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(aviso.t);aviso.t=setTimeout(()=>e.classList.remove('on'),2400)};
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button,[data-cerrar]'),pop=$('pop');
+  if(!pop.hidden&&!e.target.closest('#pop,#btn-filtros')){pop.hidden=true;$('btn-filtros').setAttribute('aria-expanded','false')}
+  if(e.target.id==='scrim')return cerrar();
+  if(!t)return;const d=t.dataset;
+  if(t.id==='btn-filtros'){pop.hidden=!pop.hidden;t.setAttribute('aria-expanded',!pop.hidden);return}
+  if(t.id==='btn-exportar')return aviso('En la app descarga el Excel con lo que estás viendo.');
+  if(t.id==='btn-tema'){const r=document.documentElement,o=matchMedia('(prefers-color-scheme:dark)').matches,act=r.dataset.theme||(o?'dark':'light');r.dataset.theme=act==='dark'?'light':'dark';return}
+  if('cerrar' in d)return cerrar();
+  if('ficha' in d)return aviso('En la app abre la ficha del alumno.');
+  if(d.par)return abrir(+d.par,t);
+  if(d.marca){const [cual,i]=d.marca.split(':'),p=PARES.find(x=>x.id===st.abierto),e=(cual==='n'?p.notas:p.proximas)[+i];e.con=!e.con;p.marcado=true;pintar();const top=$('drawer').scrollTop;abrir(p.id);$('drawer').scrollTop=top;$('drawer').querySelector(`[data-marca="${d.marca}"]`).focus();return}
+  if(d.unit)st.unit=d.unit;
+  else if(d.comp)st.comp=d.comp;
+  else if(d.solo)st.solo=d.solo==='1';
+  else if(d.ramo){st.ramos.has(d.ramo)?st.ramos.delete(d.ramo):st.ramos.add(d.ramo);st.vistos=24}
+  else if(d.quitarRamo)st.ramos.delete(d.quitarRamo);
+  else if(d.quitar==='comp')st.comp='ramo';
+  else if(d.quitar==='solo')st.solo=false;
+  else if(d.rango){par.rango=+d.rango;return pintarParecidos()}
+  else if(d.tab){st.tab=d.tab;st.vistos=24}
+  else if(d.z){st.tab=st.tab===d.z?'todos':d.z;st.vistos=24}
+  else if(d.ir){st.tab=d.ir;st.vistos=24;pintar();$('tabs').scrollIntoView({behavior:'smooth',block:'center'});return}
+  else if('mas' in d)st.vistos+=24;
+  else if('limpiar' in d){st.tab='todos';st.q='';$('q').value=''}
+  else return;
+  pintar();
+});
+$('same-ramo').addEventListener('change',e=>{par.ramo=e.target.value;st.ramos.size===1&&st.ramos.clear();pintar()});
+$('same-base').addEventListener('change',e=>{par.base=e.target.value;pintarParecidos()});
+$('q').addEventListener('input',e=>{st.q=e.target.value;st.vistos=24;pintar()});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){if(!$('pop').hidden){$('pop').hidden=true;$('btn-filtros').focus()}else cerrar()}
+  if(e.key==='Tab'&&st.abierto!==null){const f=[...$('drawer').querySelectorAll('button')],a=f[0],z=f[f.length-1];if(e.shiftKey&&document.activeElement===a){e.preventDefault();z.focus()}else if(!e.shiftKey&&document.activeElement===z){e.preventDefault();a.focus()}}
+});
+const tip=$('tip');
+const ver=el=>{tip.innerHTML=el.dataset.tip.includes('<b>')?el.dataset.tip:esc(el.dataset.tip);tip.classList.add('on');const r=el.getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;tip.style.left=Math.max(8,Math.min(innerWidth-w-8,r.left+r.width/2-w/2))+'px';tip.style.top=(r.top-h-8<8?r.bottom+8:r.top-h-8)+'px'};
+for(const ev of['pointerover','focusin'])document.addEventListener(ev,e=>{const el=e.target.closest?.('[data-tip]');el&&el.dataset.tip?ver(el):tip.classList.remove('on')});
+addEventListener('scroll',()=>tip.classList.remove('on'),true);
+pintar();
+</script>
+</body>
+</html>

@@ -1,8 +1,9 @@
-const NAV_TABS_BASE=['stats','home','agenda'];
-let NAV_TABS=NAV_TABS_BASE.slice();
+// Inicio va primero, a la izquierda, donde lo deja cualquier app (HIG: Tab bars).
+const NAV_TABS_BASE=['home','agenda','stats'];
+let NAV_TABS=[...NAV_TABS_BASE,'perfil'];
 // Todas las pestañas que pueden existir. Pedir una que esta cuenta no tiene
 // (un widget, un enlace) lleva a su pestaña de entrada en vez de a una pantalla vacía.
-const PESTANAS=['stats','home','agenda','profesor','alumnos','admin'];
+const PESTANAS=['stats','home','agenda','amigos','profesor','alumnos','admin','perfil'];
 // Dónde abre la app y a dónde se vuelve: Clases para una cuenta de profesor,
 // Inicio para todas las demás, incluidas las de estudiante que además dan clases.
 function pestanaInicial(){return esCuentaProfesor()?'profesor':'home';}
@@ -20,8 +21,13 @@ function recalcularNavTabs(){
   // pestañas separadas (#697).
   // Un admin puede ocultarle Alumnos a un profesor (2026-10-23).
   const conAlumnos=conProfesor&&!(typeof panelAlumnosOculto==='function'&&panelAlumnosOculto());
-  const nuevas=[...(soloProfesor?[]:NAV_TABS_BASE),...(conProfesor?['profesor']:[]),...(conAlumnos?['alumnos']:[]),...(conAdmin?['admin']:[])];
-  [...NAV_TABS_BASE.map(t=>[t,!soloProfesor]),['profesor',conProfesor],['alumnos',conAlumnos],['admin',conAdmin]].forEach(([t,ver])=>{
+  // Amigos (2026-11-19): solo estudiantes con sesión y con el SQL aplicado. Va
+  // al medio, entre Agenda y Estadísticas: Inicio · Agenda · Amigos · Estadísticas · Perfil.
+  const conAmigos=!soloProfesor&&typeof amigosVisible==='function'&&amigosVisible();
+  const base=conAmigos?['home','agenda','amigos','stats']:NAV_TABS_BASE;
+  const nuevas=[...(soloProfesor?[]:base),...(conProfesor?['profesor']:[]),...(conAlumnos?['alumnos']:[]),...(conAdmin?['admin']:[]),'perfil'];
+  // Perfil la tiene toda cuenta y va siempre al final (HIG: Tab bars).
+  [...NAV_TABS_BASE.map(t=>[t,!soloProfesor]),['profesor',conProfesor],['alumnos',conAlumnos],['admin',conAdmin],['amigos',conAmigos],['perfil',true]].forEach(([t,ver])=>{
     const btn=document.getElementById('nav-'+t);if(btn)btn.hidden=!ver;
     const pantalla=document.getElementById('screen-'+t);if(pantalla)pantalla.hidden=!ver;
   });
@@ -34,7 +40,7 @@ function recalcularNavTabs(){
   return true;
 }
 let currentTab='home';
-let currentTabIdx=1;
+let currentTabIdx=0;
 
 // ─── VISTAS DE CLASES Y ALUMNOS EN LA BARRA (Lucas, 2026-10-22) ──────────────
 // En pantalla ancha, Clases y Alumnos son grupos de la barra lateral, como en
@@ -46,7 +52,10 @@ const vistasPanelNav={};
 const vistaPendienteNav={};
 // La vista que pidió la barra, una sola vez: el panel la toma al pintarse.
 function tomarVistaNav(tab){const v=vistaPendienteNav[tab];delete vistaPendienteNav[tab];return v||null;}
-function marcarVistaNav(tab,vista){
+// `historia` es lo que guarda Atrás cuando la vista lleva más que su nombre
+// (la ficha de un alumno). Por defecto, la misma vista.
+function marcarVistaNav(tab,vista,historia=vista){
+  recordarVistaNav(tab,historia);
   if(typeof document==='undefined'||typeof document.querySelectorAll!=='function')return;
   document.querySelectorAll(`[data-nav-vista^="${tab}:"]`).forEach(b=>{
     if(b.dataset.navVista===`${tab}:${vista}`)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
@@ -57,6 +66,29 @@ function irAVistaNav(tab,vista='resumen'){
   vistaPendienteNav[tab]=vista;
   showTab(tab);
 }
+// Atrás del navegador recorre las vistas de Clases, Alumnos y Administración
+// en vez de salir de GradeHub: todo vive en una misma URL (Salva Ramos,
+// 2026-11-07). Cada vista nueva deja una entrada; la primera reemplaza la de
+// la página, así que Atrás desde la primera vista sale como siempre.
+function recordarVistaNav(tab,vista){
+  if(typeof history==='undefined'||typeof history.pushState!=='function')return;
+  const actual=history.state;
+  if(actual&&actual.nav===tab&&actual.vista===vista)return;
+  try{history[actual&&actual.nav?'pushState':'replaceState']({nav:tab,vista},'');}catch(e){}
+}
+if(typeof window!=='undefined'&&typeof window.addEventListener==='function')window.addEventListener('popstate',e=>{
+  const s=e.state;
+  if(!s||!PESTANAS.includes(s.nav)||typeof currentUser==='undefined'||!currentUser)return;
+  // Con el acceso o el onboarding encima, Atrás no los saca de en medio.
+  if(['auth','onboard','reset'].some(p=>document.getElementById('screen-'+p)?.classList.contains('active')))return;
+  irAVistaNav(s.nav,s.vista);
+});
+// Un formulario a medias avisa antes de cerrar o recargar la página. Lo deja
+// quien lo abre: devuelve true mientras haya algo que se perdería.
+let cambiosSinGuardarNav=null;
+if(typeof window!=='undefined'&&typeof window.addEventListener==='function')window.addEventListener('beforeunload',e=>{
+  if(typeof cambiosSinGuardarNav==='function'&&cambiosSinGuardarNav()){e.preventDefault();e.returnValue='';}
+});
 
 function setTabTransforms(idx, dragPx){
   const drag=dragPx||0;
@@ -73,6 +105,7 @@ function showTab(tab,skipAnim){
     recalcularNavTabs();
     if(!NAV_TABS.includes(tab))tab=pestanaInicial();
   }
+  if(typeof cambiarPantallaMedicionAnuncios==='function')cambiarPantallaMedicionAnuncios(tab);
   if(NAV_TABS.includes(tab)){
     // Modo tab: snap del carrusel
     ['ramo','auth','onboard','reset'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
@@ -94,6 +127,8 @@ function showTab(tab,skipAnim){
     else if(tab==='profesor'&&typeof renderProfesor==='function')renderProfesor();
     else if(tab==='alumnos'&&typeof renderAlumnosTab==='function')renderAlumnosTab();
     else if(tab==='admin'&&typeof renderAdmin==='function')renderAdmin();
+    else if(tab==='perfil'&&typeof renderPerfil==='function')renderPerfil();
+    else if(tab==='amigos'&&typeof renderAmigos==='function')renderAmigos();
     track('screen_view',{screen_name:tab});
   } else {
     // Modo overlay (ramo, auth, etc.)
@@ -203,7 +238,7 @@ function goHome(){
     [['transform',ramo],['transition',ramo],['boxShadow',ramo],['transition',atras],['filter',atras]].forEach(([k,el])=>{if(el)el.style[k]='';});
   }
   document.addEventListener('touchstart',e=>{
-    if(animando||!enAppNativa()||!e.touches||e.touches.length!==1)return;
+    if(animando||!enAppIOS()||!e.touches||e.touches.length!==1)return;
     const ramo=document.getElementById('screen-ramo');
     if(!ramo||!ramo.classList.contains('active')||document.documentElement.dataset.nav)return;
     if(document.querySelector('.modal-overlay.open,.confirm-overlay.open,#menu-flotante'))return;

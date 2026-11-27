@@ -18,16 +18,18 @@ vm.createContext(ctx);
 const g=n=>vm.runInContext(n,ctx);
 let ok=0,fail=0;const chk=(n,c)=>{if(c){ok++;console.log('  OK   '+n);}else{fail++;console.log('  FAIL '+n);}};
 const nfN=g('nfNecesaria');
+// Se muestra con coma; para comparar como número se lee igual que un campo.
+const num=t=>Number(String(t).replace(',','.'));
 
 console.log('\n=== Lo que se muestra nunca es menor que lo que hace falta ===');
 [3.803571,3.74999,3.7501,3.6501,3.449,3.9401,3.0001,6.99].forEach(v=>{
-  chk(`necesita ${String(v).slice(0,7)} → muestra ${nfN(v)}`, Number(nfN(v))>=v);
+  chk(`necesita ${String(v).slice(0,7)} → muestra ${nfN(v)}`, num(nfN(v))>=v);
 });
 
 console.log('\n=== Pero no infla por ruido de punto flotante ===');
-chk('3,7 exacto se muestra 3,7', nfN(3.7)==='3.7');
-chk('3,7000000001 también', nfN(3.7000000001)==='3.7');
-chk('4,0 exacto se muestra 4,0', nfN(4.0)==='4.0');
+chk('3,7 exacto se muestra 3,7', nfN(3.7)==='3,7');
+chk('3,7000000001 también', nfN(3.7000000001)==='3,7');
+chk('4,0 exacto se muestra 4,0', nfN(4.0)==='4,0');
 
 console.log('\n=== El caso de Dinámica, de punta a punta ===');
 // Interrogación 1 y 2 de 25%, Controles 20% en 3 casillas, Examen 30%.
@@ -39,7 +41,7 @@ const ramo={id:'r',nombre:'Dinámica',color:'#3aa',creditos:10,origen:null,gates
   {id:'ex',nombre:'Examen',peso:30,notas:[]}]};
 S.ramos=[ramo];
 const nec=g('notaNecesaria')(ramo);
-const mostrada=Number(nfN(nec));
+const mostrada=num(nfN(nec));
 chk(`el motor pide ${String(nec).slice(0,7)} y la pantalla dice ${mostrada}`, mostrada>=nec);
 // Y lo decisivo: seguir lo que dice la pantalla tiene que alcanzar.
 const conNota=v=>{

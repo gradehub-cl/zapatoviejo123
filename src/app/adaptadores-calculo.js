@@ -5,14 +5,23 @@
 // crearon antes de que la regla existiera. Un ramo manual del mismo nombre no
 // recibe excepciones del catálogo.
 function definicionPresetDelRamo(ramo){
+  if(ramo?.pautaSugerida?.aceptada&&ramo.pautaSugerida.aceptada.fuente!=='programa')return null; // Una pauta reportada no recibe reglas oficiales por coincidencia.
   const origen=ramo&&ramo.origen;
   if(!origen||!origen.tenant)return null;
   if(origen.tenant!=='uc'){
     const presets=PRESETS_POR_TENANT[origen.tenant];if(!presets)return null;
     const nombre=Object.keys(presets).find(n=>normName(n)===normName(ramo.nombre));
-    return definicionDeSeccion(nombre?presets[nombre]:null,ramo.seccion);
+    return nombre?definicionParaRamo(ramo,presets[nombre]):null;
   }
-  return definicionPreset(ramo.nombre,origen.tenant,origen.carrera,ramo.seccion);
+  if(origen.tenant!=='uc'||!presetUcDisponible(ramo.nombre,origen.carrera,siglaParaPrograma(ramo)))return null;
+  const nombre=claveUc(ramo.nombre);
+  return nombre?definicionParaRamo(ramo,PRESETS_UC[nombre]):null;
+}
+// Un ramo no coordinado solo recibe las reglas del programa que le corresponde
+// (su sección, o el que calza con su pauta): nunca las de otra sección.
+function definicionParaRamo(ramo,def){
+  if(!def||Array.isArray(def)||def.coordinado!==false)return def;
+  return programaQueCalza(ramo,def)?.def||null;
 }
 // singularHuella() agrupa reportes y puede dejar palabras feas; acá el nombre
 // se muestra al estudiante. Solo flexionamos vocabulario conocido y dejamos
@@ -86,6 +95,26 @@ function nombreNotaCasilla(ramo,cat,nota){
 // Para dibujar una casilla, manda el nombre que su dueño ya guardó, incluso
 // antes de ponerle una nota. La etiqueta derivada queda solo como respaldo.
 // No se usa al recuperar slots antiguos: ahí el nombre automático es la pauta.
+// En GradeHub hay dos tipos de evaluación: una nota sola (un examen) y un grupo
+// de casillas (Controles). La lista abierta —"varias notas" sin cantidad— era
+// un tercero que se veía como desplegable aunque tuviera una sola nota: una
+// "Solemne 1" con su "+ Agregar nota" (Martín, 2026-11-22). Ya no se crea; las
+// guardadas con 0 o 1 nota se dibujan como nota sola sin tocar el dato, que el
+// motor calcula igual en los dos casos. Sigue como grupo la que el programa
+// oficial declara sin cantidad: pasarla a nota sola le inventaría una.
+function listaDelPrograma(ramo,cat){
+  const def=definicionPresetDelRamo(ramo);
+  const evals=Array.isArray(def)?def:(def&&def.evals||[]);
+  return evals.some(([nombre,,extra])=>extra&&extra.lista===true&&normName(nombre)===normName(cat&&cat.nombre));
+}
+function seVeComoNotaSola(ramo,cat){
+  return !!cat&&cat.directNota===false&&(Array.isArray(cat.notas)?cat.notas:[]).length<=1&&!listaDelPrograma(ramo,cat);
+}
+// Una lista abierta guardada puede seguir así: con varias notas ya es un grupo
+// a la vista, y la del programa no tiene cantidad que pedir.
+function listaAbiertaPermitida(ramo,cat){
+  return !!cat&&cat.directNota===false&&((Array.isArray(cat.notas)?cat.notas:[]).length>1||listaDelPrograma(ramo,cat));
+}
 function nombreCasilla(ramo,cat,slot){
   const nota=(Array.isArray(cat.notas)?cat.notas:[]).find(n=>n&&n.slot===slot);
   return (nota&&nombreNotaCasilla(ramo,cat,nota))||etiquetaCasilla(ramo,cat,slot);
@@ -100,7 +129,7 @@ const calculoRamo=gh_crearCalculoRamo({
   ramos:()=>S.ramos,
   tenant:()=>S.tenant,
 });
-var {reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,referenciaRamoVinculado,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
+var {reglasCalculoVigentes,reglasBonusVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,notaNecesariaEximicion,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,referenciaRamoVinculado,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
 // Una compuerta es una excepción explícita al promedio: puede reprobar aunque
 // la nota final redondeada llegue a 4,0. Estos helpers mantienen esa excepción
 // visible sin contaminar el redondeo normal de todos los demás ramos.
@@ -111,10 +140,23 @@ function textoCompuertaActiva(g){
     ? `${g.nombre} va ${fmtPromedio(g.actual)} (mín. ${nf(g.min)}): ${g.efecto==='reemplazar'?'la nota final queda en '+fmtPromedio(g.cap):'topa tu nota final'}`
     : `${g.nombre} bajo ${nf(g.min)}: repruebas pese al promedio`;
 }
-function nivelRamo(r,n){return gatesActivas(r).length?'bad':nivelNota(n);}
+// Con laboratorio, cada parte tiene que llegar a 4,0 por separado: si una baja,
+// la final pasa a ser la más baja de las dos. Por eso una cátedra al borde deja
+// el ramo al borde aunque el laboratorio suba el promedio combinado.
+const RANGO_NIVEL={bad:0,warn:1,good:2,neutral:3};
+function nivelRamo(r,n){
+  if(gatesActivas(r).length)return 'bad';
+  const nivel=nivelNota(n),partes=r&&r.aporta?partesDelVinculo(r):null;
+  if(nivel!=='good'||!partes||partes.propio.valor===null||partes.externo.valor===null)return nivel;
+  return [nivel,nivelNota(partes.propio.valor),nivelNota(partes.externo.valor)].reduce((a,b)=>RANGO_NIVEL[b]<RANGO_NIVEL[a]?b:a);
+}
 function notaAprobadaRamo(r,n){const nivel=nivelRamo(r,n);return nivel==='warn'||nivel==='good';}
 function colorClassRamo(r,n){return nivelRamo(r,n);}
-function getColorRamo(r,n){return gatesActivas(r).length?getColor(3.9):getColor(n);}
+// El color sigue al nivel: un 5,0 combinado con la cátedra al borde no se pinta verde.
+function getColorRamo(r,n){
+  if(gatesActivas(r).length)return getColor(3.9);
+  return nivelRamo(r,n)==='warn'&&nivelNota(n)==='good'?getColor(4.9):getColor(n);
+}
 
 // ─── CÁTEDRA Y LABORATORIO ───────────────────────────────────────────────────
 // Dinámica se aprueba solo si la cátedra Y el laboratorio llegan cada uno a
@@ -125,13 +167,12 @@ function getColorRamo(r,n){return gatesActivas(r).length?getColor(3.9):getColor(
 //
 // Solo aparece cuando el laboratorio tiene notas: antes de eso el promedio de
 // siempre YA es solo la cátedra, y repetir el mismo número confundiría.
-// `fmt` decide la coma decimal: el simulador la usa y la ficha no. `exacto`
-// agrega el promedio sin redondear, como el número grande al tocarlo.
-function htmlSoloCatedra(r,{fmt=x=>x,exacto=null}={}){
+// `exacto` agrega el promedio sin redondear, como el número grande al tocarlo.
+function htmlSoloCatedra(r,{exacto=null}={}){
   const partes=partesDelVinculo(r);
   if(!partes||partes.propio.valor===null||partes.externo.valor===null)return '';
   const v=partes.propio.valor;
-  return `<span class="solo-parte-num" style="color:${getColorRamo(r,v)}">${fmt(fmtPromedio(v))}</span>`+
+  return `<span class="solo-parte-num" style="color:${getColorRamo(r,v)}">${fmtPromedio(v)}</span>`+
     `<span class="solo-parte-label">Solo cátedra${exacto?` · ${exacto(v)}`:''}</span>`;
 }
 // Lo que falta para aprobar. En un ramo con laboratorio habla solo de la
@@ -141,20 +182,28 @@ function notaNecesariaParaAprobar(r){
   return partes?{valor:partes.propio.necesaria,cual:' cátedra'}:{valor:notaNecesaria(r),cual:''};
 }
 // Donde el descarte es manual, la app solo avisa cuántas notas permite borrar la
-// pauta. Un porcentaje depende de cuántas se rindieron, así que se dice tal cual.
+// pauta. Un porcentaje depende de cuántas se rindieron: se traduce a notas con
+// el redondeo de la universidad, y nunca a todas las rendidas.
 function textoNotasBorrables(r,cat){
   const d=cat&&cat.dropLowest;
   if(!d||!gh_descarteManual(r,S.tenant))return '';
-  if(typeof d.fraction==='number')return `Según la pauta, se puede borrar el ${Math.round(d.fraction*100)}% de las notas`;
+  if(typeof d.fraction==='number'){
+    const base=`Según las reglas del ramo, se puede borrar el ${Math.round(d.fraction*100)}% de las notas`;
+    const rendidas=(cat.notas||[]).filter(n=>typeof n.valor==='number').length;
+    const redondear=gh_reglasNota(r&&r.origen&&r.origen.tenant||S.tenant).descarte_redondeo==='arriba'?Math.ceil:Math.floor;
+    const k=Math.min(redondear(Math.round(d.fraction*rendidas*1e6)/1e6),rendidas-1);
+    return k>=1?`${base}. Con ${rendidas} rendidas, puedes borrar ${k}`:base;
+  }
   const n=Math.floor(Number(d.count))||0;
   if(n<1)return '';
-  return `Según la pauta, ${n===1?'se puede borrar 1 nota':`se pueden borrar ${n} notas`}`;
+  return `Según las reglas del ramo, ${n===1?'se puede borrar 1 nota':`se pueden borrar ${n} notas`}`;
 }
 // Los descartes vienen del motor, pero se explican en la evaluación donde
 // ocurren. La nota sigue visible: solo no participa en ese promedio.
 function textoDescarte(cat,descarte){
   const notas=descarte.dropped||[];
   const cantidad=notas.length;
+  const propia=cat.descarteOrigen==='editor';
   const lista=notas.map(n=>`${n.name} (${fmt(n.value)})`).join(', ');
   const regla=cat.dropLowest||{};
   let redondeo='';
@@ -162,7 +211,7 @@ function textoDescarte(cat,descarte){
     const porcentaje=Math.round(regla.fraction*100);
     redondeo=` Con ${descarte.rendidas} evaluaciones rendidas, el ${porcentaje}% equivale a ${cantidad} ${cantidad===1?'nota':'notas'}: se redondea hacia abajo.`;
   }
-  return `El programa descarta ${cantidad===1?'la nota más baja':'las notas más bajas'} de esta evaluación. ${lista} ${cantidad===1?'no cuenta':'no cuentan'} en este promedio.${redondeo}`;
+  return `${propia?'Tus ponderaciones descartan':'El programa descarta'} ${cantidad===1?'la nota más baja':'las notas más bajas'} de esta evaluación. ${lista} ${cantidad===1?'no cuenta':'no cuentan'} en este promedio.${redondeo}`;
 }
 
 // Promedio general. En Chile el PPA se pondera por créditos (SCT), no es simple.
@@ -213,6 +262,25 @@ function gpa(ramos){
     return den>0?num/den:simple();
   }
   return simple();
+}
+// El promedio del semestre se calcula desde el valor bruto de gpa, sin
+// redondear cada ramo antes (#1072). Va con UN decimal en toda la app, como lo
+// muestran las universidades (Lucas, 2026-11-11: 5,42 se ve 5,4). Tocar el
+// promedio en Inicio muestra el valor exacto. Las diferencias (deltas y
+// aportes) usan fmtDiferenciaPromedio, con dos decimales: con uno, un +0,04 se
+// vería +0,0.
+// La décima sale de notaFinalOficial, la misma regla de la universidad que
+// pinta el semáforo (colorClass/getColor) y que usa animarPromedio. Con un
+// redondeo propio, en la UAndes (previo a la centésima) un 3,946 se leía «3,9»
+// pintado de aprobado, y al ingresar una nota la animación lo dejaba en «4,0»
+// hasta el siguiente repintado. Con la regla común da lo mismo que antes.
+function fmtPromedioGeneral(valor){
+  if(!Number.isFinite(valor))return '—';
+  return notaFinalOficial(valor).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1,useGrouping:false});
+}
+function fmtDiferenciaPromedio(valor){
+  if(!Number.isFinite(valor))return '—';
+  return gh_excelRound(valor+1e-9,2).toLocaleString('es-CL',{minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:false});
 }
 // Total de créditos inscritos (solo cuenta los que tienen el dato)
 function totalCreditos(ramos){

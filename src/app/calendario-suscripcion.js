@@ -17,7 +17,7 @@ async function pedirFeedCalendario(regenerar){
   const {data,error}=await supabaseClient.rpc(regenerar?'calendar_feed_revoke':'calendar_feed_token');
   if(currentUser!==usuario||version!==_feedVersion)return null;
   if(error)throw error;
-  _feedUrl=location.origin+'/cal/'+data;
+  _feedUrl=paginaPublica('/cal/'+data);
   _feedUsuario=usuario;
   return _feedUrl;
 }
@@ -111,13 +111,21 @@ function exportCalendarSnapshotFromAgenda(){
 // estudiante solo aprieta Guardar. Sin API, sin OAuth, sin backend y sin
 // permisos nuevos: es un link. No sincroniza — si después cambias la fecha en
 // GradeHub, el evento en Google se queda con la vieja.
-function googleCalUrl(ramo,cat){
-  if(!cat||!cat.fecha)return '';
+function googleCalUrl(ramo,cat,nota=null){
+  // Un control con fecha propia ("Control 3" dentro de "Controles") es su propio
+  // evento, con su nombre y su fecha. Antes el botón solo existía para la fecha
+  // del grupo: cada control había que pasarlo a mano (comentario de una
+  // estudiante, 2026-11-17).
+  const fecha=nota?nota.fecha:cat&&cat.fecha;
+  if(!cat||!fecha)return '';
+  const peso=nota?pesoEventoAgenda({ramo,cat,nota,fecha}):Number(cat.peso)||0;
   const p=new URLSearchParams({
     action:'TEMPLATE',
-    text:`${cat.nombre} — ${ramo.nombre}`,
-    dates:`${icsDate(cat.fecha)}/${icsDatePlus1(cat.fecha)}`,
-    details:`Vale ${r2(cat.peso||0)}% de ${ramo.nombre}. Agendado desde GradeHub.`,
+    text:`${nota?nombreNotaCasilla(ramo,cat,nota):cat.nombre} — ${ramo.nombre}`,
+    dates:`${icsDate(fecha)}/${icsDatePlus1(fecha)}`,
+    // Mismo criterio que el .ics: si el peso de un control no se puede saber,
+    // no se le pone el del grupo entero.
+    details:(peso==null?`Parte de «${cat.nombre}», que vale ${r2(cat.peso||0)}% de ${ramo.nombre}.`:`Vale ${r2(peso)}% de ${ramo.nombre}.`)+' Agendado desde GradeHub.',
   });
   return 'https://calendar.google.com/calendar/render?'+p.toString();
 }

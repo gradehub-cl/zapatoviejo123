@@ -35,7 +35,8 @@ chk('no se devuelve callado y devuelve el foco al campo',run('obAgregarManual()'
 
 console.log('\n=== Ninguna carrera declarable queda escondida ===');
 run('selectedTenant="uc";carreraFiltro="";selectedCarrera=null;selectedCarreraNombre=null;initCarreraGrid();');
-const total=run('carrerasDeclarables("uc").length');
+// Los majors de Ingeniería (soloAjustes) se eligen en Ajustes, no al registrarse.
+const total=run('carrerasDeclarables("uc").filter(c=>!c.soloAjustes).length');
 const opciones=grid.children.filter(b=>b.className==='carrera-opt');
 chk(`las ${total} carreras UC se pueden recorrer sin buscar`,opciones.length===total);
 
@@ -45,5 +46,22 @@ const resultados=grid.children.filter(b=>b.className==='carrera-opt'&&!/^Usar /.
 const salida=grid.children.find(b=>/^Usar /.test(b.innerHTML));
 if(salida)salida.onclick();
 chk('con resultados parciales igual permite declarar lo escrito',resultados.length>0&&!!salida&&run('selectedCarrera')===null&&run('selectedCarreraNombre')==='Pedagogía'&&run('obStepValid(3)')===true);
+
+console.log('\n=== Sinónimos de carrera, misma identidad ===');
+const antes=run('JSON.stringify(S)');
+run('selectedTenant="uc";carreraFiltro="ingenieria";initCarreraGrid();');
+const ingenierias=grid.children.filter(b=>b.textContent==='Ingeniería Civil');
+chk('Ingeniería Civil encuentra una sola Ingeniería UC',ingenierias.length===1);
+ingenierias[0]?.onclick();
+chk('elegir el sinónimo conserva código y nombre canónicos',run('selectedCarrera')==='ING-PC'&&run('selectedCarreraNombre')==='Ingeniería Civil');
+chk('buscar y elegir no escribe el estado guardado',run('JSON.stringify(S)')===antes);
+chk('plan común y acentos también encuentran la misma opción',run('coincideBusquedaCarrera(carrerasDeclarables("uc").find(c=>c.malla==="ING-PC"),"plan comun de ingenieria")'));
+run('carreraFiltro="teatro";initCarreraGrid();');
+chk('Teatro encuentra Actuación sin duplicar la carrera',grid.children.filter(b=>b.textContent==='Actuación').length===1);
+chk('un diploma no declarado no se convierte en el plan común',run('!coincideBusquedaCarrera(carrerasDeclarables("uc").find(c=>c.malla==="ING-PC"),"Ingeniería Civil Industrial")'));
+// La Chile tiene su propia Actuación Teatral con el alias Teatro: lo que no
+// puede pasar es que aparezca la Actuación de la UC.
+chk('los alias UC no aparecen en otra universidad',run('carrerasDeclarables("fen").filter(c=>coincideBusquedaCarrera(c,"Teatro")).map(c=>c.n).join()==="Actuación Teatral"'));
+chk('Ajustes usa la misma búsqueda por nombre y alias',fs.readFileSync(raiz+'src/app/ajustes.js','utf8').includes('todas.filter(c=>coincideBusquedaCarrera(c,q))'));
 
 console.log('\nPASS: '+ok+'   FAIL: '+fail);process.exit(fail?1:0);

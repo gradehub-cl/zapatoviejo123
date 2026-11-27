@@ -31,7 +31,7 @@ console.log('\n=== Lo que se crea a mano queda como fila simple ===');
 // La fila simple es la misma rama de render que usan las pautas oficiales, así
 // que una evaluación a mano y una del catálogo se ven y se llenan igual.
 chk('la fila simple es la rama de directNota sin slots',
-  /if\(cat\.directNota\)\{/.test(src) && /if\(cat\.slots&&cat\.slots>1\)\{/.test(src));
+  /if\(cat\.directNota\|\|seVeComoNotaSola\(r,cat\)\)\{/.test(src) && /if\(cat\.slots&&cat\.slots>1\)\{/.test(src));
 
 console.log('\n=== Lo ya guardado se convierte, pero solo donde no se pierde nada ===');
 const normalize = val('normalize');
@@ -74,10 +74,10 @@ chk('distingue un ramo del catálogo que todavía no tiene pauta oficial',
   pautaCatalogoSinOficial && pautaCatalogoSinOficial({ nombre: 'Ramo sin programa', origen: { tenant: 'uc', carrera: 'ING-PC' }, categorias: [] }) &&
   !pautaCatalogoSinOficial({ nombre: 'Ramo manual', origen: null, categorias: [] }));
 chk('la acción vacía le dice que puede armar su pauta',
-  /pautaCatalogoSinOficial\(r\)[\s\S]{0,500}Armar mi pauta/.test(renderMain));
-chk('una pauta completa recién creada ofrece revisarla antes de compartirla',
-  /estabaVacia[\s\S]{0,900}ofrecerCompartirPauta\(r\)/.test(src) &&
-  /Revisar antes de enviar/.test(src) && /Nunca tus notas/.test(src));
+  /pautaCatalogoSinOficial\(r\)[\s\S]{0,500}Armar mis ponderaciones/.test(renderMain));
+chk('guardar una pauta propia usa el aviso informativo único',
+  /if\(filas.length\)[\s\S]{0,150}informarAportePauta/.test(src) &&
+  /Tus programas se suman en forma anónima/.test(src) && /Nunca se comparten tus notas/.test(src));
 
 console.log('\n=== Reportar la pauta se encuentra ===');
 const html = fs.readFileSync(raiz + 'index.html', 'utf8');
@@ -89,9 +89,9 @@ chk('ya no cuelga del modal de editar', !/openReportModal/.test(editar));
 // Sigue habiendo un único acceso permanente en la ficha. El tercero aparece
 // solo después de crear una pauta completa y abre una revisión: no envía nada
 // por sí solo ni duplica una acción constante en otra pantalla.
-chk('solo ofrece compartir desde el hito de crear una pauta completa',
+chk('no pregunta si quiere compartir ni agrega otro acceso a reportar',
   (src.match(/rep\.onclick=\(\)=>openReportModal\(r\.id\)/g) || []).length === 1 &&
-  /function ofrecerCompartirPauta\(r\)[\s\S]{0,500}showConfirm[\s\S]{0,500}openReportModal\(r\.id\)/.test(src));
+  !/ofrecerCompartirPauta|¿Compartir esta pauta\?/.test(src));
 // El texto viejo ("¿Le cambiaron las ponderaciones?") daba por hecho que la
 // pauta existe y cambió. Hoy el caso mayoritario es que no la tenemos.
 chk('el texto sirve para una pauta mala y para una que falta',
@@ -115,23 +115,27 @@ const ultimaCat = () => { const c = val('S.ramos[0].categorias'); return c[c.len
 val('confirmAddCat')();
 chk('sin marcar queda como fila simple', ultimaCat().directNota === true);
 
+// Desde 2026-11-22 hay dos tipos: marcada pide cuántas son y queda como grupo
+// de casillas, que después crece con "+ Agregar nota". Ya no hay lista abierta.
 campos['m-cat-varias'].checked = true;
+campos['m-cat-cantidad'] = { value: '', setAttribute() {}, removeAttribute() {}, focus() {} };
+const cuantasAntes = val('S.ramos[0].categorias').length;
+chk('marcada sin cantidad no se guarda', val('confirmAddCat')() === false && val('S.ramos[0].categorias').length === cuantasAntes);
+campos['m-cat-cantidad'] = { value: '4' };
 val('confirmAddCat')();
 const varias = ultimaCat();
-chk('marcada queda como lista abierta', varias.directNota === false);
-// Sin esto la rama de render sería la de casillas fijas, que necesita un número
-// que acá nadie dio.
-chk('y sin slots: el estudiante agrega las que quiera', !varias.slots);
+chk('marcada con cantidad queda como grupo de casillas', varias.directNota === true && varias.slots === 4);
 
 console.log('\n=== El editor de pauta y la conversión posterior ===');
 vm.runInContext('S={ramos:[{id:"r2",nombre:"Ramo",categorias:[],gates:[],notas:[]}]};currentRamoId="r2";', ctx);
 vm.runInContext('showToast=function(){};', ctx);
-vm.runInContext('pautaDraft=[{id:null,nombre:"Solemne",peso:40,tieneNotas:false,varias:false},{id:null,nombre:"Controles",peso:60,tieneNotas:false,varias:true}];', ctx);
+vm.runInContext('pautaDraft=[{id:null,nombre:"Solemne",peso:40,tieneNotas:false,varias:false},{id:null,nombre:"Controles",peso:60,tieneNotas:false,varias:true,cantidad:4}];', ctx);
 val('guardarPautaManual')();
 const porNombre = n => val('S.ramos[0].categorias').find(c => c.nombre === n);
 chk('la fila sin marcar queda simple', porNombre('Solemne').directNota === true);
-chk('la fila marcada queda como lista abierta', porNombre('Controles').directNota === false);
-const controlesConNotas = porNombre('Controles');
+chk('la fila marcada queda como grupo de casillas', porNombre('Controles').directNota === true && porNombre('Controles').slots === 4);
+// Una lista abierta guardada antes de los dos tipos.
+const controlesConNotas = { id: 'cl', nombre: 'Controles', peso: 60, directNota: false, notas: [] };
 
 // Las plantillas UC no repiten una categoría tres veces: declaran tres casillas
 // dentro del mismo grupo, para no inventar cómo se reparte su porcentaje.
@@ -151,6 +155,7 @@ const conNotas = controlesConNotas;
 conNotas.notas = [{ id: 'n1', valor: 5, peso: 1 }, { id: 'n2', valor: 6, peso: 1 }];
 campos['m-cat-name'] = { value: 'Controles' };
 campos['m-cat-varias'] = { checked: false, disabled: true };
+campos['m-cat-cantidad'] = { value: '' };
 val('confirmEditCat')(conNotas.id);
 chk('con la casilla desactivada, el modo no cambia', conNotas.directNota === false);
 chk('y las notas siguen ahí', conNotas.notas.length === 2);

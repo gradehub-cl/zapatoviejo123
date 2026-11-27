@@ -9,16 +9,28 @@ function cambiarSombras(activadas){
   renderRamo();
   document.getElementById('sombras-activadas')?.focus({preventScroll:true});
 }
-function interruptorSombrasHTML(modelo){
-  return modelo?`<label class="sombras-interruptor" for="sombras-activadas"><span>Sombras</span><input id="sombras-activadas" type="checkbox" role="switch"${sombrasActivadas()?' checked':''} onchange="cambiarSombras(this.checked)"></label>`:'';
+function interruptorSombrasHTML(modelo,enExamen=false){
+  return modelo?`<label class="sombras-interruptor${enExamen?' sombras-interruptor-examen':''}" for="sombras-activadas"><span>Notas sombra</span><input id="sombras-activadas" type="checkbox" role="switch"${sombrasActivadas()?' checked':''} onchange="cambiarSombras(this.checked)"></label>`:'';
 }
 function pintarInterruptorSombras(modelo){
-  const chip=document.getElementById('ramo-min-chip');if(!chip)return;
-  chip.querySelector('.sombras-interruptor')?.remove();
+  document.querySelectorAll('.sombras-interruptor').forEach(el=>el.remove());
   if(!modelo)return;
-  chip.style.display='inline-flex';
-  chip.innerHTML+=interruptorSombrasHTML(modelo);
+  const ramo=S.ramos.find(r=>r.id===currentRamoId);
+  const examenes=new Set((ramo?.categorias||[]).filter(esExamenSombra).map(c=>c.id));
+  const examen=[...document.querySelectorAll('#cat-list [data-ficha-categoria]')].find(el=>examenes.has(el.dataset.fichaCategoria));
+  if(examen){
+    // La fila permanece aunque se apaguen las sombras o se cierre el slider.
+    // En un grupo colapsable va antes del cuerpo, nunca dentro de lo ocultable.
+    const antes=examen.querySelector('.sombra-panel,.eval-group-body');
+    const html=interruptorSombrasHTML(modelo,true);
+    if(antes)antes.insertAdjacentHTML('beforebegin',html);else examen.insertAdjacentHTML('beforeend',html);
+    return;
+  }
+  // Hay pautas sin examen: conservan el control junto a la meta.
+  const chip=document.getElementById('ramo-min-chip');if(!chip)return;
+  chip.style.display='inline-flex';chip.innerHTML+=interruptorSombrasHTML(modelo);
 }
+
 const claveNotaSombra=(catId,slot)=>JSON.stringify([catId,slot]);
 const textoNotaSombra=v=>Number(v).toFixed(1).replace('.',',');
 // Lucas, 2026-11-03: el «¿cuánto crees que sacas?» queda solo en el examen. En las
@@ -55,7 +67,7 @@ function modeloNotasSombra(r,fijas=new Map()){
   const pendientes=[];
   for(const c of cats){
     if(!(c.peso>0))continue;
-    const min=Math.max(minimo,...gates.filter(g=>g.catId===c.id).map(g=>Number(nfNecesaria(g.min))));
+    const min=Math.max(minimo,...gates.filter(g=>g.catId===c.id).map(g=>Number(nfNecesariaDato(g.min))));
     if(c.slots>1){
       hojasCategoria(c).forEach(h=>{
         const n=(c.notas||[]).find(n=>n.id===h.id);
@@ -83,7 +95,7 @@ function modeloNotasSombra(r,fijas=new Map()){
     if(menor&&necesaria>=menor[1]-1e-9){auto.delete(menor[0]);continue;}
     break;
   }
-  const valor=Math.max(minimo,Number(nfNecesaria(necesaria)));
+  const valor=Math.max(minimo,Number(nfNecesariaDato(necesaria)));
   const estado=valor>maximo?'no':valor<=minimo&&!auto.size?'ya':'ok';
   if(estado!=='no'){
     const todas=new Map([...fijadas,...auto,...libres.map(p=>[p.clave,valor])]);
@@ -98,13 +110,32 @@ function modeloNotasSombra(r,fijas=new Map()){
 
 function notasSombraDelRamo(r){
   if(sesionNotasSombra.estado!==S)sesionNotasSombra={estado:S,ramos:new Map()};
-  if(!sesionNotasSombra.ramos.has(r.id))sesionNotasSombra.ramos.set(r.id,{fijas:new Map(),abierta:null,iniciada:false});
+  if(!sesionNotasSombra.ramos.has(r.id))sesionNotasSombra.ramos.set(r.id,{fijas:notasSombraDeSensaciones(r),abierta:null,iniciada:false});
   const sesion=sesionNotasSombra.ramos.get(r.id),modelo=modeloNotasSombra(r,sesion.fijas);
   const claves=new Set(modelo?.pendientes.map(p=>p.clave)||[]);
   for(const clave of sesion.fijas.keys())if(!claves.has(clave))sesion.fijas.delete(clave);
   if(sesion.abierta&&!claves.has(sesion.abierta))sesion.abierta=null;
   if(modelo&&!sesion.iniciada){sesion.abierta=modelo.pendientes.find(esExamenSombra)?.clave||null;sesion.iniciada=true;}
   return modelo?{...modelo,sesion}:null;
+}
+// «¿Cómo te fue?» (Actividad en Vivo o aviso) mueve la sombra de esa evaluación
+// mientras no llegue la nota real (decisión de Lucas, 15-11): notas fijas con
+// «Normal» en el 4,0, escaladas a la escala del ramo. Es la nota de partida de
+// la sesión: la persona la cambia con el control como cualquier otra.
+const NOTA_SOMBRA_SENSACION={1:2.0,2:3.0,3:4.0,4:5.0,5:6.0};
+function notasSombraDeSensaciones(r){
+  const fijas=new Map();
+  if(typeof sensacionesGuardadas!=='function')return fijas;
+  const base=modeloNotasSombra(r,new Map());if(!base)return fijas;
+  const escala=v=>base.maximo===7&&base.minimo===1?v:base.minimo+(v-1)*(base.maximo-base.minimo)/6;
+  Object.entries(sensacionesGuardadas()).sort((a,b)=>(a[1].fecha||0)-(b[1].fecha||0)).forEach(([clave,x])=>{
+    const [ramoId,catId]=clave.split('|');
+    const v=NOTA_SOMBRA_SENSACION[x&&x.valor];
+    if(ramoId!==r.id||v==null)return;
+    const p=base.pendientes.find(q=>q.catId===catId&&!fijas.has(q.clave));
+    if(p)fijas.set(p.clave,Math.round(escala(v)*10)/10);
+  });
+  return fijas;
 }
 function valorNotaSombra(m,p){return m.fijas.get(p.clave)??m.auto.get(p.clave)??(m.estado==='no'?null:m.necesaria);}
 function botonNotaSombraHTML(m,p){
@@ -141,17 +172,9 @@ function panelNotaSombraHTML(m,p){
     <p class="sombra-lectura"></p><button type="button" class="sombra-soltar" onclick="soltarNotaSombra(this)"${m.fijas.has(p.clave)?'':' hidden'}>Volver a lo que necesito</button>
   </div>`;
 }
-function pintarMetaNotasSombra(m){
-  const chip=document.getElementById('ramo-min-chip');if(!chip)return;
-  chip.style.display='inline-flex';chip.className='ramo-chip ramo-meta';
-  chip.setAttribute('data-sombra-meta',m.necesaria===null?'':textoNotaSombra(m.necesaria));
-  if(m.estado==='cerrado')chip.textContent=`Terminas con ${textoNotaSombra(m.final)}`;
-  else if(m.estado==='ya')chip.textContent=m.fijas.size?'Con lo fijado ya alcanza':`Ya aprobaste · aunque saques ${textoNotaSombra(m.minimo)}`;
-  // La ficha ya no tiene medidor (#977): buscar sus piezas lanzaba un error que
-  // cortaba el repintado del slider y, con un examen en su mínimo, la ficha.
-  else chip.innerHTML=medidorFichaHTML(m.estado==='no'?Infinity:m.necesaria,'',false,m.fijas.size||m.auto.size?'en las otras pendientes':'en lo pendiente');
-  pintarInterruptorSombras(m);
-}
+// Lucas, 2026-11-07: el mensaje de arriba siempre habla de las notas reales.
+// Lo que cambia con las sombras se lee en su panel y en el resumen de abajo.
+function pintarMetaNotasSombra(m){pintarInterruptorSombras(m);}
 function pintarValoresNotasSombra(r,m){
   pintarMetaNotasSombra(m);
   const cl=document.getElementById('cat-list');
@@ -176,12 +199,16 @@ function pintarValoresNotasSombra(r,m){
   const pie=cl.querySelector('.sombra-resumen');
   if(pie){
     const minimos=[...m.auto].map(([clave,v])=>{const p=m.pendientes.find(p=>p.clave===clave);return `${esExamenSombra(p)?'El examen':p.nombre} queda en ${textoNotaSombra(v)} porque es su mínimo: aunque te sobre, tienes que pasarlo.`;});
-    pie.hidden=!minimos.length&&!m.fijas.size&&m.estado==='ok';
-    pie.textContent=[m.estado==='ok'&&!m.fijas.size?'':textoEstadoSombra(m),...minimos].filter(Boolean).join(' ');
+    const conSombras=m.estado==='cerrado'?`Con estas notas terminas con ${textoNotaSombra(m.final)}.`
+      :m.estado==='ya'?'Con estas notas ya alcanzas para aprobar.'
+      :m.estado==='no'?'Con estas notas ya no alcanza para aprobar.'
+      :m.fijas.size||m.auto.size?`Con estas notas necesitas ${textoNotaSombra(m.necesaria)} en las otras pendientes.`:'';
+    pie.hidden=!minimos.length&&!conSombras&&m.estado==='ok';
+    pie.textContent=[conSombras||(m.estado==='ok'?'':textoEstadoSombra(m)),...minimos].filter(Boolean).join(' ');
   }
 }
 function montarNotasSombra(r,m,cl){
-  if(!m||!sombrasActivadas()){document.getElementById('ramo-min-chip')?.removeAttribute('data-sombra-meta');return;}
+  if(!m||!sombrasActivadas())return;
   const b=[...cl.querySelectorAll('button[data-sombra-clave]')].find(b=>b.dataset.sombraClave===m.sesion.abierta);
   const p=b&&m.pendientes.find(p=>p.clave===m.sesion.abierta);
   if(p&&esExamenSombra(p)){const fila=b.closest('.eval-sub,.eval-row');fila.classList.add('sombra-abierta');fila.insertAdjacentHTML('beforeend',panelNotaSombraHTML(m,p));}

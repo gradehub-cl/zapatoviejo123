@@ -1,5 +1,5 @@
 {
-  "fuentes": "Programas UC en Escritorio/GradeHub/Programas de Ramos/UC, convertidos con markitdown y revisados contra la pauta el 2026-10-19. Ampliado el 2026-10-28 con tres PDF recibidos por Lucas en Downloads, incluidos programas 2025-1 y 2026-1; se mantiene el período original de cada uno.",
+  "fuentes": "Programas UC en Escritorio/GradeHub/Programas de Ramos/UC, convertidos con markitdown y revisados contra la pauta el 2026-10-19. Ampliado el 2026-10-28 con tres PDF recibidos por Lucas en Downloads, incluidos programas 2025-1 y 2026-1; se mantiene el período original de cada uno. Actualizado el 2026-11-10 con los PDF de programas-nuevos. El detalle del lote está en programas-uc-noviembre-2026.md.",
   "alcance": "Verificación de pesos, cantidades y requisitos de las pautas UC que no estaban en docs/programas-uc-com-2026-2.json. No modifica pautas personalizadas.",
   "limitaciones": "Un programa vale para su período y sección; donde la pauta se aparta del archivo, se dice por qué.",
   "programas": [
@@ -557,6 +557,198 @@
       "confianza": "alta en transcripción; vigencia limitada al período y sección del documento",
       "verificado": "2026-10-28"
     },
+    {
+      "nombre_catalogo": "Termodinámica",
+      "archivo_fuente": "Reglas_FIS1523_2do_sem_2026.pdf",
+      "sigla": "FIS1523",
+      "periodo": "2026-2",
+      "paginas": [
+        3,
+        4,
+        5
+      ],
+      "citas_textuales": [
+        "NFC = 0,3·I1 + 0,3·I2 + 0,4·NE"
+      ],
+      "evaluaciones": [
+        [
+          "Interrogación 1",
+          30,
+          {
+            "fecha": "2026-09-22"
+          }
+        ],
+        [
+          "Interrogación 2",
+          30,
+          {
+            "fecha": "2026-11-06"
+          }
+        ],
+        [
+          "Examen",
+          40
+        ]
+      ],
+      "aporte_laboratorio": {
+        "ramo": "Laboratorio de Termodinámica",
+        "peso": 30,
+        "min": 4
+      },
+      "suma_ponderaciones": 100,
+      "confianza": "alta en transcripción",
+      "faltantes_y_ambiguedades": [
+        "Examen del 11 de diciembre por confirmar. No se precarga esa fecha.",
+        "El mínimo de 4,0 y la combinación 70/30 mantienen la decisión de Lucas del 2026-10-28. Falta la pauta interna de laboratorio."
+      ],
+      "verificado": "2026-11-10"
+    },
+    {
+      "nombre_catalogo": "Electricidad y Magnetismo",
+      "archivo_fuente": "Programa FIS1533 - 2026.2.pdf",
+      "sigla": "FIS1533",
+      "periodo": "2026-2",
+      "paginas": [
+        4,
+        5
+      ],
+      "citas_textuales": [
+        "NFC = 0,3·I1 + 0,3·I2 + 0,4·NE"
+      ],
+      "evaluaciones": [
+        [
+          "Interrogación 1",
+          30,
+          {
+            "fecha": "2026-09-29"
+          }
+        ],
+        [
+          "Interrogación 2",
+          30,
+          {
+            "fecha": "2026-11-13"
+          }
+        ],
+        [
+          "Examen",
+          40,
+          {
+            "fecha": "2026-12-01"
+          }
+        ]
+      ],
+      "aporte_laboratorio": {
+        "ramo": "Laboratorio de Electricidad y Magnetismo",
+        "peso": 30,
+        "min": 4
+      },
+      "suma_ponderaciones": 100,
+      "confianza": "alta en transcripción",
+      "faltantes_y_ambiguedades": [
+        "El programa enumera dos interrogaciones y examen. Los controles pertenecían a 2026-1.",
+        "El mínimo de 4,0 y la combinación 70/30 mantienen la decisión de Lucas del 2026-10-28. Falta la pauta interna de laboratorio."
+      ],
+      "verificado": "2026-11-10"
+    },
+    {
+      "nombre_catalogo": "Cálculo III",
+      "archivo_fuente": "prospecto-mat1630-2025-1.pdf",
+      "sigla": "MAT1630",
+      "periodo": null,
+      "paginas": [
+        1,
+        2
+      ],
+      "citas_textuales": [
+        "NF = 0,1·L + 0,2·(I1 + I2 + I3) + 0,3·E"
+      ],
+      "evaluaciones": [
+        [
+          "Interrogación 1",
+          20
+        ],
+        [
+          "Interrogación 2",
+          20
+        ],
+        [
+          "Interrogación 3",
+          20
+        ],
+        [
+          "Laboratorio",
+          10
+        ],
+        [
+          "Examen",
+          30
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta en transcripción",
+      "faltantes_y_ambiguedades": [
+        "El encabezado dice primer semestre 2024 y el nombre de archivo indica 2025-1. Se dejan sin período y sin fechas.",
+        "El programa solo da la nota global de laboratorio."
+      ],
+      "verificado": "2026-11-10"
+    },
+    {
+      "nombre_catalogo": "Ecuaciones Diferenciales",
+      "archivo_fuente": "Contenidos-Normativas-MAT1640.pdf",
+      "sigla": "MAT1640",
+      "periodo": "2026-1",
+      "paginas": [
+        1,
+        2
+      ],
+      "citas_textuales": [
+        "NF = 0,2·(I1 + I2 + I3) + 0,3·E + 0,1·L"
+      ],
+      "evaluaciones": [
+        [
+          "Interrogación 1",
+          20,
+          {
+            "fecha": "2026-04-14"
+          }
+        ],
+        [
+          "Interrogación 2",
+          20,
+          {
+            "fecha": "2026-05-12"
+          }
+        ],
+        [
+          "Interrogación 3",
+          20,
+          {
+            "fecha": "2026-06-10"
+          }
+        ],
+        [
+          "Laboratorio",
+          10
+        ],
+        [
+          "Examen",
+          30,
+          {
+            "fecha": "2026-07-02"
+          }
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta en transcripción",
+      "faltantes_y_ambiguedades": [
+        "El recuperativo figura al comienzo del segundo semestre de 2026. Las fechas de abril a julio se registran en 2026-1.",
+        "El programa solo da la nota global de laboratorio."
+      ],
+      "verificado": "2026-11-10"
+    }
+  ],
+  "historicos": [
     {
       "nombre_catalogo": "Termodinámica",
       "archivo_fuente": "Programa_y_Reglas_FIS1523_1er_sem_2025 2.pdf",

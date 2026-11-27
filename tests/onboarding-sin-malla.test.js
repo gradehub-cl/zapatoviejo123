@@ -27,8 +27,6 @@ const ctx = {
 };
 vm.createContext(ctx); vm.runInContext(src, ctx);
 const run = n => vm.runInContext(n, ctx);
-// Desde #697 la edad se elige en una ruleta: alguien de 20 años.
-run('obEdad=20');
 
 let ok = 0, fail = 0;
 function chk(nombre, cond) { if (cond) { ok++; console.log('  ok   ' + nombre); } else { fail++; console.log('  FAIL ' + nombre); } }
@@ -39,7 +37,7 @@ function intentar({ tenant, carrera, nombreCarrera, ramos }) {
   run(`selectedTenant=${JSON.stringify(tenant)}`);
   run(`selectedCarrera=${JSON.stringify(carrera)}`);
   run(`selectedCarreraNombre=${JSON.stringify(nombreCarrera)}`);
-  run('selectedSem=1');
+  run('obGeneracion=new Date().getFullYear();selectedSem=1');
   run(`obRamos=${JSON.stringify((ramos || []).map(n => ({ nombre: n, manual: true })))}`);
   run('completeOnboarding()');
   return { entro: run('S.onboardingDone') === true, S: run('JSON.parse(JSON.stringify(S))') };

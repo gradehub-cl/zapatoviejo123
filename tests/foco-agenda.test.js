@@ -75,6 +75,27 @@ chk('a igual fecha y peso, el ramo en riesgo sube',
 chk('un ramo que ya no se puede aprobar no sube: baja',
   gana(evento('sana', 7, 20, 6.5), evento('imposible', 7, 20, 2.0)));
 
+console.log('\n=== Recomendado prioriza aprobar los ramos (Lucas, 2026-11-19) ===');
+// El caso reportado: una prueba de Principios biológicos que pesaba más salía
+// primero aunque al ramo le bastaba un 2,4, por sobre el examen de Cálculo
+// que pedía un 4,0. Aquí: 5,2 en el 60% rendido pide 2,2 en el 40% que queda;
+// 4,0 en el 75% rendido pide cerca de 4,0 en el 25% que queda.
+const holgado = (nombre, dias) => evento(nombre, dias, 40, 5.2);
+const justo = (nombre, dias) => evento(nombre, dias, 25, 4.0);
+chk('el caso: la prueba holgada de 40% cede ante el examen de 25% que pide 4,0',
+  withPriority(holgado('Bio', 10)).necesita < 2.5 && withPriority(justo('Cálculo', 10)).necesita > 3.5
+  && gana(justo('Cálculo', 10), holgado('Bio', 10)));
+chk('también si la holgada es unos días antes',
+  gana(justo('Cálculo', 12), holgado('Bio', 8)));
+chk('la cercanía sigue mandando: la holgada en dos días le gana a la justa en un mes',
+  gana(holgado('Bio', 2), justo('Cálculo', 30)));
+const factorAprobar = funcionAgenda('factorAprobar');
+chk('el factor es neutro en 4,0 o sin dato, cede abajo y sube arriba',
+  !!factorAprobar && factorAprobar(4) === 1 && factorAprobar(null) === 1 && factorAprobar(2.4) < 0.6
+  && factorAprobar(1) === 0.3 && factorAprobar(5.5) > 1 && factorAprobar(7) === 2);
+chk('es monótono: más exigente, más prioridad',
+  !!factorAprobar && [1, 1.5, 2.4, 3, 3.9, 4, 4.5, 5.5, 6.5, 7].every((n, i, a) => i === 0 || factorAprobar(n) > factorAprobar(a[i - 1])));
+
 console.log('\n=== El riesgo avisa, pero no convierte diciembre en "ahora" ===');
 chk('un ramo reprobado no trae al frente su evaluación a cuatro meses',
   gana(evento('cerca', 25, 10), evento('lejos', 120, 40, 2.0)));
@@ -282,7 +303,7 @@ chk('abrir otra evaluación reemplaza la anterior y tocar la misma la cierra',
 const eventoRendido={...evento('ya-rendida',-3,20),pending:false,notas:[{id:'nota-rendida',nombre:'I1',valor:5.4,peso:1}]};
 const detalleRendido=detalleEvaluacionAgendaHTML ? detalleEvaluacionAgendaHTML(eventoRendido,[detalleSiguiente]) : '';
 chk('una evaluación rendida explica la nota registrada, no una meta que ya no necesita',
-  /Nota registrada/.test(detalleRendido) && /5\.4/.test(detalleRendido) && !/para aprobar/.test(detalleRendido));
+  /Nota registrada/.test(detalleRendido) && /5,4/.test(detalleRendido) && !/para aprobar/.test(detalleRendido));
 chk('una evaluación rendida mantiene la próxima evaluación a mano',
   /Después/.test(detalleRendido) && /siguiente/.test(detalleRendido));
 const agendaRendidaHTML=funcionAgenda('agendaRendidaHTML');

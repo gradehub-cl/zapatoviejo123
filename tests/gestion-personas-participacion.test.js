@@ -44,19 +44,46 @@ const antigua={id:'r1',nombre:'Gestión de Personas',color:'#6d5dd3',creditos:6,
   gates:[{type:'group_min',catIds:['v0','v4','v5','v6','v7'],min:4,cap:'self',nombre:'Trabajo individual'},
     {type:'group_min',catIds:['v1','v2','v3'],min:4,cap:'self',nombre:'Trabajo de grupo'}]};
 antigua.pautaHuella=filas.map(([n,p])=>`${n}:${p}`).join('|');
-const antes=cargar('fen',antigua).avg;
+// Con las tres filas llenas la corrige normalize() al cargar (ver abajo). Con
+// una sola llena se pregunta, y aceptar es decisión de la persona.
+const unaLlena={...antigua,categorias:antigua.categorias.map((c,i)=>i===4||i===6?{...c,notas:[]}:c)};
+cargar('fen',unaLlena);
 const textos=run(`cambioDePauta(S.ramos[0]).cambios`).map(c=>c.nombre);
-chk('al entrar nada cambia solo',run('S.ramos[0].categorias.length')===8);
+chk('a medias, al entrar nada cambia solo',run('S.ramos[0].categorias.length')===8);
 chk('se le ofrece la pauta nueva',textos.includes('Participación'));
 chk('el requisito no aparece como nuevo y retirado a la vez',!textos.some(t=>/Nuevo requisito|Deja de exigirse/.test(t)));
 run(`actualizarPauta('r1');renderRamo();`);
 const part=run(`S.ramos[0].categorias.find(c=>c.nombre==='Participación')`);
-chk('al aceptar, las tres notas quedan en Participación',part.notas.length===3);
+chk('al aceptar, su nota queda en Participación',part.notas.length===1&&part.notas[0].valor===4);
 chk('sin evaluaciones sobrantes',!run('S.ramos[0].categorias.some(c=>c.fueraDePauta)'));
-chk('el promedio no se mueve',cerca(run('ramoAvg(S.ramos[0])'),antes));
-chk('y las tres se ven',/Contribuciones en clases/.test(juntar(byId('cat-list')))&&part.directNota===false);
+const llena=cargar('fen',antigua);
+const partLlena=run(`S.ramos[0].categorias.find(c=>c.nombre==='Participación')`);
+chk('con las tres llenas, las tres quedan en Participación y se ven',partLlena.notas.length===3&&partLlena.directNota===false&&/Contribuciones en clases/.test(llena.html));
 const editada=cargar('fen',{...antigua,categorias:antigua.categorias.map((c,i)=>i?c:{...c,peso:35}).concat({id:'x',nombre:'Extra',peso:5,directNota:true,notas:[]})});
 chk('a quien personalizó su pauta no se le ofrece nada',run('cambioDePauta(S.ramos[0])')===null&&editada.avg!==null);
+
+
+console.log('\n=== Al cargar, la pauta vieja sin editar se corrige sola si el promedio no se mueve ===');
+const conFilas=llenas=>({...antigua,categorias:antigua.categorias.map((c,i)=>({...c,
+  notas:(i<4||i===7||llenas.includes(i))?c.notas:[]}))});
+for(const [caso,llenas,sola] of [['sin notas de participación',[],true],['las tres llenas',[4,5,6],true],['una de tres',[5],false],['dos de tres',[4,6],false]]){
+  const ramo=conFilas(llenas);
+  const antes=cargar('fen',ramo).avg;
+  const r=run(`normalize({tenant:'fen',onboardingDone:true,ramos:[JSON.parse(${JSON.stringify(JSON.stringify(ramo))})]}).ramos[0]`);
+  ctx.__n=JSON.stringify(r);run('S.ramos=[JSON.parse(__n)]');
+  const una=r.categorias.filter(c=>/^Participación/.test(c.nombre)).length===1;
+  chk(`${caso}: ${sola?'pasa a una fila':'se le sigue preguntando'}`,una===sola&&(sola?!run('cambioDePauta(S.ramos[0])'):!!run('cambioDePauta(S.ramos[0])')));
+  chk(`${caso}: el promedio no se mueve`,cerca(run('ramoAvg(S.ramos[0])'),antes));
+  chk(`${caso}: no queda nada fuera de la pauta`,!r.categorias.some(c=>c.fueraDePauta));
+}
+const pegada=conFilas([4,5,6]);ctx.__p=JSON.stringify(pegada);
+const a=run(`JSON.stringify(normalize({tenant:'fen',onboardingDone:true,ramos:[JSON.parse(__p)]}).ramos[0].categorias.map(c=>[c.id,c.nombre,c.notas.map(n=>n.id)]))`);
+const b=run(`JSON.stringify(normalize({tenant:'fen',onboardingDone:true,ramos:[JSON.parse(__p)]}).ramos[0].categorias.map(c=>[c.id,c.nombre,c.notas.map(n=>n.id)]))`);
+chk('teléfono y nube la corrigen con los mismos ids',a===b);
+chk('el requisito individual sigue mirando la participación',run(`(()=>{const r=normalize({tenant:'fen',onboardingDone:true,ramos:[JSON.parse(__p)]}).ramos[0];const p=r.categorias.find(c=>c.nombre==='Participación');return r.gates.find(g=>g.nombre==='Trabajo individual').catIds.includes(p.id);})()`));
+const editadaVieja={...pegada,categorias:pegada.categorias.map((c,i)=>i===7?{...c,peso:15}:i===0?{...c,peso:35}:c)};
+ctx.__e=JSON.stringify(editadaVieja);
+chk('una pauta vieja que la persona editó no se toca',run(`normalize({tenant:'fen',onboardingDone:true,ramos:[JSON.parse(__e)]}).ramos[0].categorias.length`)===8);
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
 process.exit(fail?1:0);

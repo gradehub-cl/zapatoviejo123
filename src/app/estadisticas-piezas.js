@@ -43,7 +43,7 @@ function htmlEscalaNotas({piso,techo,actual=null,color='var(--primary)'}){
   return `<div class="escala-notas" aria-hidden="true"><span class="escala-pista"></span>
     <span class="escala-banda" style="left:${x(piso)};width:calc(${x(techo)} - ${x(piso)});--escala-color:${color}"></span>
     ${actual===null?'':`<span class="escala-hoy" style="left:${x(actual)}"></span><span class="escala-hoy-txt" style="left:${x(actual)}">hoy ${fmtPromedio(actual)}</span>`}
-    <span class="escala-cuatro" style="left:${x(4)}">4.0</span><span class="escala-ext">1.0</span><span class="escala-ext escala-ext-fin">7.0</span></div>`;
+    <span class="escala-cuatro" style="left:${x(4)}">4,0</span><span class="escala-ext">1,0</span><span class="escala-ext escala-ext-fin">7,0</span></div>`;
 }
 // Barra que sale del centro: hacia la derecha suma, hacia la izquierda resta.
 function htmlBarraCentrada(valor,max,color){
@@ -52,3 +52,14 @@ function htmlBarraCentrada(valor,max,color){
 }
 
 function toggleHist(id){openHist[id]=!openHist[id];renderStats();}
+// La flecha de todo lo que se despliega (HIG: Disclosure controls): un solo
+// trazo, que apunta hacia abajo cerrado y gira al abrir. Reemplaza a los
+// triángulos ▲▼ de texto, que eran de otra familia que el resto de los íconos.
+function iconoDespliegue(abierto){
+  return `<svg class="ic ic-despliegue${abierto?' abierto':''}" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
+}
+
+// Barras paralelas: comparación o partes de un total en una escala común.
+function barraParalelaEstHTML(nombre,v,texto,ahora,precision=0){
+  return `<div class="est-par"><span>${nombre}</span><span class="est-pista${ahora?' est-pista-ahora':''}" aria-hidden="true"><i style="width:${v===null?0:Math.round(v*100*10**precision)/10**precision}%"></i></span><b>${texto}</b></div>`;
+}

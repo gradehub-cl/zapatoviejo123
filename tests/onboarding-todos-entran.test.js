@@ -38,19 +38,17 @@ function chk(nombre, cond) { if (cond) { ok++; console.log('  ok   ' + nombre); 
 function intentar(tenant, malla, nombreCarrera, sem) {
   stub.value = 'Estudiante de prueba';
   run('S=freshState()');
-  // Desde #697 la edad se elige en una ruleta: alguien de 20 años.
-  run('obEdad=20');
   run(`selectedTenant=${JSON.stringify(tenant)}`);
   run(`selectedCarrera=${JSON.stringify(malla || null)}`);
   run(`selectedCarreraNombre=${JSON.stringify(nombreCarrera)}`);
   run(`selectedSem=${sem || 1}`);
-  run('obRamos=[]'); run('obStep=5');
+  run('obGeneracion=new Date().getFullYear();obRamos=[]'); run('obStep=5');
   // La propiedad se calcula con obStepValid, que es lo que habilita cada botón.
   // A propósito NO se usa el ayudante nuevo: así este test también corre contra
   // un árbol que todavía no lo tiene, y ahí reporta las carreras atrapadas en
   // vez de reventar.
   let faltaAntes = 0;
-  for (let paso = 1; paso <= run('OB_TOTAL'); paso++) if (!run(`obStepValid(${paso})`)) { faltaAntes = paso; break; }
+  for (const paso of run('obPasos()')) if (!run(`obStepValid(${paso})`)) { faltaAntes = paso; break; }
   run('completeOnboarding()');
   return { faltaAntes, entro: run('S.onboardingDone') === true };
 }
@@ -79,6 +77,10 @@ chk('una carrera declarada a mano entra', intentar('uc', null, 'Programa nuevo q
 // guardado no tiene malla propia, pero sí el buscador de toda la universidad.
 console.log('\n=== UAndes con una carrera antigua sin malla sigue teniendo salida ===');
 chk('UAndes aparece al elegir universidad', run('tenantsVisibles().some(([codigo])=>codigo==="uandes")'));
+// Las de registro básico también se ofrecen en la web (Martín, 2026-11-26),
+// con el mismo buscador que en la app.
+chk('la USACH se ofrece también fuera de la app', run('tenantsVisibles().some(([codigo])=>codigo==="usach")'));
+chk('buscar «santiago» deja solo la USACH', run('tenantsVisibles(null,"santiago").map(([codigo])=>codigo).join()')==='usach');
 run('selectedTenant="uandes"'); run('selectedCarrera="ING-UA"');
 run('selectedCarreraNombre="Ingeniería Civil"'); run('selectedSem=1'); run('obRamos=[]'); run('obManualOpen=false');
 const introUandes=run('obCoursePickerIntro([])');

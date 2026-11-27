@@ -1,8 +1,22 @@
 
 async function consensoParaRamo(r){
   if(esCuentaProfesor())return null;
+  const sugerida=r.pautaSugerida?.aceptada;
+  const estado=S,usuario=typeof currentUser!=='undefined'&&currentUser?.id;
+  const ctx=sugerida?JSON.stringify(contextoPautaSugerida(r)):null;
+  const puedeOfrecer=()=>!sugerida||(S===estado&&usuario===currentUser?.id&&
+    S.ramos.includes(r)&&pautaSugeridaEnFicha(r)&&pautaSugeridaIntacta(r)&&
+    JSON.stringify(contextoPautaSugerida(r))===ctx&&!cambioDePauta(r));
+  if(!puedeOfrecer())return null;
   const cons=await cargarConsenso(S.tenant,periodoReporte(r),seccionReporte(r));
-  if(!cons)return null;
+  if(!cons||!puedeOfrecer())return null;
+  if(sugerida&&actualizarProcedenciaSugerida(r,cons)){
+    save();renderRamo();return null;
+  }
+  // En un ramo no coordinado otra pauta con más respaldo puede ser la de otro
+  // profesor: no se ofrece como cambio sobre la que la persona ya tiene.
+  if(coordinacionRamo(r)===null)await asegurarMallasCoordinacion(r.origen?.tenant||S.tenant);
+  if(ramoNoCoordinado(r)||!puedeOfrecer())return null;
   const mia=estructuraParaConsenso(estructuraDe(r));
   // Las dos se comparan acá, con las mismas funciones: comparar contra
   // `c.huella`, que calcula el servidor, ofrecería como "otra pauta" la misma
@@ -70,14 +84,16 @@ async function pintarConsensoDisponible(r){
   const el=document.getElementById('consenso-disponible');
   if(!el)return;
   el.style.display='none';el.innerHTML='';
-  if(!r||!r.categorias||!r.categorias.length)return;
+  ++consultaPautaSugerida;
+  if(!r)return;
+  if(!r.categorias?.length)return pintarPautaSugerida(r,el);
   const hit=await consensoParaRamo(r);
   // El await deja pasar tiempo: si el estudiante ya se fue a otro ramo, no se
   // le pinta el aviso del anterior encima.
   if(!hit||currentRamoId!==r.id)return;
   const n=hit.respaldos;
   el.className='weight-setup-nudge';
-  el.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>${n} estudiantes de tu universidad reportan otra pauta.</b><br>Coincidieron entre ellos. No sale del programa del curso: mírala y decide tú.<div style="margin-top:8px;"><button type="button" class="rep-link" style="width:auto;padding:7px 12px;margin:0;" onclick="verConsensoDisponible('${esc(r.id)}')">Ver la que reportan</button></div></div>`;
+  el.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>${n} estudiantes de tu universidad reportan otras ponderaciones.</b><br>Coincidieron entre ellos. No salen del programa del curso: míralas y decide tú.<div style="margin-top:8px;"><button type="button" class="rep-link" style="width:auto;padding:7px 12px;margin:0;" onclick="verConsensoDisponible('${esc(r.id)}')">Ver la que reportan</button></div></div>`;
   el.style.display='flex';
 }
 
@@ -93,11 +109,11 @@ async function verConsensoDisponible(ramoId){
     .filter(c=>!pauta.categorias.some(n=>normName(n.nombre)===normName(c.nombre)))
     .filter(c=>(c.notas||[]).some(x=>typeof x.valor==='number'));
   const aviso=sePierden.length
-    ? `<p class="modal-desc" style="margin-top:10px;">${sePierden.length===1?'Una evaluación tuya':'Algunas evaluaciones tuyas'} con notas no está en esta pauta. <b>No se borran</b>: quedan en tu ficha en 0%, así no mueven tu promedio.</p>`
+    ? `<p class="modal-desc" style="margin-top:10px;">${sePierden.length===1?'Una evaluación tuya':'Algunas evaluaciones tuyas'} con notas no está en estas ponderaciones. <b>No se borran</b>: quedan en tu ficha en 0%, así no mueven tu promedio.</p>`
     : `<p class="modal-desc" style="margin-top:10px;">Tus notas se conservan: se reconocen por el nombre de la evaluación.</p>`;
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">La pauta que reportan tus compañeros</div>
-    <p class="modal-desc">La reportaron <b>${hit.respaldos} estudiantes</b> de tu universidad. <b>No sale del programa del curso</b>: compárala con la tuya.</p>
+    <div class="modal-title">Las ponderaciones que reportan tus compañeros</div>
+    <p class="modal-desc">Las reportaron <b>${hit.respaldos} estudiantes</b> de tu universidad. <b>No salen del programa del curso</b>: compáralas con las tuyas.</p>
     <ul style="margin:10px 0 0;padding-left:18px;font-size:0.875rem;color:var(--fg2);line-height:1.6;">${pauta.categorias.map(fila).join('')}</ul>
     ${aviso}
     <div class="modal-btns" style="margin-top:16px;">
@@ -112,8 +128,13 @@ async function verConsensoDisponible(ramoId){
 function adoptarConsensoEnRamo(r,hit){
   const pauta=pautaDeConsenso(hit&&hit.estructura);
   if(!pauta.categorias.length)return false;
+  const veniaDeSugerencia=!!r.pautaSugerida?.aceptada;
   const ids=fusionarPauta(r,pauta.categorias);
   r.gates=traducirIdsCategoria(pauta.gates,ids);
+  if(veniaDeSugerencia){
+    quitarProcedenciaSugerida(r);
+    r.pautaHuella=huellaPauta(catsDePauta(r.categorias));
+  }
   // `pautaHuella` NO se actualiza, y es a propósito. Sigue apuntando a la que
   // le dimos nosotros, así que la pauta adoptada queda distinta de esa y
   // cambioDePauta() la lee como lo que es: una decisión del estudiante, que
@@ -131,7 +152,7 @@ async function adoptarConsenso(ramoId){
   const hit=await consensoParaRamo(r);
   if(!hit||!adoptarConsensoEnRamo(r,hit))return;
   save();track('consenso_adoptado');closeModal();renderRamo();
-  showToast('Pauta actualizada — tus notas se conservaron');
+  showToast('Ponderaciones actualizadas — tus notas se conservaron');
 }
 
 // Cuántas personas distintas tienen que reportar EXACTAMENTE la misma pauta

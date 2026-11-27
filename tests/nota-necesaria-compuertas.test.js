@@ -32,7 +32,7 @@ function necesita(r,tenant,meta){
 // aprueba, y una décima menos ya no.
 function justa(nombre,r,tenant,meta=4){
   const n=necesita(r,tenant,meta);
-  const mostrada=Number(run(`nfNecesaria(${n})`));
+  const mostrada=Number(run(`nfNecesaria(${n})`).replace(',','.'));
   run(`S.tenant=${JSON.stringify(tenant)}`);
   chk(`${nombre}: con ${mostrada} en todo lo pendiente llega a ${meta}`,finalCon(r,mostrada)>=meta);
   chk(`${nombre}: con ${(mostrada-0.1).toFixed(1)} no llega`,finalCon(r,Math.round((mostrada-0.1)*10)/10)<meta);

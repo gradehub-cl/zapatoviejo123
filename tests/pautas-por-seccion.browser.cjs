@@ -22,12 +22,12 @@ assert((await select.boundingBox()).height>=44);const contrasteSelector=await se
 await p.screenshot({path:path.join(out,'selector-375-'+modo+'.png')});
 await p.locator('#m-ramo-search').fill('Ramo de ejemplo');await p.locator('.ramo-seccion-selector select').selectOption('5');await p.locator('#m-add-ramo-btn').click();assert.equal(await p.evaluate(()=>S.ramos[0].seccion),5);assert.equal(await p.evaluate(()=>S.ramos[0].categorias.length),2);
 await p.evaluate(()=>{const r=S.ramos[0];globalThis.__antes=JSON.stringify(r);globalThis.__id=r.id;r.seccion=6;openRamo(r.id);});
-const oferta=p.locator('#pauta-cambio');assert.match(await oferta.innerText(),/Hay pauta de la sección 6/);
+const oferta=p.locator('#pauta-cambio');assert.match(await oferta.innerText(),/Hay programa de la sección 6/);
 for(const boton of await oferta.locator('button').all()){const box=await boton.boundingBox();assert(box.width>=44&&box.height>=44);}
 await p.waitForTimeout(300);await oferta.scrollIntoViewIfNeeded();await p.screenshot({path:path.join(out,'oferta-375-'+modo+'.png')});
 const contrastes=await p.evaluate(()=>{const lum=c=>c.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);return [...document.querySelectorAll('#pauta-cambio p,#pauta-cambio button')].map(e=>{const a=lum(getComputedStyle(e).color),b=lum(getComputedStyle(document.getElementById('pauta-cambio')).backgroundColor);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05);});});assert(contrastes.every(v=>v>=4.5),contrastes);console.log(modo+' contraste oferta '+contrastes.map(v=>v.toFixed(2)).join('/'));
 await p.evaluate(()=>document.documentElement.style.fontSize='200%');assert.equal(await oferta.evaluate(e=>e.getBoundingClientRect().right<=innerWidth),true);await p.evaluate(()=>document.documentElement.style.fontSize='');
-await oferta.getByRole('button',{name:'Cargarla',exact:true}).click();assert.match(await p.locator('#confirm-desc').innerText(),/Reemplaza tus evaluaciones/);
+await oferta.getByRole('button',{name:'Cargarlo',exact:true}).click();assert.match(await p.locator('#confirm-desc').innerText(),/Reemplaza tus evaluaciones/);
 await p.locator('#confirm-action').click();assert.equal(await p.evaluate(()=>S.ramos[0].categorias[0].nombre),'Trabajo');
 assert.equal(await oferta.isVisible(),false);
 // Camino de Calificar: usa completarFechasOficiales antes del respaldo, sin editar esa fuente.

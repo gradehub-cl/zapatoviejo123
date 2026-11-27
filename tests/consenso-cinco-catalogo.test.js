@@ -8,6 +8,9 @@ const ctx={console,window:{addEventListener(){},matchMedia:()=>({matches:true,ad
   document:{getElementById:()=>el(),createElement:el,addEventListener(){},documentElement:el(),body:el(),head:{appendChild(){}},querySelector(){return null},querySelectorAll(){return []}},
   localStorage:{getItem(){return null},setItem(){},removeItem(){}},navigator:{},location:{hash:'',pathname:'/'},history:{replaceState(){}},setTimeout(){return 1},clearTimeout(){}};
 vm.createContext(ctx);for(const f of ['data.js','engine.js','app.js','app-session.js'])vm.runInContext(fs.readFileSync(__dirname+'/../'+f,'utf8'),ctx);
+// Ramos sintéticos fuera de toda malla: se declaran coordinados porque esto
+// prueba la mecánica del consenso (la regla está en coordinacion-ramo.test.js).
+vm.runInContext("coordinacionRamo=()=>({coordinado:true,fuente:'malla'})",ctx);
 const run=s=>vm.runInContext(s,ctx);
 
 const pauta=[{nombre:'Prueba',peso:60},{nombre:'Examen',peso:40}];
@@ -34,7 +37,7 @@ run(`currentUser={id:'u'};supabaseClient={rpc:async(n,a)=>{pedidos.push(a.p_tena
   const buscar=q=>run(`searchCatalog(${JSON.stringify(q)},'uandes',null,1)`);
   const cinco=buscar('Taller Sintético Cinco').find(r=>r.nombre==='Taller Sintético Cinco');
   assert.ok(cinco&&cinco.tienePreset&&cinco.consenso===5,'con 5 respaldos se ofrece como pauta del catálogo');
-  ctx.__r=cinco;assert.match(run('obCatalogMeta(__r)'),/pauta de 5 estudiantes/);
+  ctx.__r=cinco;assert.match(run('obCatalogMeta(__r)'),/ponderaciones según 5 estudiantes/);
   assert.ok(!buscar('Taller Sintético Tres').some(r=>r.nombre==='Taller Sintético Tres'),'con 3 no entra al buscador');
   // La de programa manda: no aparece dos veces ni dice "de estudiantes".
   const prog=buscar('Ramo Con Programa').filter(r=>r.nombre==='Ramo Con Programa');

@@ -20,30 +20,14 @@ Dos personas y varios agentes sobre cuatro archivos. Para no chocar:
   y sácalo antes del commit, porque un enlace no lo ignora `node_modules/`.
 - **Lo que es para la app iOS va a la rama `ios`, no a `main`.** Ver [ios.md](ios.md).
 
-### Carriles
+### Todo es de todos
 
-El reparto es **por archivo, no por feature**. Con varios agentes capaces de
-tocar todo, es lo único que evita conflictos.
+No hay carriles ni áreas reservadas: cualquier persona o agente puede tocar
+cualquier archivo, sea motor, datos de cualquier universidad, estilos,
+infraestructura o iOS. Para evitar conflictos, antes de empezar revisa las PRs y
+ramas abiertas que tocan lo mismo y coordina con quien las lleva.
 
-| Carril | Archivos | Quién |
-|---|---|---|
-| Contenido FEN | `data.js` — mallas, presets y carreras de FEN | `ms` |
-| Contenido UC | `data.js` — mallas, presets, carreras y créditos de UC | `li` |
-| Contenido UAndes | `data.js` — carreras de la UAndes; `mallas-uandes.js` | `ms` |
-| Contenido UDD | `src/data/` — carreras de la UDD; `mallas-udd.js` | `ms` |
-| Motor y experiencia | `engine.js`, `app.js`, `app-session.js`, `render-main.js`, `render-agenda.js` | `codex` |
-| Infra y seguridad | workflows, `sw.js`, `styles.css`, `_headers` | `li` |
-| App iOS | `ios/`, `capacitor.config.json`, `bin/preparar-ios.sh` | `li` y `ms`, en la rama `ios` |
-
-Si tu tarea te obliga a salir de tu carril, no lo hagas: dilo primero.
-
-**`data.js` se reparte por universidad, no por archivo.** Es la única excepción
-al reparto por archivo y existe porque las dos universidades avanzan en
-paralelo: Martín transcribe programas de FEN, Lucas arma UC. Dentro de `data.js`
-cada uno toca lo suyo — `PRESETS_FEN` y las mallas FEN por un lado,
-`PRESETS_UC`, `MALLA_UC` y `CREDITOS_UC` por el otro.
-
-Los siete JS de raíz son ahora generados: cada carril se aplica a su carpeta
+Los siete JS de raíz son ahora generados: cada uno sale de su carpeta
 `src/<nombre>/`. No edites ni resuelvas conflictos en el generado; cambia la
 fuente y corre `npm run build`. Para adaptar ramas anteriores, ver
 [fuentes-js.md](fuentes-js.md#ramas-anteriores-a-la-separacion).
@@ -122,3 +106,52 @@ entonces es peor que nada, porque el agente le cree.
 del PR al lado. La lista es lo primero que lee el siguiente. Pasó el
 2026-10-13: el PR 1 de #697 llevaba un día mergeado (#698), la lista seguía sin
 marcar, y a un agente le pidieron hacerlo de nuevo.
+
+### Comentarios de usuarios: del arreglo al aviso
+
+Quien escribe desde la app («Enviar comentario») queda en `public.user_feedback`.
+Cuando se arregla lo que pidió, se le avisa: la próxima vez que abre la app ve
+en Inicio «Solucionamos tu problema» con una frase nuestra, hasta que la cierra
+(`supabase/user_feedback.sql`). Avisar es parte del arreglo, no un extra
+(Lucas, 2026-11-09).
+
+1. **Al tomar el arreglo, identifica el comentario.** Si la tarea viene de una
+   queja, búscala con una consulta de solo lectura que traiga `id`, fecha y
+   mensaje, nunca correos ni otros datos de la cuenta:
+
+   ```sql
+   select id, created_at, universidad, left(mensaje, 300) as mensaje
+   from public.user_feedback
+   where solucionado_at is null and mensaje ilike '%<palabra>%'
+   order by created_at desc;
+   ```
+
+   Anota `Feedback: <id>` en la descripción de la PR. Si la queja llegó por
+   WhatsApp, Instagram u otro canal, anota de dónde (`Feedback: WhatsApp,
+   2026-11-06`): ese aviso lo manda una persona por el mismo canal.
+2. **Avisa después del deploy, no al mergear.** Primero comprueba que el arreglo
+   está en gradehub.cl, por ejemplo buscando una línea nueva en el bundle
+   publicado (`curl -s https://gradehub.cl/ | grep -o 'app.js?v=[a-z0-9]*'` y
+   después `grep` en ese archivo).
+3. **Cierra el comentario.** Solo el dueño de la base puede hacerlo, desde el
+   SQL Editor o el MCP de escritura:
+
+   ```sql
+   select admin.resolver_feedback('<id>', '<qué se solucionó>');
+   ```
+
+   `true` significa que el aviso quedó listo; `false`, que ese comentario ya
+   estaba cerrado. Si no tienes acceso de escritura, deja el SQL en el
+   portapapeles de Lucas (`LC_ALL=en_US.UTF-8 pbcopy`) y díselo.
+4. **El texto** tiene hasta 240 caracteres. Debe decir qué cambió con las
+   palabras de quien escribió, sin tecnicismos ni promesas, y terminar con un
+   agradecimiento. Ejemplo: «Arreglamos Dinámica: si la cátedra o el
+   laboratorio están al borde, el ramo ahora se marca al borde aunque el promedio
+   dé sobre 5,0. ¡Gracias por avisarnos!».
+5. **Si el arreglo es parcial o no se va a hacer, no se cierra.** La app no
+   tiene un aviso de «no lo haremos». Díselo a Lucas, que decide si responder
+   por otro canal.
+
+Al revisar issues o cerrar un grupo de PRs, mira también los comentarios
+abiertos (`solucionado_at is null`): a veces otro arreglo ya resolvió alguno y
+falta avisar.

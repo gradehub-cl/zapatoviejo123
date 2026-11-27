@@ -8,7 +8,7 @@ begin;
 
 create table if not exists public.profesor_aportes (
   user_id uuid not null references auth.users(id) on delete cascade,
-  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd')),
+  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd','udp','unab')),
   ramo_clave text not null check (char_length(ramo_clave) between 1 and 200),
   seccion integer not null check (seccion between 1 and 999),
   periodo text not null check (periodo ~ '^20[0-9]{2}-[12]$'),
@@ -21,7 +21,7 @@ create index if not exists profesor_aportes_curso
 -- se reemplaza por nombre, así que correr el archivo de nuevo la agrega.
 alter table public.profesor_aportes drop constraint if exists profesor_aportes_tenant_check;
 alter table public.profesor_aportes add constraint profesor_aportes_tenant_check
-  check (tenant in ('uc','fen','uai','uandes','udd'));
+  check (tenant in ('uc','fen','uai','uandes','udd','udp','unab'));
 alter table public.profesor_aportes enable row level security;
 -- Sin acceso directo, incluso al propio aporte: las RPC proyectan solo nombres.
 revoke all on public.profesor_aportes from public, anon, authenticated;
@@ -38,9 +38,18 @@ create or replace function public.profesor_coinciden(a text, b text)
 returns boolean language plpgsql immutable set search_path = '' as $$
 declare x text := public.profesor_normalizar(a); y text := public.profesor_normalizar(b);
   fila integer[]; arriba integer; diagonal integer; i integer; j integer;
+  tx text[] := string_to_array(x,' '); ty text[] := string_to_array(y,' ');
 begin
   if x = '' or y = '' then return false; end if;
   if x = y then return true; end if;
+  -- Un segundo nombre omitido: primer nombre y apellidos exactos. No se
+  -- borran palabras arbitrarias ni partículas de apellidos compuestos.
+  if cardinality(tx)=cardinality(ty)+1 and cardinality(ty)>=2 and tx[1]=ty[1]
+     and tx[2]<>all(array['de','del','la','las','los','san','santa'])
+     and tx[3:cardinality(tx)]=ty[2:cardinality(ty)] then return true; end if;
+  if cardinality(ty)=cardinality(tx)+1 and cardinality(tx)>=2 and tx[1]=ty[1]
+     and ty[2]<>all(array['de','del','la','las','los','san','santa'])
+     and ty[3:cardinality(ty)]=tx[2:cardinality(tx)] then return true; end if;
   if least(length(x),length(y)) < 10 or abs(length(x)-length(y)) > 1
      or left(x,1) <> left(y,1) then return false; end if;
   select array_agg(n) into fila from generate_series(0,length(y)) n;
@@ -55,6 +64,27 @@ begin
   return fila[length(y)+1] <= 1;
 end;
 $$;
+
+-- Coincidencia contextual: una abreviación ambigua no reparte sus estrellas
+-- entre dos docentes con segundos nombres distintos. Interna, sin datos públicos.
+create or replace function public.profesor_coinciden_en_ramo(p_tenant text,p_ramo text,a text,b text)
+returns boolean language sql stable security definer set search_path = '' as $$
+  with nombres as (
+    select case when cardinality(string_to_array(public.profesor_normalizar(a),' '))
+                       <cardinality(string_to_array(public.profesor_normalizar(b),' ')) then a else b end corto,
+           case when cardinality(string_to_array(public.profesor_normalizar(a),' '))
+                       <cardinality(string_to_array(public.profesor_normalizar(b),' ')) then b else a end largo
+  )
+  select public.profesor_coinciden(a,b) and not exists (
+    select 1 from public.profesor_aportes otro,nombres n
+    where otro.tenant=p_tenant and otro.ramo_clave=p_ramo
+      and cardinality(string_to_array(public.profesor_normalizar(otro.nombre),' '))
+           >cardinality(string_to_array(public.profesor_normalizar(n.corto),' '))
+      and public.profesor_coinciden(n.corto,otro.nombre)
+      and not public.profesor_coinciden(n.largo,otro.nombre)
+  );
+$$;
+revoke all on function public.profesor_coinciden_en_ramo(text,text,text,text) from public, anon, authenticated;
 
 create or replace function public.profesor_periodo_actual()
 returns text language sql stable set search_path = '' as $$
@@ -78,7 +108,7 @@ begin
       then u.data->'ramos' else '[]'::jsonb end) r
     where u.user_id=auth.uid() and r->>'id'=p_ramo_id
       and p_seccion between 1 and 999 and r->>'seccion'=p_seccion::text
-      and u.data->>'tenant' in ('uc','fen','uai','uandes','udd')
+      and u.data->>'tenant' in ('uc','fen','uai','uandes','udd','udp','unab')
       and coalesce(r->'origen'->>'tenant',u.data->>'tenant')=u.data->>'tenant'
     limit 1;
   if not found then raise exception 'ramo o sección no sincronizados en tu semestre actual'; end if;
@@ -100,7 +130,7 @@ $$;
 --     delete from public.profesor_aportes where tenant='uc' and public.profesor_coinciden(nombre,'Nombre Apellido');
 --     insert into public.profesor_ocultos(tenant,nombre,motivo) values('uc','Nombre Apellido','supresion');
 create table if not exists public.profesor_ocultos (
-  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd')),
+  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd','udp','unab')),
   nombre text not null check (char_length(nombre) between 3 and 100),
   motivo text not null default 'oposicion' check (motivo in ('oposicion','supresion','abuso')),
   creado timestamptz not null default now(),
@@ -108,7 +138,7 @@ create table if not exists public.profesor_ocultos (
 );
 alter table public.profesor_ocultos drop constraint if exists profesor_ocultos_tenant_check;
 alter table public.profesor_ocultos add constraint profesor_ocultos_tenant_check
-  check (tenant in ('uc','fen','uai','uandes','udd'));
+  check (tenant in ('uc','fen','uai','uandes','udd','udp','unab'));
 alter table public.profesor_ocultos enable row level security;
 revoke all on public.profesor_ocultos from public, anon, authenticated;
 
@@ -119,10 +149,16 @@ returns text language sql stable security definer set search_path = '' as $$
   with aportes as materialized (
     select a.* from public.profesor_aportes a
     where a.tenant=p_tenant and a.ramo_clave=p_ramo_clave and a.seccion=p_seccion and a.periodo=p_periodo
+  ), candidatos as (
+    select distinct b.nombre from aportes b
+    where not exists(select 1 from aportes largo
+      where cardinality(string_to_array(public.profesor_normalizar(largo.nombre),' '))
+            >cardinality(string_to_array(public.profesor_normalizar(b.nombre),' '))
+        and public.profesor_coinciden(b.nombre,largo.nombre))
   ), grupos as (
     select b.nombre, count(distinct a.user_id) as cantidad
-    from (select distinct nombre from aportes) b join aportes a
-      on public.profesor_coinciden(b.nombre,a.nombre)
+    from candidatos b join aportes a
+      on public.profesor_coinciden_en_ramo(p_tenant,p_ramo_clave,b.nombre,a.nombre)
     group by b.nombre having count(distinct a.user_id)>=3
   ), ganadores as (
     select * from grupos where cantidad=(select max(cantidad) from grupos)
@@ -191,7 +227,7 @@ $$;
 -- vive en la base, no solo en la app.
 create or replace function public.profesor_texto_permitido(p_texto text)
 returns boolean language sql immutable set search_path = '' as $$
-  select p_texto ~ '^[[:alpha:]]+( [[:alpha:]]+)*$' and char_length(p_texto) between 3 and 20
+  select p_texto ~ '^[[:alpha:]]+( [[:alpha:]]+)*$' and char_length(p_texto) between 3 and 40
     and public.profesor_normalizar(p_texto) !~ ('(^| )(' || array_to_string(array[
       'wn','wna','wea','weas','ql','qlo','ctm','csm','ptm','pico','raja','zorra','perra','perro','cerdo','cerda',
       'tonto','tonta','idiota','imbecil','estupido','estupida','pendejo','pendeja','cabron','gil','gila','longi',
@@ -214,7 +250,7 @@ $$;
 
 create table if not exists public.profesor_calificaciones (
   user_id uuid not null references auth.users(id) on delete cascade,
-  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd')),
+  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd','udp','unab')),
   ramo_clave text not null check (char_length(ramo_clave) between 1 and 200),
   seccion integer not null check (seccion between 1 and 999),
   periodo text not null check (periodo ~ '^20[0-9]{2}-[12]$'),
@@ -225,7 +261,7 @@ create table if not exists public.profesor_calificaciones (
 );
 alter table public.profesor_calificaciones drop constraint if exists profesor_calificaciones_tenant_check;
 alter table public.profesor_calificaciones add constraint profesor_calificaciones_tenant_check
-  check (tenant in ('uc','fen','uai','uandes','udd'));
+  check (tenant in ('uc','fen','uai','uandes','udd','udp','unab'));
 alter table public.profesor_calificaciones add column if not exists otro text;
 -- Las etiquetas escritas viven en `otros`. `otro` queda como copia de la primera
 -- para la app anterior y para volver atrás; se borra en una migración aparte.
@@ -289,11 +325,15 @@ begin
     return;
   end if;
   return query
+    -- Una persona, una calificación: la sección la declara cada uno, así que
+    -- quien calificó al mismo docente en varias secciones cuenta una sola vez
+    -- (la más reciente) para el piso, el promedio y las etiquetas.
     with notas as materialized (
-      select k.user_id, k.estrellas, k.etiquetas, k.otros from public.profesor_calificaciones k
+      select distinct on (k.user_id) k.user_id, k.estrellas, k.etiquetas, k.otros from public.profesor_calificaciones k
       join public.profesor_aportes a on a.user_id=k.user_id and a.tenant=k.tenant
         and a.ramo_clave=k.ramo_clave and a.seccion=k.seccion and a.periodo=k.periodo
-      where k.tenant=c.tenant and k.ramo_clave=c.ramo_clave and public.profesor_coinciden(a.nombre,d)
+      where k.tenant=c.tenant and k.ramo_clave=c.ramo_clave and public.profesor_coinciden_en_ramo(k.tenant,k.ramo_clave,a.nombre,d)
+      order by k.user_id, k.actualizada desc
     ), conteo as (select count(*)::integer as n from notas),
     destacadas as (
       select jsonb_build_object('etiqueta',e) as j, count(*)::integer as n, e as orden

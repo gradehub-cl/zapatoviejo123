@@ -1,5 +1,9 @@
-function presetRamo(nombre,tenant,carrera,ahora,seccion){
-  const def=definicionPreset(nombre,tenant,carrera,seccion);if(!def)return null;
+// `sigla`, la guardada en el ramo, habilita en otra carrera UC el programa del
+// mismo curso (#1090). Sin ella, igual que antes. `seccion` (#1004) es
+// opcional: solo al pasarla se pide la pauta de esa sección de un ramo no
+// coordinado; sin pasarla, un ramo no coordinado sigue sin pauta para todos.
+function presetRamo(nombre,tenant,carrera,ahora,sigla,seccion){
+  const def=seccion===undefined?definicionPreset(nombre,tenant,carrera,sigla):definicionPresetDeSeccion(nombre,tenant,carrera,sigla,seccion);if(!def)return null;
   const evals=Array.isArray(def)?def:(def.evals||[]);
   // Un programa puede traer reglas sin publicar ponderaciones. No se inventa una
   // pauta vacía: sus reglas se muestran por reglasDelPreset(). Tampoco se carga
@@ -60,19 +64,27 @@ function presetRamo(nombre,tenant,carrera,ahora,seccion){
     creditos:(!Array.isArray(def)&&typeof def.creditos==='number')?def.creditos:null};
 }
 
-// No existe una migración implícita: esto se llama solo al agregar o al poner
-// una sección. Un ramo manual antiguo conserva su procedencia y sus notas.
+// Pautas por sección (#1004). No existe una migración implícita: esto se llama
+// al agregar, al poner una sección y al cargar un ramo del catálogo que sigue
+// vacío. Un ramo manual antiguo conserva su procedencia y sus notas.
 const contextosSeccionPauta=new WeakMap();
 function datosPautaSeccion(r,contexto){
   const o=r&&(r.origen||contexto||contextosSeccionPauta.get(r));
-  if(!o?.tenant)return null;
-  const def=definicionPreset(r.nombre,o.tenant,o.carrera,r.seccion);
-  if(def?.coordinado!==false||r.sigla&&def.sigla&&r.sigla!==def.sigla)return null;
-  return presetRamo(r.nombre,o.tenant,o.carrera,undefined,r.seccion);
+  if(!o?.tenant||seccionValida(r.seccion)==null)return null;
+  const def=pautaOficialDelRamo(r.nombre,o.tenant);
+  if(def?.coordinado!==false||r.sigla&&def.sigla&&normName(r.sigla)!==normName(def.sigla))return null;
+  return presetRamo(r.nombre,o.tenant,o.carrera,undefined,r.sigla||null,r.seccion);
 }
 function ramoConNotasSeccion(r){
   const tiene=notas=>(notas||[]).some(n=>typeof n.valor==='number'&&Number.isFinite(n.valor)||tiene(n.subnotas)||tiene(n.notas));
   return (r.categorias||[]).some(c=>typeof c.nota==='number'||typeof c.directValor==='number'||tiene(c.notas));
+}
+// Lo que la persona ya decidió manda: un promedio final escrito a mano, un
+// ramo cerrado, o una sugerencia aceptada o descartada («Ahora no») en la
+// ficha (pauta-sugerida.js). Ahí la pauta de la sección no entra sola.
+function ramoAdmiteCargaDeSeccion(r){
+  return !(r.categorias||[]).length&&!(r.gates||[]).length&&!ramoConNotasSeccion(r)&&
+    !r.cierre&&!Number.isFinite(r.avgOverride)&&!r.pautaSugerida;
 }
 function ponerPautaDeSeccion(r,p){
   const contexto=contextosSeccionPauta.get(r);
@@ -81,17 +93,15 @@ function ponerPautaDeSeccion(r,p){
   for(const campo of ['aporta','promedioParcial','recuperativo','reemplazosOptativos','reglasAusenciaJustificada','bonus'])r[campo]=p[campo]||null;
   r.pautaHuella=huellaPauta(p.categorias);
   delete r.consensoRespaldos;delete r.consensoAportado;
+  // La pauta deja de ser la que alguien reportó: su procedencia no se arrastra.
+  quitarProcedenciaSugerida(r);
 }
 function cargarPautaSeccionVacia(r,contexto){
   if(!r||contexto?.soloFechas)return false;
   if(contexto?.tenant&&seccionValida(r.seccion)!=null)contextosSeccionPauta.set(r,{tenant:contexto.tenant,carrera:contexto.carrera});
-  if(r.categorias?.length||ramoConNotasSeccion(r))return false;
+  if(!ramoAdmiteCargaDeSeccion(r))return false;
   const p=datosPautaSeccion(r,contexto);if(!p)return false;
   ponerPautaDeSeccion(r,p);return true;
-}
-function nombrePresetSeccion(nombre,tenant,carrera){
-  const def=definicionBasePreset(nombre,tenant,carrera);
-  return def?.coordinado===false?claveCatalogo(nombre,Object.keys(PRESETS_POR_TENANT[tenant]||{}),tenant):null;
 }
 
 function confirmAddMalla(){
@@ -139,10 +149,10 @@ function openAddRamoModal(despuesDeAgregar,despuesDeCancelar){
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Agregar ramo</div>
     <label class="modal-label">${etiquetaRamo}${hayCatalogo&&uni?` <span style="text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;">· lo buscamos en la malla ${esc(uni)}</span>`:''}</label>
-    <div class="modal-input"><input type="text" id="m-ramo-search" placeholder="${ejemploRamo}" maxlength="${NOMBRE_MAX}" autocomplete="off" autocapitalize="none" aria-describedby="m-ramo-error"/></div>
+    <div class="modal-input"><input type="text" id="m-ramo-search" placeholder="${ejemploRamo}" maxlength="${NOMBRE_MAX}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="m-ramo-error"/></div>
     <p id="m-ramo-error" role="alert" hidden style="margin:7px 0 0;font-size:0.75rem;line-height:1.4;color:var(--red);"></p>
     ${hayCatalogo?'<div id="m-ramo-results" class="cat-results"></div>':''}
-    ${S.tenant==='uc'?'<button type="button" class="horario-importar-link" onclick="abrirImportarHorarioBuscacursos()">Subir foto de tu horario</button>':''}
+    ${HORARIO_FOTO_POR_TENANT[S.tenant]?'<button type="button" class="horario-importar-link" onclick="abrirImportarHorarioBuscacursos()">Subir foto de tu horario</button>':''}
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-confirm" id="m-add-ramo-btn" onclick="confirmarAgregarRamoConSeccion()">Agregar ramo</button>
@@ -169,7 +179,7 @@ function confirmarAgregarRamoConSeccion(){
   const texto=(document.getElementById('m-ramo-search')?.value||'').trim();
   const coincidencias=searchCatalog(texto,S.tenant,S.carrera,S.careerSemestre).filter(r=>
     normName(texto)===normName(r.nombre)||r.sigla&&normName(texto)===normName(r.sigla));
-  if(coincidencias.some(r=>definicionBasePreset(r.nombre,S.tenant,S.carrera)?.coordinado===false)){
+  if(coincidencias.some(r=>datosRamoNoCoordinado(r.nombre,r.sigla))){
     if(coincidencias.length!==1){mostrarErrorCampo('m-ramo-search','m-ramo-error','Elige el ramo de la lista para confirmar su sigla y sección.');return false;}
     addFromCatalog(coincidencias[0].nombre,coincidencias[0].sigla);return true;
   }
@@ -199,13 +209,13 @@ function renderCatalogResults(q){
   }
   box.innerHTML=res.map((r,i)=>{
     const tengo=yaTengo.has(normName(r.nombre));
-    return `<button class="cat-hit${tengo?' ya':''}" ${tengo?'disabled':`onclick="addFromCatalogCodificado('${obCodificarNombre(r.nombre)}','${obCodificarNombre(r.sigla||'')}')"`}>
+    return `<div class="cat-hit-fila"><button class="cat-hit${tengo?' ya':''}" ${tengo?'disabled':`onclick="addFromCatalogCodificado('${obCodificarNombre(r.nombre)}','${obCodificarNombre(r.sigla||'')}')"`}>
       <span class="cat-hit-info">
         <span class="cat-hit-name">${esc(r.nombre)}</span>
         <span class="cat-hit-meta">${obCatalogMeta(r)}</span>
       </span>
       ${tengo?'<span class="cat-hit-tag">ya lo tienes</span>':'<span class="chevron-r">+</span>'}
-    </button>${selectorSeccionRamoHTML(r.nombre,S.tenant,S.carrera,r.sigla,'agregar-seccion-'+i)}`;
+    </button>${selectorSeccionRamoHTML(r.nombre,S.tenant,S.carrera,r.sigla,'agregar-seccion-'+i)}</div>`;
   }).join('');
 }
 
@@ -218,25 +228,33 @@ function addFromCatalogCodificado(nombre,sigla){
 // Devuelve el ramo creado para quien necesite completarlo (la sección, por
 // ejemplo, que el catálogo no conoce).
 function crearRamoDesdeCatalogo(nombre,sigla,seccion){
-  const candidato=findPresetName(nombre,S.tenant,S.carrera)||nombrePresetSeccion(nombre,S.tenant,S.carrera);
-  const def=candidato&&definicionBasePreset(candidato,S.tenant,S.carrera);
-  if(seccion===undefined&&def?.coordinado===false)seccion=seccionElegidaRamo(nombre,S.tenant,S.carrera,sigla);
+  const candidato=findPresetName(nombre,S.tenant,S.carrera,sigla);
   // Dos cursos UC pueden compartir nombre y tener siglas distintas. El
   // horario trae la sigla exacta: nunca adjuntar la pauta de un homónimo.
   const siglaPreset=candidato&&S.tenant==='uc'?siglaDePreset(candidato):null;
   const presetName=sigla&&siglaPreset&&normName(sigla)!==normName(siglaPreset)?null:candidato;
-  const preset=presetName?presetRamo(presetName,S.tenant,S.carrera,undefined,seccion):null;
-  const fila=S.tenant==='uc'?cursoUcCompleto(nombre,sigla):null;
+  const general=presetName?presetRamo(presetName,S.tenant,S.carrera,undefined,sigla):null;
+  // Un ramo no coordinado (coordinacion-ramo.js) no trae pauta para todos,
+  // pero sus datos siguen valiendo: nombre, sigla y créditos del programa.
+  const referencia=!general?datosRamoNoCoordinado(nombre,sigla):null;
+  const siglaFinal=sigla||referencia?.sigla||null,nombreFinal=presetName||referencia?.nombre||nombre;
+  // Pautas por sección (#1004): con la sección conocida (la del horario o la
+  // elegida en Agregar ramo) entra la pauta de ESA sección, si tiene programa.
+  if(referencia&&seccion===undefined)seccion=seccionElegidaRamo(nombre,S.tenant,S.carrera,sigla);
+  seccion=referencia?seccionValida(seccion):null;
+  const preset=general||(seccion!=null?presetRamo(referencia.nombre,S.tenant,S.carrera,undefined,siglaFinal,seccion):null);
+  const fila=S.tenant==='uc'?cursoUcCompleto(nombre,siglaFinal):null;
   // Los créditos de la pauta mandan: buscada sin sigla, la fila del catálogo
   // puede ser la del homónimo (TEB110 tiene 8; TTF012, 10).
-  const creditos=typeof preset?.creditos==='number'?preset.creditos:presetName&&typeof def?.creditos==='number'?def.creditos:fila&&typeof fila[2]==='number'?fila[2]:creditosDe(nombre,S.tenant,preset,sigla);
+  const creditos=typeof preset?.creditos==='number'?preset.creditos:typeof referencia?.creditos==='number'?referencia.creditos
+    :fila&&typeof fila[2]==='number'?fila[2]:creditosDe(nombre,S.tenant,preset,siglaFinal);
   const ramo={
-    id:uid(),nombre:presetName||nombre,color:nextRamoColor(presetName||nombre),sigla:sigla||null,
-    creditos,seccion:seccionValida(seccion),origen:origenActual(presetName||nombre,sigla),
+    id:uid(),nombre:nombreFinal,color:nextRamoColor(nombreFinal),sigla:siglaFinal,
+    creditos,...(seccion!=null?{seccion}:{}),origen:origenActual(nombreFinal,siglaFinal),
     categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,reemplazosOptativos:preset?preset.reemplazosOptativos:null,pautaHuella:preset?huellaPauta(preset.categorias):null,
   };
   S.ramos.push(ramo);
-  if(def?.coordinado!==false)consensoAlAgregar(ramo);
+  consensoAlAgregar(ramo);
   return ramo;
 }
 function addFromCatalog(nombre,sigla){

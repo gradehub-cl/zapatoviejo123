@@ -24,12 +24,14 @@ const fin=app.indexOf("    if(section==='sugerencias')",inicio);
 // La pantalla usa dos globales del propio app.js: el escapador y los mensajes
 // que el estudiante le copia a su agente. Se cargan en el mismo contexto en vez
 // de simularlos, para que este test siga mirando el texto real.
-const contexto={currentUser:{id:'sintetico'}};
+const contexto={currentUser:{id:'sintetico'},enAppNativa:()=>false};
 const iPrompts=app.indexOf('const PROMPTS_AGENTE = {');
 vm.runInNewContext(app.slice(iPrompts,app.indexOf('\n};',iPrompts)+3)+';this.PROMPTS_AGENTE=PROMPTS_AGENTE;',contexto);
 vm.runInNewContext(app.match(/function esc\([^]*?\n\}/)[0]+';this.esc=esc;',contexto);
 const panel=vm.runInNewContext('(function(section){'+app.slice(inicio,fin)+'})',contexto);
 const html=panel('agentes');
+contexto.enAppNativa=()=>true;
+const htmlApp=panel('agentes');
 chk('la pantalla solo ofrece vincular por URL, sin comandos ni código temporal',
   /onclick="crearUrlAgente\(\)"/.test(html)&&
   !/agent-alt|s-agent-code|crearCodigoAgente|ChatGPT|Claude|Gemini|Codex|Generar código|corre comandos/.test(html));
@@ -67,7 +69,7 @@ chk('la pantalla explica qué puede hacer el agente',!!explica);
 if(explica){
   const t=explica[0];
   chk('dice que ve ramos, notas y fechas',/ramos/i.test(t)&&/notas/i.test(t)&&/fechas/i.test(t));
-  chk('dice que puede agregar un ramo y proponer una pauta',/agregar un ramo/i.test(t)&&/pauta/i.test(t));
+  chk('dice que puede agregar un ramo y proponer una pauta',/agregar un ramo/i.test(t)&&/ponderaciones/i.test(t));
   chk('y dice el límite: no escribe notas',/no puede escribir tus notas/i.test(t));
 }
 chk('la URL y las fichas siguen legibles en pantalla angosta',/\.agent-url-value\{[^}]*word-break:break-all/.test(css)&&/\.agent-link-heading b\{[^}]*text-overflow:ellipsis/.test(css));
@@ -98,9 +100,15 @@ chk('los tres prohíben inventar y piden avisar cuando falta un dato',
 // puede ocupar media pantalla de Ajustes.
 chk('los tres están en un solo desplegable, con un botón para copiar',
   /id="s-agent-prompt-pick"/.test(html)&&
-  Object.values(P).every(p=>html.includes(p.titulo))&&
+  Object.values(P).filter(p=>!p.soloApp).every(p=>html.includes(p.titulo))&&
   (html.match(/<option value="(repaso|proxima|plan)"/g)||[]).length===3&&
   (html.match(/onclick="copiarPromptAgente\(\)"/g)||[]).length===1);
+chk('en iOS aparecen las propuestas como una acción que la persona decide aplicar',
+  htmlApp.includes('preparar propuestas de ramos, ponderaciones, notas y fechas')&&
+  htmlApp.includes('Tú revisas y eliges qué propuestas aplicar')&&!htmlApp.includes('agregar un ramo'));
+chk('solo en iOS aparece el ejemplo de importar notas o fechas',
+  P.importar.soloApp&&htmlApp.includes(P.importar.titulo)&&!html.includes(P.importar.titulo)&&
+  /evaluaci[oó]n y casilla/.test(P.importar.texto)&&/como propuestas/.test(P.importar.texto));
 chk('el mensaje elegido se ve antes de copiarlo',
   /id="s-agent-prompt-texto"/.test(html)&&html.includes(P.repaso.texto.slice(0,40)));
 

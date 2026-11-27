@@ -43,15 +43,17 @@ const pintar=notas=>{
     currentRamoId='r1';openCats={};renderRamo();`,ctx);
   return juntar(byId('cat-list'));
 };
-// El contenedor plegable de una lista abierta es `.cat-body`, y lleva ` open`
+// El contenedor plegable de una lista abierta es `.eval-group-body` (el mismo del
+// grupo de casillas desde 2026-11-11), y lleva ` open`
 // solo cuando está desplegada. Comprobarlo por ahí y no por una alternativa
 // laxa: una comprobación que también pasa con el código viejo no prueba nada.
-const abierta=h=>/class="cat-body open"/.test(h);
+const abierta=h=>/class="eval-group-body open"/.test(h);
 
-console.log('\n=== Recién creada, sin notas ===');
+console.log('\n=== Guardada sin notas ===');
+// Desde 2026-11-22 una lista abierta con 0 o 1 nota se ve como nota sola
+// (seVeComoNotaSola): una fila con "+ Nota", no un desplegable con una fila.
 let h=pintar([]);
-chk('la lista se muestra desplegada', abierta(h));
-chk('y el "+ Agregar nota" queda alcanzable', /gregar nota/.test(h));
+chk('es una fila con "+ Nota", sin desplegable', /class="nota-en-fila"/.test(h)&&!/eval-group-body/.test(h));
 
 console.log('\n=== Con notas adentro ===');
 h=pintar([{id:'n1',nombre:'Control 1',valor:5.5,peso:1},{id:'n2',nombre:'Control 2',valor:4.0,peso:1}]);
@@ -68,7 +70,7 @@ chk('no se le inventa una cantidad', vm.runInContext('S.ramos[0].categorias[0].s
 console.log('\n=== Cerrarla a mano sigue funcionando ===');
 vm.runInContext(`openCats['c1']=false;renderRamo();`,ctx);
 h=juntar(byId('cat-list'));
-chk('quien la cierra la deja cerrada', /class="cat-body"/.test(h) && !/class="cat-body open"/.test(h));
+chk('quien la cierra la deja cerrada', /class="eval-group-body"/.test(h) && !/class="eval-group-body open"/.test(h));
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
 process.exit(fail?1:0);

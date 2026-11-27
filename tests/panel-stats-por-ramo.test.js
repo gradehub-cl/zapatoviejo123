@@ -17,7 +17,7 @@ test('un alumno con dos cambios opuestos conserva dos filas independientes',()=>
  assert.equal(g.alumnos.length,2);assert.equal(g.totalAlumnos,1);assert.equal(g.totalRamos,2);assert.equal(g.conCambio,2);assert.equal(g.mejoraron,1);assert.equal(g.cambioMediana,0,'la mediana sí usa los dos pares, sin anular antes sus cambios');
  const a=g.alumnos.find(m=>m.ramoId==='a'),b=g.alumnos.find(m=>m.ramoId==='b');assert.equal(a.cambio,2);assert.equal(b.cambio,-2);assert.equal(a.desde,'2026-09-15');assert.equal(b.desde,'2026-10-01');assert.equal(b.antes.n,2,'no usa el inicio general del alumno');
  const html=run('antesAhoraGrupoHTML(metricasGrupoPanel([al],comp))');
- assert.equal((html.match(/data-ver-alumno="ejemplo"/g)||[]).length,2);assert(html.includes('Álgebra sintética'));assert(html.includes('Física sintética'));assert(html.includes('TST101'));assert(html.includes('TST102'));assert(html.includes('data-alumno-ramo="a"'));assert(html.includes('data-alumno-ramo="b"'));assert(html.includes('1 alumno en 2 ramos'));assert(html.includes('+2.0'));assert(html.includes('−2.0'));assert(html.includes('15 sep'));assert(html.includes('1 oct'));
+ assert.equal((html.match(/data-ver-alumno="ejemplo"/g)||[]).length,2);assert(html.includes('Álgebra sintética'));assert(html.includes('Física sintética'));assert(html.includes('TST101'));assert(html.includes('TST102'));assert(html.includes('data-alumno-ramo="a"'));assert(html.includes('data-alumno-ramo="b"'));assert(html.includes('1 alumno en 2 ramos'));assert(html.includes('+2,0'));assert(html.includes('−2,0'));assert(html.includes('15 sep'));assert(html.includes('1 oct'));
  assert.equal(run('JSON.stringify(al)'),guardado);
 });
 
@@ -36,7 +36,7 @@ test('resumen: alumnos y ramos distintos; mediana y mejoraron cuentan pares',()=
 
 test('CSV de resumen: dos filas y mismas columnas, incluida Ramo',()=>{
  const filas=run('csvResumenAlumnosPanel([al],comp,null,new Date(2026,10,3))').split('\r\n').map(f=>f.split(';'));
- assert.deepEqual(filas[0],['Alumno','Ramo','Sigla','Sección','Empezó contigo en este ramo','Promedio del ramo','GradeHub ramo','Sección ramo','Diferencia con el ramo antes','Diferencia con el ramo desde que empezó','Cambio','Estado','Próxima evaluación','Nota necesaria para aprobar','Estudiantes en GradeHub (ramo)','Estudiantes en GradeHub (sección)']);assert.equal(filas.length,3);
+ assert.deepEqual(filas[0],['Alumno','Ramo','Sigla','Sección','Empezó contigo en este ramo','Promedio del ramo','GradeHub ramo','Sección ramo','Diferencia con el ramo antes','Diferencia con el ramo desde que empezó','Cambio','Estado','Próxima evaluación','Nota necesaria para aprobar','Estudiantes en GradeHub (ramo)','Estudiantes en GradeHub (sección)','Método','No preparadas frente a GradeHub','Preparadas frente a GradeHub','Cambio entre grupos','Percentil antes','Percentil ahora','Cambio percentil']);assert.equal(filas.length,3);
  assert.equal(filas[1][1],'Álgebra sintética');assert.equal(filas[2][1],'Física sintética');assert.equal(filas[1][4],'2026-09-15');assert.equal(filas[2][4],'2026-10-01');assert.equal(filas[1][10],'2,0');assert.equal(filas[2][10],'-2,0');assert(filas.every(f=>f.length===filas[0].length));
 });
 

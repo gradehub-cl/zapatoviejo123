@@ -2,7 +2,7 @@ const PASS_MIN = 8;
 // La versión acompaña a cada aceptación para poder saber qué texto leyó alguien
 // si cambian los términos o la política. Las cuentas anteriores no la traen y
 // siguen entrando: esta constancia se exige solo al crear una cuenta nueva.
-const LEGAL_ACCEPTANCE_VERSION = '2026-10-27';
+const LEGAL_ACCEPTANCE_VERSION = '2026-11-12';
 
 // UN SOLO TEXTO para dos caminos que tienen que verse iguales desde afuera: el
 // registro que no devolvió sesión y el correo que YA tenía cuenta. Si difieren,
@@ -17,7 +17,7 @@ const LEGAL_ACCEPTANCE_VERSION = '2026-10-27';
 // nadie despacha lo deja botado sin saberlo. Lo que dice es cierto en los dos
 // casos y sigue sin distinguirlos. Si algún día se reactiva la confirmación,
 // hay que volver a redactarlo. Lo fija `tests/seguridad.test.js`.
-const MSG_VERIFICA = 'Ya puedes entrar con ese correo y tu contraseña.';
+const MSG_VERIFICA = 'Inicia sesión con ese correo y tu contraseña. Si creaste tu cuenta con Google o Apple, entra con ese botón.';
 
 // El enlace de la calculadora solo atribuye la entrada en esta pestaña. No se
 // mezcla con gradehub_v1 ni se guarda puntaje, nota o identidad en la URL.
@@ -91,6 +91,8 @@ let _cerrandoSesion=false;
 // un código que solo sirve con el verificador guardado en este dispositivo, no
 // la sesión. La web sigue con el flujo de siempre.
 const APP_NATIVA=typeof window!=='undefined'&&!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());
+// Igual que enAppIOS() en app.js: Android es la excepción.
+const APP_IOS=APP_NATIVA&&!(typeof window.Capacitor.getPlatform==='function'&&window.Capacitor.getPlatform()==='android');
 const VUELTA_NATIVA='cl.gradehub.app://login-callback';
 try{
   if(window.supabase && SUPABASE_URL.startsWith('http')){

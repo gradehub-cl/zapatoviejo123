@@ -13,18 +13,20 @@
 let obStep=0;
 // El último paso del estudiante, el de los ramos. El profesor no llega ahí.
 const OB_TOTAL=5;
-// Estudiante o profesor particular, elegido en el paso 0 (#697). Parte en
-// estudiante: es casi todo el que llega, y así le basta con tocar Continuar.
+// Estudiante o profesor particular (#697). Todos parten como estudiantes; el
+// profesor llega con la intención que dejó la pantalla de entrada (2026-11-03).
 let obTipo='estudiante';
 // Mientras viaja la postulación del profesor, el botón no se puede volver a apretar.
 let obEnviandoProfesor=false;
 // El profesor no estudia acá: se salta universidad, carrera, generación y ramos,
 // y en su lugar cuenta cómo se presenta. Su paso lleva un número propio para
 // que los del estudiante (1 a 5) sigan significando lo mismo en el embudo.
+// Desde 2026-11-03 no existen el paso 0 (tipo de cuenta) ni el 4 (generación,
+// que pasó al 1), pero sus números no se reusan.
 const OB_PASO_PROFESOR=6;
-function obPasos(tipo){return (tipo||obTipo)==='profesor'?[0,1,OB_PASO_PROFESOR]:[0,1,2,3,4,5];}
+function obPasos(tipo){return (tipo||obTipo)==='profesor'?[1,OB_PASO_PROFESOR]:[1,2,3,5];}
 function obUltimoPaso(){const p=obPasos();return p[p.length-1];}
-// Cuántos semestres ofrece el paso 4 como mínimo. Una carrera cuya malla llega
+// Cuántos semestres se ofrecen como mínimo. Una carrera cuya malla llega
 // más lejos ofrece los suyos (`semestresDeCarrera`): Medicina UAndes y UC y
 // Derecho y Filosofía tienen 12, los dobles títulos UAI 13. Antes era un 11
 // fijo y quien iba en 12° no tenía cómo decirlo. `mallaCubreTodoElPaso` compara
@@ -36,9 +38,20 @@ function semestresDeCarrera(tenant,codigo){
   const ultimo=malla?Math.max(0,...Object.keys(malla).map(Number).filter(Number.isInteger)):0;
   return Math.max(OB_SEMESTRES,ultimo);
 }
+// El semestre se pregunta en el paso 1, antes de saber la carrera: ahí se
+// acepta hasta 14 (los dobles títulos UAI llegan a 13, más quien se atrasa) y
+// el paso 5, ya con la carrera, lo ajusta a los que tenga.
+const OB_SEMESTRES_SIN_CARRERA=14;
+function semestresOfrecidos(){return selectedCarrera?semestresDeCarrera(selectedTenant,selectedCarrera):OB_SEMESTRES_SIN_CARRERA;}
+function ajustarSemestreACarrera(){
+  const total=semestresDeCarrera(selectedTenant,selectedCarrera);
+  if(!obSemManual)selectedSem=Math.min(total,semestreSegunGeneracion(obGeneracion));
+  else if(selectedSem>total)selectedSem=total;
+}
 // Etiquetas fijas nuestras, de lista cerrada: no son texto del estudiante, y
 // hacen legible el embudo sin tener que traducir números mirando el código.
-// Se indexa por número de paso: el 0 y el 6 llegaron con el tipo de cuenta.
+// Se indexa por número de paso: el 0 y el 6 llegaron con el tipo de cuenta, y
+// el 0 ya no se emite desde 2026-11-03.
 const OB_ETAPAS=['tipo','nombre','universidad','carrera','semestre','ramos','profesor'];
 // Qué pasos alcanzó en ESTA pasada por el onboarding. El embudo cuenta
 // cuántos alcanzan cada paso, así que cada uno se emite una sola vez: si
@@ -50,11 +63,12 @@ const obPasosVistos=new Set();
 let obRamos=[],obRamosKey='',obManualOpen=false,obManualError='';
 
 document.getElementById('ob-name').addEventListener('input',checkOb);
+document.getElementById('ob-apellido')?.addEventListener('input',checkOb);
 
 
-// "Tu malla se carga sola" se promete en el paso 3, cuando todavía no sabemos
-// en qué semestre va la persona. Si la malla no cubre TODOS los semestres que el
-// paso 4 ofrece, la promesa es falsa para parte de la gente: Ingeniería UC llega
+// "Tu malla se carga sola" se promete en el paso 3, y el semestre todavía se
+// ajusta a la carrera en el paso 5. Si la malla no cubre TODOS los semestres que el
+// onboarding ofrece, la promesa es falsa para parte de la gente: Ingeniería UC llega
 // hasta 4° —de 5° en adelante se separa por major— y Comercial hasta 8°, así que
 // quien va más arriba elegía su carrera leyendo que le cargábamos los ramos y
 // después no le cargaba ninguno. Prometemos solo donde se cumple siempre.
@@ -67,7 +81,7 @@ function mallaCubreTodoElPaso(codigo){
 }
 function initSemGrid(){
   const g=document.getElementById('sem-grid');g.innerHTML='';
-  const total=semestresDeCarrera(selectedTenant,selectedCarrera);
+  const total=semestresOfrecidos();
   if(selectedSem>total)selectedSem=total;
   for(let i=1;i<=total;i++){
     const b=document.createElement('button');
@@ -81,9 +95,24 @@ function initSemGrid(){
 // solo su nombre: la cobertura del catálogo no orienta qué carrera elegir.
 function initCarreraGrid(){
   const g=document.getElementById('carrera-grid');if(!g)return;g.innerHTML='';
-  const todas=carrerasDeclarables(selectedTenant);
+  // Lo marcado `soloAjustes` (los majors de Ingeniería UC) se elige después.
+  const todas=carrerasDeclarables(selectedTenant).filter(c=>!c.soloAjustes);
+  const busqueda=document.getElementById('ob-carrera-busqueda');
+  if(busqueda)busqueda.hidden=!todas.length;
+  // Universidad sin catálogo: no hay lista que buscar, así que el campo para
+  // escribir la carrera queda a la vista y sin triángulo. Con catálogo, «Otra
+  // carrera» es solo de la app; en la web la salida sigue siendo «Usar «…»».
+  const sola=!todas.length,otra=document.getElementById('ob-otra-carrera');
+  if(otra){
+    otra.hidden=!sola&&!enAppNativa();
+    // Al volver a una universidad con catálogo, se cierra lo que abrió la otra.
+    if(sola)otra.open=true;else if(/ sola$/.test(otra.className))otra.open=false;
+    otra.className='carrera-manual'+(sola?' sola':'');
+  }
+  const sub=document.getElementById('ob-carrera-sub');
+  if(sub)sub.textContent=sola?'Escribe el nombre de tu carrera.':'Busca tu carrera. Si no aparece, puedes escribirla.';
   const q=normName(carreraFiltro||'');
-  const vistas=q?todas.filter(c=>normName(c.n).includes(q)):todas;
+  const vistas=q?todas.filter(c=>coincideBusquedaCarrera(c,q)):todas;
   // Una carrera declarable no puede quedar escondida en un paso obligatorio.
   // 71 opciones son largas, pero el buscador sigue arriba y cada una tiene que
   // existir también para quien recorre la lista con el dedo.
@@ -97,6 +126,7 @@ function initCarreraGrid(){
       // existe. `carreraNombre` es lo declarado, y es lo único que hay cuando
       // no tenemos su malla.
       selectedCarrera=c.malla||null;selectedCarreraNombre=c.n;
+      resetCampoOtraCarrera();
       initCarreraGrid();checkOb();
       if(typeof obStep!=='undefined' && obStep===3 && document.getElementById('screen-onboard').classList.contains('active')){
         setTimeout(()=>{if(obStep===3)obNext();},260);
@@ -107,14 +137,36 @@ function initCarreraGrid(){
   // La lista oficial envejece: una carrera nueva no puede dejar a alguien sin
   // poder declararse en un paso obligatorio. Que la búsqueda haya encontrado
   // algo parecido no prueba que sea SU carrera, así que la salida no depende de
-  // que la lista quede vacía.
-  if(q){
+  // que la lista quede vacía. La excepción es escribir el nombre exacto de una
+  // carrera de la lista: ahí «Usar» sería la misma carrera, pero sin su malla.
+  if(q&&!vistas.some(c=>normName(c.n)===q)){
     const b=document.createElement('button');
     b.className='carrera-opt'+(!selectedCarrera&&carreraFiltro.trim()===selectedCarreraNombre?' sel':'');
     b.innerHTML='Usar «'+esc(carreraFiltro.trim())+'»';
-    b.onclick=()=>{selectedCarrera=null;selectedCarreraNombre=carreraFiltro.trim();initCarreraGrid();checkOb();};
+    b.onclick=()=>{
+      const campo=document.getElementById('ob-carrera-manual');
+      if(campo)campo.value=carreraFiltro.trim();
+      escribirCarreraOnboarding(carreraFiltro);
+    };
     g.appendChild(b);
   }
+}
+function resetCampoOtraCarrera(){
+  const otra=document.getElementById('ob-otra-carrera');
+  if(otra)otra.open=/ sola$/.test(otra.className);
+  const campo=document.getElementById('ob-carrera-manual');
+  if(campo)campo.value='';
+}
+function resetCarreraOnboarding(){
+  selectedCarrera=null;selectedCarreraNombre=null;carreraFiltro='';
+  const buscar=document.getElementById('ob-carrera-buscar');
+  if(buscar)buscar.value='';
+  resetCampoOtraCarrera();
+}
+function escribirCarreraOnboarding(valor){
+  selectedCarrera=null;
+  selectedCarreraNombre=valor.trim().slice(0,NOMBRE_MAX)||null;
+  initCarreraGrid();checkOb();
 }
 function filtrarCarreras(v){carreraFiltro=v;initCarreraGrid();}
 function filtrarCarrerasAjustes(v){window._sFiltro&&window._sFiltro(v);}

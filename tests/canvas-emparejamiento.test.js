@@ -59,6 +59,24 @@ assert.equal(run('icsImportDraft[3].target'),null);
 assert.equal(run('JSON.stringify(S)'),antes,'cambiar los selectores no guarda fechas');
 console.log('OK revisión: ramo → evaluación, sugerencia editable y nada aplicado sin confirmar');
 
+const porNombre=run(`
+  S.ramos[0].categorias.push(
+    {id:'p1',nombre:'Prueba 1',notas:[]},
+    {id:'p2',nombre:'Prueba 2',notas:[]},
+    {id:'i2',nombre:'Interrogación 2',fecha:'2026-10-28',notas:[]},
+    {id:'i3',nombre:'Interrogación 3',notas:[]}
+  );
+  fechasCanvas([
+    {name:'P1',due_at:'2026-11-01T18:00:00Z'},
+    {name:'P2',due_at:'2026-11-02T18:00:00Z'},
+    {name:'I2',due_at:'2026-11-03T18:00:00Z'},
+    {name:'I3',due_at:'2026-11-04T18:00:00Z'},
+    {name:'I3-P1',due_at:'2026-11-05T18:00:00Z'}
+  ],S.ramos[0],new Date('2026-10-21T12:00:00Z'))
+`);
+assert.deepEqual(Array.from(porNombre,p=>p.target),['a|p1|','a|p2|',null,'a|i3|',null]);
+console.log('OK Canvas: «P1/P2» conservan su nombre y una coincidencia ocupada no se corre a otra evaluación');
+
 // Vista sintética opcional para inspección visual a 375 pt; npm test no escribe.
 if(process.env.CANVAS_CAPTURE_HTML){
   const modo=process.env.CANVAS_CAPTURE_MODE==='oscuro'?'oscuro':'claro';

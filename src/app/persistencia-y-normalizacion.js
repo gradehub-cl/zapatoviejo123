@@ -25,29 +25,39 @@ function estadoPeriodoPauta(periodo,ahora){
   const fin=semestre===1?`${anio}-08-01`:`${anio+1}-01-01`;
   return hoy<fin?'vigente':'vencido';
 }
-// Una sola puerta: sin sección nunca se heredan evaluaciones ni reglas de otra.
-// Las pautas coordinadas conservan incluso la identidad de su definición.
+function definicionPreset(nombre,tenant,carrera,sigla){
+  if(tenant!=='uc'){
+    const presets=PRESETS_POR_TENANT[tenant];if(!presets)return null;
+    const clave=claveCatalogo(nombre,Object.keys(presets),tenant);
+    return clave?presets[clave]:null;
+  }
+  if(tenant!=='uc'||!presetUcDisponible(nombre,carrera,sigla))return null;
+  const clave=claveUc(nombre);
+  return clave?PRESETS_UC[clave]:null;
+}
+// Pautas por sección (#1004). Solo para un ramo no coordinado con `porSeccion`:
+// devuelve la definición de ESA sección o, si la sección no tiene programa,
+// los datos generales sin evaluaciones. Nunca hereda las de otra sección. Todo
+// lo demás vuelve idéntico, sin copiar: también un ramo coordinado que trae
+// `porSeccion` (Introducción a la Economía), cuya pauta general sigue mandando.
 function definicionDeSeccion(def,seccion){
-  if(!def||Array.isArray(def)||!def.porSeccion)return def;
+  if(!def||Array.isArray(def)||def.coordinado!==false||!def.porSeccion)return def;
   const {porSeccion,...datos}=def;
   const numero=Number.isInteger(seccion)&&seccion>=1&&seccion<=999?seccion:null;
   const propia=numero!=null&&Object.prototype.hasOwnProperty.call(porSeccion,numero)?porSeccion[numero]:null;
   if(propia&&typeof propia==='object'&&!Array.isArray(propia))return {...datos,...propia};
   delete datos.evals;return datos;
 }
-function definicionBasePreset(nombre,tenant,carrera){
-  if(tenant!=='uc'){
-    const presets=PRESETS_POR_TENANT[tenant];if(!presets)return null;
-    const clave=claveCatalogo(nombre,Object.keys(presets),tenant);
-    return clave?presets[clave]:null;
-  }
-  const clave=claveUc(nombre);
-  if(!clave)return null;
-  const def=PRESETS_UC[clave];
-  return presetUcDisponible(nombre,carrera)||def.coordinado===false?def:null;
-}
-function definicionPreset(nombre,tenant,carrera,seccion){
-  return definicionDeSeccion(definicionBasePreset(nombre,tenant,carrera),seccion);
+// `definicionPreset` no cambia: es el contrato de siempre. Esta puerta es la
+// que pregunta por una sección. En un ramo no coordinado mira el programa del
+// ramo sin filtrar por carrera, igual que las sugerencias (opcionesReferencia),
+// y con sigla solo el de esa sigla: nunca el de un homónimo.
+function definicionPresetDeSeccion(nombre,tenant,carrera,sigla,seccion){
+  const general=definicionPreset(nombre,tenant,carrera,sigla);
+  const oficial=general||pautaOficialDelRamo(nombre,tenant);
+  if(!oficial||Array.isArray(oficial)||oficial.coordinado!==false)return general;
+  if(sigla&&oficial.sigla&&normName(sigla)!==normName(oficial.sigla))return general;
+  return definicionDeSeccion(oficial,seccion);
 }
 // Una pauta que deja la mitad o más del ramo en grupos sin decir cuántas
 // evaluaciones llevan ("Evaluaciones sumativas 60%", sin casillas) no sirve para
@@ -66,7 +76,7 @@ function evalsDePreset(def){return Array.isArray(def)?def:(def&&def.evals||[]);}
 function periodoDePreset(def){return !Array.isArray(def)&&def&&typeof def.periodo==='string'?def.periodo:null;}
 function infoPeriodoPauta(r){
   if(!r||!r.origen||!r.origen.tenant)return null;
-  const def=definicionPreset(r.nombre,r.origen.tenant,r.origen.carrera,r.seccion);
+  const def=definicionPresetDeSeccion(r.nombre,r.origen.tenant,r.origen.carrera,siglaParaPrograma(r),r.seccion);
   const evals=Array.isArray(def)?def:(def&&def.evals||[]);
   if(!evals.length||!pautaPresetSuficiente(evals))return null;
   const periodo=periodoDePreset(def);
@@ -99,7 +109,7 @@ function pautaCalzaParaFechas(r,evals){
 function origenParaFechasOficiales(r,contexto){
   if(r&&r.origen&&r.origen.tenant)return r.origen;
   if(!r||!contexto||!contexto.tenant||!Array.isArray(r.categorias))return null;
-  const def=definicionPreset(r.nombre,contexto.tenant,contexto.carrera,r.seccion);
+  const def=definicionPresetDeSeccion(r.nombre,contexto.tenant,contexto.carrera,siglaParaPrograma(r),r.seccion);
   const evals=Array.isArray(def)?def:(def&&def.evals||[]);
   return def&&pautaCalzaParaFechas(r,evals)?contexto:null;
 }
@@ -107,7 +117,7 @@ function completarFechasOficiales(r,contexto){
   cargarPautaSeccionVacia(r,contexto);
   const origen=origenParaFechasOficiales(r,contexto);
   if(!origen)return;
-  const def=definicionPreset(r.nombre,origen.tenant,origen.carrera,r.seccion);
+  const def=definicionPresetDeSeccion(r.nombre,origen.tenant,origen.carrera,siglaParaPrograma(r),r.seccion);
   if(!def||estadoPeriodoPauta(periodoDePreset(def))!=='vigente')return;
   const evals=Array.isArray(def)?def:(def.evals||[]);
   const porNombre=new Map();
@@ -166,7 +176,9 @@ const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 // nada. El rojo acá NO es el del semáforo —no dice nada sobre la nota— sino el
 // de urgencia que la app ya usa en errores y en "no alcanza".
 const RECORRECCION_DIAS_URGENTE = 2;
-const ORIGENES_FECHA=new Set(['usuario','catalogo','calendario','desconocido']);
+// 'consenso': la persona usó la fecha que pusieron sus compañeros. No es un
+// voto nuevo (ver fechaAportaRespaldo); sí lo es si después la edita.
+const ORIGENES_FECHA=new Set(['usuario','catalogo','calendario','consenso','desconocido']);
 
 function origenFechaSeguro(origen){return ORIGENES_FECHA.has(origen)?origen:null;}
 
@@ -177,7 +189,7 @@ function horaAportaRespaldo(item){return !!item&&item.horaOrigen==='usuario';}
 
 function fechasOficialesRamo(r){
   if(!r||!r.origen||!r.origen.tenant)return new Map();
-  const def=definicionPreset(r.nombre,r.origen.tenant,r.origen.carrera,r.seccion);
+  const def=definicionPresetDeSeccion(r.nombre,r.origen.tenant,r.origen.carrera,siglaParaPrograma(r),r.seccion);
   const evals=Array.isArray(def)?def:(def&&def.evals||[]);
   const fechas=new Map();
   evals.forEach(([nombre,,extra])=>{if(extra&&extra.fecha)fechas.set(normName(nombre),extra.fecha);});
@@ -213,6 +225,21 @@ function marcarFechaUsuario(item,fecha,hora){
   else{item.horaOrigen=null;if(teniaHora)item.horaQuitada=true;}
   if(!item.fecha){item.hora=null;item.horaOrigen=null;item.horaQuitada=true;}
   return item;
+}
+// Guardar una hoja sin tocar la fecha no es elegirla: abrir la evaluación para
+// poner la nota o cambiar el peso convertía una fecha adoptada de compañeros
+// ('consenso') en 'usuario', y desde ahí contaba como voto propio (#1338).
+// Los editores marcan solo si la fecha o la hora cambiaron; si no, el origen y
+// la marca de quitada quedan como estaban. Confirmar explícitamente una fecha
+// (propuesta, grupo) sigue usando marcarFechaUsuario.
+function fechaHoraSinCambio(item,fecha,hora){
+  const f=fecha||null,h=f&&HORA_RE.test(hora||'')?hora:null;
+  return (item&&item.fecha||null)===f&&(item&&item.fecha&&item.hora||null)===h;
+}
+function marcarFechaUsuarioSiCambio(item,fecha,hora){
+  if(fechaHoraSinCambio(item,fecha,hora))return false;
+  marcarFechaUsuario(item,fecha,hora);
+  return true;
 }
 
 function copiarRecuperativo(regla){
@@ -288,13 +315,27 @@ function resolverReglasAusencia(def,categorias){
 // resuelven a las categorías del ramo, como las compuertas. Si una evaluación
 // nombrada ya no está (la pauta se editó), esa regla no se carga: sumarle
 // décimas a otra cosa sería inventar. Vuelve a la lista de lo no calculado.
+function eximicionParaGuardar(def){
+  const regla=def?.eximicion;
+  if(!regla)return null;
+  return JSON.parse(JSON.stringify({...regla,...(regla.notaExamen==='maxima'?{pauta:def.evals||regla.pauta}:{} )}));
+}
 function resolverBonus(def,categorias){
   const lista=!Array.isArray(def)&&def&&Array.isArray(def.bonus)?def.bonus:null;
   if(!lista||!Array.isArray(categorias))return null;
   const idDe=nombre=>{const c=categorias.find(x=>normName(x.nombre)===normName(nombre));return c?c.id:null;};
   const out=[];
   lista.forEach(b=>{
-    if(!b||typeof b.id!=='string'||!['decimas','faltas'].includes(b.entrada))return;
+    if(!b||typeof b.id!=='string'||!['decimas','faltas','confirmacion'].includes(b.entrada))return;
+    if(b.a==='grupo'){
+      const evals=def.evals||[];
+      if(evals.length!==categorias.length||evals.some(([nombre,peso])=>!categorias.some(c=>normName(c.nombre)===normName(nombre)&&c.peso===peso&&(c.slots||1)===1)))return;
+      const ids=(b.evals||[]).map(idDe);
+      if(!ids.length||ids.some(x=>!x)||!['sumar','promediar','distribuir'].includes(b.operacion))return;
+      out.push({id:b.id,...(Array.isArray(b.secciones)?{secciones:b.secciones.slice()}:{}),pregunta:String(b.pregunta||''),ayuda:String(b.ayuda||''),entrada:b.entrada,destino:'grupo',catIds:ids,operacion:b.operacion,valor:b.valor,etapa:b.etapa,
+        pauta:categorias.map(c=>({catId:c.id,nombre:c.nombre,peso:c.peso,slots:c.slots||1,dropLowest:c.dropLowest||null}))});
+      return;
+    }
     const destino=b.a==='final'?'final':idDe(b.a);
     if(!destino)return;
     let si=null;
@@ -303,19 +344,26 @@ function resolverBonus(def,categorias){
       if(!ids.length||ids.some(x=>!x)||typeof b.si.mayorQue!=='number')return;
       si={catIds:ids,mayorQue:b.si.mayorQue};
     }
-    out.push({id:b.id,pregunta:String(b.pregunta||''),ayuda:String(b.ayuda||''),entrada:b.entrada,destino,
+    out.push({id:b.id,...(Array.isArray(b.secciones)?{secciones:b.secciones.slice()}:{}),pregunta:String(b.pregunta||''),ayuda:String(b.ayuda||''),entrada:b.entrada,destino,
       ...(typeof b.max==='number'?{max:b.max}:{}),...(typeof b.hasta==='number'?{hasta:b.hasta}:{}),
-      ...(typeof b.suma==='number'?{suma:b.suma}:{}),...(si?{si}:{})});
+      ...(typeof b.suma==='number'?{suma:b.suma}:{}),...(si?{si}:{}),...(b.alCompletar===true?{alCompletar:true}:{})});
   });
   return out.length?out:null;
 }
-// Lo que el estudiante ingresó: un entero entre 0 y BONUS_MAX por regla.
+// Los contadores existentes conservan su contrato: enteros entre 0 y BONUS_MAX.
 const BONUS_MAX=60;
 function copiarBonusIngresado(raw){
   if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
   const out={};
   Object.keys(raw).forEach(k=>{const v=raw[k];if(/^[a-z0-9_-]{1,32}$/.test(k)&&Number.isInteger(v)&&v>=0&&v<=BONUS_MAX)out[k]=v;});
   return Object.keys(out).length?out:null;
+}
+// Confirmaciones nuevas aparte: una versión anterior conserva este campo
+// opcional sin podar booleanos dentro de los contadores ya existentes.
+function copiarBonusConfirmado(raw){
+  if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
+  const out={};Object.keys(raw).forEach(k=>{if(/^[a-z0-9_-]{1,32}$/.test(k)&&typeof raw[k]==='boolean')out[k]=raw[k];});
+  return out;
 }
 function ausenciasDeclaradas(raw){return [...new Set((Array.isArray(raw)?raw:[]).filter(id=>typeof id==='string'&&/^[A-Za-z0-9_-]{1,64}$/.test(id)))];}
 
@@ -331,6 +379,8 @@ function normalize(data) {
   data.ramos = comoLista(data.ramos).map(r => ({
     ...r,
     id: idSeguro(r.id),
+    ...(r.horario!==undefined?{horario:copiarHorario(r.horario)}:{}),
+    ...(r.programaCanvas!==undefined?{programaCanvas:copiarProgramaCanvas(r.programaCanvas)}:{}),
     color: r.color || '#2563eb',
     // Créditos SCT — opcional. Si todos los ramos lo tienen, el promedio se pondera.
     // El 0 se conserva: es un dato exacto, no un faltante. Ver tieneCreditos().
@@ -344,6 +394,7 @@ function normalize(data) {
     // Décimas o talleres que el estudiante anotó para una regla de `bonus`.
     // Sin ellas (cuentas anteriores) queda en null y no se suma nada.
     bonusIngresado: copiarBonusIngresado(r.bonusIngresado),
+    ...(r.bonusConfirmado!==undefined?{bonusConfirmado:copiarBonusConfirmado(r.bonusConfirmado)}:{}),
     // De qué catálogo (universidad + carrera) salió este ramo. null = creado a mano.
     origen: (r.origen && r.origen.tenant) ? {tenant:r.origen.tenant, carrera:r.origen.carrera||null, ramoKey:claveCanonica(typeof r.origen.ramoKey==='string'&&r.origen.ramoKey.trim()?r.origen.ramoKey.trim():ramoKey(r.nombre,r.origen.tenant,r.origen.carrera),r.origen.tenant,r.origen.carrera)} : null,
     // Otro ramo aporta parte de esta nota (el laboratorio de Dinámica).
@@ -414,6 +465,10 @@ function normalize(data) {
         // Si se pierde `slot` al recargar, Informe 0 sigue guardado pero ya no
         // puede volver a dibujarse en ninguna de las seis casillas.
         ...(Number.isInteger(n.slot) ? {slot:n.slot} : {}),
+        // De qué puntaje salió la nota, si se anotó en puntos. Es un
+        // dato para mostrar: el motor usa `valor`, que ya es la nota.
+        ...(Number.isFinite(n.valor) && n.puntos && [n.puntos.obtenido,n.puntos.total,n.puntos.exigencia].every(Number.isFinite)
+          ? {puntos:{obtenido:n.puntos.obtenido,total:n.puntos.total,exigencia:n.puntos.exigencia}} : {}),
         // Una nota puede tener su propia fecha y todavía no tener valor: es una
         // evaluación que viene. La fecha de la categoría sirve cuando todo el
         // grupo cae el mismo día; no alcanza para "Casos y ensayos", que son
@@ -467,11 +522,20 @@ function normalize(data) {
   // para siempre, aunque su pauta ya estuviera publicada. No falla nada: el
   // ramo simplemente nunca se entera. Por eso se rellena al cargar.
   data.ramos.forEach(r => {
+    const sugerida=copiarPautaSugerida(r.pautaSugerida);
+    if(sugerida)r.pautaSugerida=sugerida;
+    else delete r.pautaSugerida;
     migrarOrigenesFecha(r);
+    if(sugerida?.aceptada){
+      // El programa que llegue después se ofrece en la ficha. No se injertan
+      // reglas ni fechas antes de la confirmación, aunque los pesos coincidan.
+      sellarDatosCatalogo(r,r.origen?.tenant);
+      return;
+    }
     repararEvaluacionesRepetidas(r);
     // Una cuenta ya vinculada al catálogo puede recibir la pauta de SU sección
     // si sigue vacía. Un ramo manual (sin origen) conserva exactamente su pauta.
-    const p = pautaPendiente(r)||(!(r.categorias||[]).length&&!(r.gates||[]).length?datosPautaSeccion(r):null);
+    const p = pautaPendiente(r)||(ramoAdmiteCargaDeSeccion(r)?datosPautaSeccion(r):null);
     if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.promedioParcial = p.promedioParcial || null; r.recuperativo = p.recuperativo || null; r.reemplazosOptativos=p.reemplazosOptativos||null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
     // Un cambio de pauta se ofrece y la persona decide. `corrigePautas` es la
     // excepción para una pauta que NOSOTROS publicamos mal: esperar el botón
@@ -484,7 +548,7 @@ function normalize(data) {
     if (Array.isArray(corregibles) && corregibles.some(p => huellaPauta(p.map(([nombre, peso]) => ({ nombre, peso }))) === tiene)) {
       r.pautaHuella = tiene;
       const cambio = cambioDePauta(r);
-      if (cambio && !cambio.notasFueraDePauta) aplicarCambioDePauta(r, cambio);
+      if (cambio && !cambio.notasFueraDePauta && !juntaFilasAMedias(r, cambio)) aplicarCambioDePauta(r, cambio);
     }
     // Un mínimo que el catálogo sacó a propósito (`retiraCompuertas`) seguía
     // topando la nota en los ramos creados antes: el aviso de pauta cambiada
@@ -494,7 +558,7 @@ function normalize(data) {
     // Solo las de una evaluación con ese mínimo y ese tope exactos.
     const retiradas = definicionPresetDelRamo(r)?.retiraCompuertas;
     if (Array.isArray(retiradas) && Array.isArray(r.gates)) {
-      r.gates = r.gates.filter(gt => !(gt && gt.type === 'min_grade_required'
+      r.gates = r.gates.filter(gt => !(gt && gt.origen !== 'editor' && gt.type === 'min_grade_required'
         && retiradas.some(x => x && x.min === gt.min && x.cap === gt.cap)));
     }
     // La regla es aditiva y no cambia ningún promedio sin una declaración. Así
@@ -508,7 +572,7 @@ function normalize(data) {
     // sigue calculando con el catálogo; la copia solo viaja con los datos y se
     // renueva en cada carga, así que sigue al catálogo si este cambia.
     const eximicionOficial=definicionPresetDelRamo(r)?.eximicion;
-    if(eximicionOficial)r.eximicion=JSON.parse(JSON.stringify(eximicionOficial));
+    if(eximicionOficial)r.eximicion=eximicionParaGuardar(definicionPresetDelRamo(r));
     else delete r.eximicion;
     // Las décimas del programa (#631), igual: la regla llega también a los
     // ramos ya creados y se renueva en cada carga para seguir al catálogo. No
@@ -516,6 +580,21 @@ function normalize(data) {
     const bonusOficial=resolverBonus(definicionPresetDelRamo(r),r.categorias);
     if(bonusOficial)r.bonus=bonusOficial;
     else delete r.bonus;
+    // Las reglas informativas del curso (lo que el promedio no incluye, como el
+    // 1,0 a una evaluación no rendida sin justificación) y las que el motor
+    // todavía no calcula también viven solo en el catálogo. El conector MCP no
+    // lo tiene, así que viaja una copia de solo texto que se renueva en cada
+    // carga y sigue al catálogo (Lucas, 2026-11-17). Nada se calcula con ella;
+    // un ramo manual no recibe ninguna.
+    const textosDelPrograma=campo=>{
+      const lista=(typeof reglasDelPreset==='function'?reglasDelPreset(r,campo):[])
+        .filter(t=>typeof t==='string'&&t.trim()).map(t=>t.slice(0,400)).slice(0,20);
+      return lista.length?lista:null;
+    };
+    const delCurso=textosDelPrograma('reglasDelCurso');
+    if(delCurso)r.reglasDelCurso=delCurso;else delete r.reglasDelCurso;
+    const noCalculadas=textosDelPrograma('noCalcula');
+    if(noCalculadas)r.reglasNoCalculadas=noCalculadas;else delete r.reglasNoCalculadas;
     // La regla usa los ids actuales. Una pauta editada no hereda reglas de otra.
     const defOptativo=definicionPresetDelRamo(r);
     const oficialOptativo=defOptativo&&huellaPauta(catsDePauta(r.categorias))===
@@ -553,6 +632,8 @@ function normalize(data) {
   data.onboardingDone = Boolean(data.onboardingDone);
   data.careerSemestre = Number(data.careerSemestre) || 1;
   data.userName = data.userName || '';
+  // Apellido (2026-11-18): las cuentas anteriores no lo tienen y quedan vacías.
+  data.userApellido = typeof data.userApellido === 'string' ? data.userApellido.replace(/\s+/g,' ').trim().slice(0, 60) : '';
   // Lo que el estudiante DECLARÓ que estudia. Es lo único que hay cuando su
   // carrera no tiene malla, y es el dato que dice qué malla construir después.
   data.carreraNombre = typeof data.carreraNombre === 'string' && data.carreraNombre.trim()
@@ -571,6 +652,8 @@ function normalize(data) {
     ramos: (h.ramos || []).map(r => ({
       ...r,
       id: idSeguro(r.id),
+      ...(r.horario!==undefined?{horario:copiarHorario(r.horario)}:{}),
+    ...(r.programaCanvas!==undefined?{programaCanvas:copiarProgramaCanvas(r.programaCanvas)}:{}),
       categorias: comoLista(r.categorias).map(c => ({
         ...c,
         id: idSeguro(c.id),

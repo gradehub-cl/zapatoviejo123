@@ -17,6 +17,7 @@ const ctx={console,window:{addEventListener(){},matchMedia:()=>({matches:true,ad
 vm.createContext(ctx);
 for(const f of ['data.js','engine.js','app.js'])vm.runInContext(leer(f),ctx,{filename:f});
 const run=s=>vm.runInContext(s,ctx);
+run('__ocrReal=leerFotoOcr');
 let ok=0,fail=0;
 const chk=(n,c)=>{if(c){ok++;console.log('  OK   '+n);}else{fail++;console.log('  FAIL '+n);}};
 const codigos=t=>run(`extraerCodigosHorarioBuscacursos(normalizarTextoOcrHorario(${JSON.stringify(t)}))`).map(r=>r.sigla+'-'+r.seccion).join(' ');
@@ -124,6 +125,15 @@ const codigos=t=>run(`extraerCodigosHorarioBuscacursos(normalizarTextoOcrHorario
   ctx.__input={files:[{type:'application/pdf',size:1000}],value:'x'};
   await run('leerFotoHorario(__input)');
   chk('un archivo que no es imagen se rechaza',/Elige una imagen/.test(get('m-horario-estado').textContent));
+  // El lector real con un Tesseract de mentira que no logra abrir la imagen:
+  // rechaza con un texto, igual que el de verdad con un HEIC.
+  run('leerFotoOcr=__ocrReal');
+  ctx.window.Tesseract={createWorker:async(l,o,op)=>{ctx.__op=op;return {setParameters:async()=>{},recognize:()=>Promise.reject('Error: Error attempting to read image.'),terminate:async()=>{}};}};
+  ctx.__input={files:[{type:'image/heic',size:1000}],value:'x'};
+  await run('leerFotoHorario(__input)');
+  chk('una imagen que el lector no abre lo dice, sin culpar a la conexión',/Esa imagen no se pudo abrir/.test(get('m-horario-estado').textContent)&&!/conexión/.test(get('m-horario-estado').textContent));
+  chk('y el error del lector no queda suelto en la página',typeof ctx.__op.errorHandler==='function'&&ctx.__op.errorHandler('x')===undefined);
+  chk('después de fallar se puede elegir otra foto',ctx.__input.disabled===false&&ctx.__input.value==='');
   run("leerFotoOcr=async()=>{throw new Error('ocr-no-carga')}");
   ctx.__input={files:[{type:'image/jpeg',size:1000}],value:'x'};
   await run('leerFotoHorario(__input)');

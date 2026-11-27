@@ -22,8 +22,7 @@ const iCarga = html.indexOf('id="arranque"');
 chk('va antes del login', iCarga > 0 && iCarga < html.indexOf('id="screen-auth"'));
 chk('el splash nativo se oculta recién después de pintarla', /requestAnimationFrame\(\(\)=>requestAnimationFrame\(soltarSplash\)\)/.test(html.slice(iCarga))
   && /function soltarSplash\(\)\{[\s\S]*?SplashScreen\.hide\(\{fadeOutDuration:0\}\)/.test(html));
-chk('la respiración parte recién cuando se va el splash', /classList\.add\('vivo'\)/.test(html)
-  && /#arranque\.vivo \.arr-arriba\{animation:arrArriba 1\.6s /.test(css) && /RESPIRO_MS=1600;/.test(sesion));
+chk('la app no espera una animación de marca después de pintar', /DOMContentLoaded[^\n]*requestAnimationFrame/.test(html) && /if\(a\)a\.remove\(\)/.test(html) && /enAppNativa\(\)\)\{\s*despues\(\(\)=>\{a\.remove\(\)/.test(sesion));
 chk('en la web no se muestra', /(^|\n)#arranque\{display:none;\}/.test(css));
 chk('se va sola si boot() se cuelga', /\.app-nativa #arranque\{[^}]*animation:arranqueTope [^}]*forwards/.test(css));
 chk('sin animación con movimiento reducido', /prefers-reduced-motion:reduce\)\{#arranque\.vivo \.arr-capa\{animation:none;\}\}/.test(css));

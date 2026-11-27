@@ -89,7 +89,10 @@ chk('Dinámica llega con su vínculo al laboratorio',
 
 // El nombre de la malla y el de la pauta no siempre coinciden en mayúsculas.
 const filo = cargar([{ id: 'c', nombre: 'Filosofía: ¿Para Qué?', origen: uc, categorias: [], gates: [] }]);
-chk('calza aunque la malla escriba el nombre distinto (¿Para Qué? vs ¿para qué?)', filo[0].categorias.length === 4);
+// Filosofía no es coordinado desde 2026-11-25: calza con su registro (la
+// ficha ofrece su programa como opción), pero no se le carga solo a nadie.
+chk('calza aunque la malla escriba el nombre distinto (¿Para Qué? vs ¿para qué?)', run('claveUc("Filosofía: ¿Para Qué?")') === 'Filosofía: ¿para qué?');
+chk('y no se carga solo: no es coordinado', filo[0].categorias.length === 0);
 
 // Lo que NO puede pasar: pisar lo que el estudiante escribió a mano.
 const conNotas = cargar([{
@@ -102,8 +105,8 @@ const manual = cargar([{ id: 'e', nombre: 'Introducción a la Programación', or
 chk('no toca un ramo creado a mano, aunque el nombre calce', manual[0].categorias.length === 0);
 
 // Y un ramo del catálogo SIN pauta publicada sigue sin inventarse una.
-const sinPauta = cargar([{ id: 'f', nombre: 'Ecuaciones Diferenciales', origen: uc, categorias: [], gates: [] }]);
-chk('un ramo sin programa oficial sigue sin pauta', sinPauta[0].categorias.length === 0);
+const sinPauta = cargar([{ id: 'f', nombre: 'Probabilidades y Estadística', origen: uc, categorias: [], gates: [] }]);
+chk('un programa con redondeos no soportados sigue sin pauta', sinPauta[0].categorias.length === 0);
 
 console.log('\n=== Una pauta que nadie puede encontrar no existe ===');
 // Los OFG y electivos no van en la malla a propósito: son una elección, no un
@@ -111,12 +114,19 @@ console.log('\n=== Una pauta que nadie puede encontrar no existe ===');
 // pautas quedaban invisibles — funcionaban tecleando el nombre completo y
 // exacto, o sea solo para quien ya sabía que estaban ahí.
 const buscarUC = (q, car) => run('searchCatalog(' + JSON.stringify(q) + ',"uc",' + JSON.stringify(car) + ',2)');
-['Ecolog', 'Revelaci'].forEach(q => {
-  const r = buscarUC(q, 'ING-PC');
+{
+  const r = buscarUC('Ecolog', 'ING-PC');
   // Entre los seis que se muestran: desde que se busca en toda la UC, la
   // "Ecología" de otras carreras calza mejor por prefijo y va antes.
-  chk('Ingeniería UC encuentra "' + q + '" aunque no esté en la malla', r.slice(0, 6).some(x => x.tienePreset));
-});
+  chk('Ingeniería UC encuentra "Ecolog" aunque no esté en la malla', r.slice(0, 6).some(x => x.tienePreset));
+}
+// Revelación y Fe no es coordinado (2026-11-09): sigue apareciendo, con su
+// sigla, pero sin prometer una pauta para todos.
+{
+  const r = buscarUC('Revelaci', 'ING-PC').find(x => x.nombre === 'Revelación y Fe');
+  chk('Ingeniería UC encuentra "Revelaci" aunque no esté en la malla', !!r);
+  chk('y no promete pauta: no es coordinado', r && !r.tienePreset);
+}
 
 // Cualquier carrera busca ramos de TODA su universidad, no solo de su malla:
 // electivos, minors y ramos de otra carrera también se cursan. Antes las mallas
@@ -143,12 +153,12 @@ chk('los ramos de su propia malla siguen con su semestre',
   chk('Comercial UC NO recibe la pauta de Ingeniería para "' + q + '"',
     buscarUC(q, 'COM').every(r => !r.tienePreset));
 });
-// Termodinámica ya tiene el programa 2025-1: debe anunciar la pauta que sí carga.
+// Termodinámica anuncia la pauta del programa 2026-2.
 const termo = buscarUC('Termodinámica', 'ING-PC').find(r => r.nombre === 'Termodinámica');
-chk('Termodinámica aparece con su pauta histórica disponible', !!termo && termo.tienePreset);
-// EDO todavía no tiene programa transcrito: no se promete una pauta por el audio.
+chk('Termodinámica aparece con su pauta disponible', !!termo && termo.tienePreset);
+// EDO ya tiene las ponderaciones del programa de 2026-1.
 const edo = buscarUC('Ecuaciones Diferenciales', 'ING-PC').find(r => r.nombre === 'Ecuaciones Diferenciales');
-chk('EDO aparece por la malla, pero sin estrella de pauta', !!edo && !edo.tienePreset);
+chk('EDO aparece con la pauta de su programa', !!edo && edo.tienePreset);
 
 console.log('\n=== Cuando la pauta oficial cambia ===');
 // Un preset se copia al ramo al crearlo y después queda congelado. Si más tarde
@@ -220,10 +230,26 @@ console.log('\n=== Todos pueden decir qué estudian ===');
 // hay cuarenta esperando esa malla, que es el dato que decide cuál construir.
 const DECL = run('CARRERAS_DECLARABLES');
 const declarables = run('carrerasDeclarables');
-chk('la oferta de pregrado completa de las dos universidades visibles',
-  DECL.uc.length > 40 && DECL.fen.length === 3);
+chk('la oferta de pregrado completa de la UC y de la U. de Chile',
+  DECL.uc.length > 40 && DECL.fen.length === 76);
+// La U. de Chile completa entra sin tocar a la FEN: las tres carreras que ya
+// eligieron cientos de cuentas conservan su nombre exacto y su malla.
+chk('las tres de la FEN siguen iguales',
+  DECL.fen.find(c => c.n === 'Ingeniería Comercial').malla === 'IC' &&
+  DECL.fen.find(c => c.n === 'Ingeniería en Información y Control de Gestión').malla === 'IICG' &&
+  !!DECL.fen.find(c => c.n === 'Contador Auditor'));
+chk('ninguna carrera de la Chile se repite',
+  new Set(DECL.fen.map(c => c.n)).size === DECL.fen.length);
+// En Beauchef se entra al Plan Común; la especialidad se elige en Ajustes,
+// igual que los majors de Ingeniería UC.
+const fcfm = DECL.fen.filter(c => (c.alias || []).includes('FCFM') || /\(FCFM\)/.test(c.n));
+chk('el Plan Común sale en el onboarding y las especialidades FCFM solo en Ajustes',
+  !DECL.fen.find(c => /^Plan Común/.test(c.n)).soloAjustes &&
+  fcfm.filter(c => !/^Plan Común/.test(c.n)).every(c => c.soloAjustes) && fcfm.length === 14);
+chk('buscar «kine» en la Chile encuentra Kinesiología',
+  run('carrerasDeclarables("fen").some(c=>coincideBusquedaCarrera(c,"kine")&&c.n==="Kinesiología")'));
 chk('las que tienen malla siguen apuntando a su código',
-  DECL.uc.find(c => c.n === 'Ingeniería').malla === 'ING-PC' &&
+  DECL.uc.find(c => c.n === 'Ingeniería Civil').malla === 'ING-PC' &&
   DECL.fen.find(c => c.n === 'Ingeniería Comercial').malla === 'IC');
 // Contador Auditor conserva su malla en MALLA pero se sacó de la oferta a
 // propósito: se declara, no se carga. Reactivarla sería una decisión, no un
@@ -363,7 +389,7 @@ const appPeriodo = fs.readFileSync(__dirname + '/../app.js', 'utf8') + '\n' +
   fs.readFileSync(__dirname + '/../render-main.js', 'utf8');
 const htmlPeriodo = fs.readFileSync(__dirname + '/../index.html', 'utf8');
 chk('la ficha muestra el período junto a la marca de pauta',
-  /id="pauta-periodo"/.test(htmlPeriodo) && /Pauta del \$\{esc\(info\.periodo\)\}/.test(appPeriodo));
+  /id="pauta-periodo"/.test(htmlPeriodo) && /Programa \$\{esc\(info\.periodo\)\}/.test(appPeriodo));
 // Los otros dos ramos donde el número de controles tampoco es fijo.
 [['Gestión y Empresas', 'Controles de Lectura'], ['Marketing', 'Controles']].forEach(([ramo, ev]) => {
   const c = run('presetRamo')(ramo, 'fen', null).categorias.find(x => x.nombre === ev);

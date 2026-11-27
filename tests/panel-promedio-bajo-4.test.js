@@ -42,7 +42,7 @@ for(const r of [examen,grupo]){
   assert.match(ctx.__motivo,/\(mín\. 5,0\): la nota final (no pasa de|queda en) 3,9$/);assert.doesNotMatch(ctx.__motivo,/repruebas|\btu\b|\d\.\d/);
   const escapado=run('esc(__motivo)');assert(x.ficha.includes(escapado),'la ficha del profesor explica el tope');assert(x.legado.includes(escapado),'el detalle de categorías también explica');
   assert(run('alumnosPanelHTML([al],()=>null,new Date(),{soloFilas:true})').includes(escapado),'el motivo está en la fila compacta');
-  assert(run('resumenInicioAlumnosHTML(resumenInicioAlumnosPanel([al]))').includes(escapado),'el motivo está en Necesitan atención');
+  assert(run('resumenInicioAlumnosHTML(alcanceResumenAlumnosPanel(datosResumenAlumnosPanel([al],filasListaPanel([al]))))').includes(escapado),'el motivo está en Necesitan atención');
 }
 
 });

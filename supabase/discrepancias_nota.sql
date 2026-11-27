@@ -3,7 +3,7 @@ begin;
 create table if not exists public.discrepancias_nota(
  id uuid primary key default gen_random_uuid(),
  user_id uuid not null references auth.users(id) on delete cascade,
- tenant text not null check(tenant in('uc','fen','uai','uandes','udd')),
+ tenant text not null check(tenant in('uc','fen','uai','uandes','udd','udp','unab')),
  sigla text not null check(length(sigla) between 1 and 160),
  periodo text not null check(periodo ~ '^[0-9]{4}-[12v]$'),
  huella text not null check(length(huella) between 1 and 4000),
@@ -35,7 +35,7 @@ begin
  if p_tenant is null or not coalesce(estado->>'tenant'=p_tenant,false) and not exists(
  select 1 from jsonb_array_elements(coalesce(estado->'historial','[]')) h,
  jsonb_array_elements(coalesce(h->'ramos','[]')) r where coalesce(r->'origen'->>'tenant',r->'cierre'->>'tenant')=p_tenant) then raise exception 'Universidad incompatible con la cuenta';end if;
- if p_tenant not in('uc','fen','uai','uandes','udd') or p_sigla is null or length(trim(p_sigla)) not between 1 and 160
+ if p_tenant not in('uc','fen','uai','uandes','udd','udp','unab') or p_sigla is null or length(trim(p_sigla)) not between 1 and 160
  or p_periodo is null or p_periodo !~ '^[0-9]{4}-[12v]$' or p_huella is null or length(p_huella) not between 1 and 4000
  or p_calculada is null or p_calculada not between 1 and 7 or (p_oficial is not null and p_oficial not between 1 and 7)
  or p_pauta_origen is null or p_pauta_origen not in('oficial','editada') then raise exception 'Datos de discrepancia inválidos';end if;

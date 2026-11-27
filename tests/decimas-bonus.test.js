@@ -50,6 +50,18 @@ chk('y la final sube lo que pesa Controles (50% de 0,5)',cerca(prom(conControles
 chk('con 3 faltas ya no',cerca(valorCat(conControles([4,4,4],3,4),'c'),4.0));
 chk('el promedio de Controles no pasa de 7,0',cerca(valorCat(conControles([6.8,6.8,6.8],0,4),'c'),7.0));
 
+console.log('\n=== Con alCompletar, las décimas esperan los tres controles ===');
+const alCompletar=(controles,faltas,examen)=>{const r=conControles(controles,faltas,examen);r.bonus[0].alCompletar=true;return r;};
+chk('2 de 3 controles (4,0 y 4,0) con 1 falta: Controles queda en 4,0, sin décimas',cerca(valorCat(alCompletar([4,4],1,4),'c'),4.0));
+chk('y la final tampoco las cuenta (4,0)',cerca(prom(alCompletar([4,4],1,4)),4.0));
+chk('con los 3 anotados (4,0) y 2 faltas: 4,5',cerca(valorCat(alCompletar([4,4,4],2,4),'c'),4.5));
+chk('con los 3 y 3 faltas: 4,0',cerca(valorCat(alCompletar([4,4,4],3,4),'c'),4.0));
+chk('con los 3 y 0 faltas, tope 7,0 (6,8 → 7,0)',cerca(valorCat(alCompletar([6.8,6.8,6.8],0,4),'c'),7.0));
+chk('6,6 + 0,5 = 7,0 justo en el tope',cerca(valorCat(alCompletar([6.6,6.6,6.6],0,4),'c'),7.0));
+chk('sin anotar faltas no suma aunque estén los 3',cerca(valorCat(alCompletar([4,4,4],null,4),'c'),4.0));
+chk('con los 3 controles y examen pendiente, «¿qué necesito?» sigue contando las décimas (3,4)',
+  cerca(Math.round(((r)=>{ctx.__r=r;return run('notaNecesaria(__r,4)');})(alCompletar([4,4,4],0))*1000)/1000,3.4));
+
 console.log('\n=== "¿Qué nota necesito?" cuenta las décimas ===');
 const necesita=r=>{ctx.__r=r;return run('notaNecesaria(__r,4)');};
 // Controles 4,0 (50%) y Examen pendiente (50%). Sin bonus: 3,9. Con +0,5 en Controles: 3,4.
@@ -77,8 +89,13 @@ const pe=run(`PRESETS_UC['Principios Ecológicos y Medio Ambiente']`),din=run(`P
 chk('Principios Ecológicos declara sus décimas a la final, con la condición del programa',pe&&pe.bonus&&pe.bonus[0].a==='final'&&pe.bonus[0].max===5&&pe.bonus[0].si.mayorQue===4);
 chk('y ya no la lleva en noCalcula',!(pe.noCalcula||[]).some(t=>/décimas/.test(t)));
 chk('Dinámica declara las 5 décimas a Controles con 2 faltas como máximo',din&&din.bonus&&din.bonus[0].a==='Controles'&&din.bonus[0].hasta===2&&din.bonus[0].suma===0.5);
+chk('y espera a que estén los 3 controles (alCompletar)',din.bonus[0].alCompletar===true);
+ctx.__def={evals:[['Controles',20,{slots:3}],['Examen',80]],bonus:[{id:'talleres',entrada:'faltas',hasta:2,suma:0.5,a:'Controles',alCompletar:true,ayuda:'x'}]};
+chk('resolverBonus copia alCompletar al ramo',run(`resolverBonus(__def,[{id:'c1',nombre:'Controles',peso:20},{id:'e1',nombre:'Examen',peso:80}])`)[0].alCompletar===true);
+ctx.__def.bonus[0].alCompletar='si';
+chk('y solo si es true',!('alCompletar' in run(`resolverBonus(__def,[{id:'c1',nombre:'Controles',peso:20},{id:'e1',nombre:'Examen',peso:80}])`)[0]));
 chk('y ya no la lleva en noCalcula',!(din.noCalcula||[]).some(t=>/5 décimas/.test(t)));
-chk('Revelación y Fe sigue sin calcularse (decisión de Lucas)',(run(`PRESETS_UC['Revelación y Fe']`).noCalcula||[]).some(t=>/décimas en los talleres/.test(t)));
+chk('Revelación y Fe suma las décimas a la nota más baja, sin activarlas por omisión',run(`PRESETS_UC['Revelación y Fe'].porSeccion[1]`).bonus.some(b=>b.id==='talleres'&&b.operacion==='sumar'));
 // Un ramo ya creado desde el catálogo recibe la regla al cargar, sin sumar nada.
 const viejo=run(`(()=>{const p=presetRamo('Principios Ecológicos y Medio Ambiente','uc','ING-PC');
   const r={id:'v',nombre:'Principios Ecológicos y Medio Ambiente',origen:{tenant:'uc',carrera:'ING-PC'},categorias:p.categorias,gates:[]};

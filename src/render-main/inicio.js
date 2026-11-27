@@ -40,8 +40,11 @@ function renderRecorreccionesHome(){
     </article>`).join('')}`;
 }
 function renderHome(){
+  if(typeof pintarHerramientasInicio==="function")pintarHerramientasInicio();
+  renderClasesHoy();
   renderPropuestasPautaHome();
   renderRecorreccionesHome();
+  renderNotaPendienteInicio();
   renderWrappedHome();
   const g=gpa(S.ramos);
   const gpael=document.getElementById('home-gpa');
@@ -81,7 +84,10 @@ function renderHome(){
 
   const simGlobalBtn=document.getElementById('sim-global-btn');
   if(S.ramos.length===0){
-    gpael.textContent='·';gpael.className='gpa-num empty';
+    // Igual que sin notas (g===null): al archivar, el exacto del semestre
+    // anterior seguía debajo del «·» y tocarlo abría su «Promedio redondeado».
+    gpael.textContent='·';gpael.className='gpa-num empty';gpael.onclick=null;
+    pintarPromedioExacto('home-gpa-exacto',null);
     gpaSub.style.display='none';gpaMethod.style.display='none';emptyHint.style.display='block';
     if(tagsEl)tagsEl.style.display='none';
     if(deltaEl)deltaEl.style.display='none';
@@ -101,8 +107,8 @@ function renderHome(){
   if(g!==null){
     // El promedio general va en el semáforo, como los ramos (Lucas, 2026-11-02;
     // #910 lo había pasado al acento).
-    const rounded=fmtPromedio(g);
-    const sep=rounded.indexOf('.');
+    const rounded=fmtPromedioGeneral(g);
+    const sep=rounded.indexOf(',');
     const entera=rounded.slice(0,sep);
     const decimal=rounded.slice(sep);
     gpael.innerHTML=`${entera}<span class="gpa-decimal">${decimal}</span>`;
@@ -113,19 +119,7 @@ function renderHome(){
       alternarPromedioExacto();
       pintarPromedioExacto('home-gpa-exacto',g);
       if(!promedioExactoVisible)return;
-      const oficial=notaFinalOficial(g);
-      const umbrales=[4.0,5.0,6.0,7.0];
-      const next=umbrales.find(u=>u>oficial+0.001);
-      let msg=`Promedio redondeado: ${fmtPromedio(g)}`;
-      if(next!==undefined){
-        // El borde sale de la regla de la universidad (3,95 en la común, 3,945
-        // en la UAndes) y la distancia se redondea hacia arriba: con 3,949 decía
-        // "0.00 para redondear a 4.0".
-        const falta=Math.ceil((gh_bordeOficial(next,gh_reglasNota(S.tenant))-g)*100-1e-9)/100;
-        msg+=`  ·  ${nf(Math.max(0.01,falta),2)} para redondear a ${nf(next)}`;
-      }else{
-        msg+=`  ·  máximo`;
-      }
+      let msg=`Promedio redondeado: ${fmtPromedioGeneral(g)}`;
       // Transparencia: el modo se explica sin pedir que alguien invente SCT.
       const detalle=descripcionMetodoGpa(S.ramos);
       if(detalle)msg+='\n'+detalle.texto;
@@ -166,14 +160,18 @@ function renderHome(){
       else if(nivel==='good'){
         if(ramoCompletamenteEvaluado(r))good++;
         else goodEnCurso++;
-      }else if(nivel==='warn')warn++;
-      else bad++;
+      // Un ramo cerrado entre 4,0 y 4,9 ya aprobó, como dice su ficha («✓
+      // Aprobado»): contarlo «en riesgo» contradecía a la otra pantalla (#1376).
+      }else if(nivel==='warn'){
+        if(ramoCompletamenteEvaluado(r))good++;
+        else warn++;
+      }else bad++;
     });
     const parts=[];
     if(good)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot good"></span>${good} aprobado${good!==1?'s':''}</span>`);
     if(goodEnCurso)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot good"></span>${goodEnCurso} ${goodEnCurso===1?'va':'van'} aprobando</span>`);
     if(warn)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot warn"></span>${warn} en riesgo</span>`);
-    if(bad)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot bad"></span>${bad} bajo 4.0</span>`);
+    if(bad)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot bad"></span>${bad} bajo 4,0</span>`);
     if(pend)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot neutral"></span>${pend} pendiente${pend!==1?'s':''}</span>`);
     tagsEl.innerHTML=parts.join('');
     tagsEl.style.display=parts.length?'flex':'none';
@@ -188,7 +186,10 @@ function renderHome(){
       const kind=abs<0.05?'flat':diff>0?'up':'down';
       const arrow=kind==='up'?'↑':kind==='down'?'↓':'·';
       deltaEl.className='gpa-delta '+kind;
-      deltaEl.innerHTML=`<strong>${arrow} ${nf(abs,2)}</strong><span>vs. ${esc(last.label||'semestre anterior')}</span>`;
+      // Sin diferencia no hay cifra que mostrar: «· 0,00 vs.» se leía como un dato roto.
+      deltaEl.innerHTML=kind==='flat'
+        ?`<span>Igual que ${esc(last.label||'el semestre anterior')}</span>`
+        :`<strong>${arrow} ${nf(abs,2)}</strong><span>vs. ${esc(last.label||'semestre anterior')}</span>`;
       deltaEl.title=`vs ${last.label||'semestre anterior'}`;
       deltaEl.style.display='inline-flex';
     }else{
@@ -215,22 +216,9 @@ function renderHome(){
           <span class="chevron-r" aria-hidden="true">›</span>
         </button></section>`);
     }
-    const risky=mostRiskyRamo();
-    if(risky){
-      cards.push(`
-        <section class="home-seccion"><h2 class="section-hd-title home-seccion-titulo">${risky.imposible?'Ya no alcanza':'Ramo en riesgo'}</h2><button type="button" class="insight-card home-academic-row" onclick="openRamo('${esc(risky.ramo.id)}')">
-          <span class="insight-body">
-
-            <span class="insight-title">${esc(risky.ramo.nombre)}</span>
-            <span class="insight-meta">${risky.imposible
-              ?'Con lo pendiente ya no se llega a 4,0'
-              :`${nfNecesaria(risky.needed)} en lo pendiente para aprobar`}</span>
-          </span>
-          <span class="home-insight-value"><strong style="color:${getColorRamo(risky.ramo,risky.avg)}">${fmtPromedio(risky.avg)}</strong><small>Promedio</small></span>
-          <span class="chevron-r" aria-hidden="true">›</span>
-        </button></section>`);
-    }
-    // Se conserva la última nota como respaldo si no hay próxima ni riesgo.
+    // Sin próxima evaluación queda la última nota. «Ramo en riesgo» se sacó
+    // (Lucas, 2026-11-10): mostraba un solo ramo aunque hubiera varios bajo 4,0
+    // y repetía lo que ya dicen los promedios de arriba.
     if(cards.length===0){
       const lg=latestGrade();
       if(lg){
@@ -250,7 +238,7 @@ function renderHome(){
     insightsEl.style.display=cards.length?'grid':'none';
   }
 
-  const recordatoriosNotas=recordatoriosNotasFaltantes();
+  const recordatoriosNotas=enAppNativa()?[]:recordatoriosNotasFaltantes();
   let ramos=[...S.ramos];
   if(S.sortMode==='avg') ramos.sort((a,b)=>{const da=ramoAvg(a)??-1,db=ramoAvg(b)??-1;return db-da;});
   else if(S.sortMode==='name') ramos.sort((a,b)=>a.nombre.localeCompare(b.nombre));
@@ -307,7 +295,7 @@ function renderHome(){
     c.appendChild(div);
   });
   montarRecordatoriosNotasHome(c,recordatoriosNotas);
-  actualizarRecordatoriosProfesorHome(c);
+  if(!enAppNativa())actualizarRecordatoriosProfesorHome(c);
   if(S.sortMode==='manual')activarReordenRamos(c);
   // Publicidad de clases junto al ramo que calza. Vive en marketplace.js y
   // decide en el navegador; si no hay nada que mostrar, no pinta nada.

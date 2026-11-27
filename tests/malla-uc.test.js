@@ -204,12 +204,12 @@ const renderStart=src.indexOf('function renderRamo()');
 const render=src.slice(renderStart,src.indexOf('function renderStats()',renderStart));
 chk('distingue el ramo del catálogo del creado a mano', /const delCatalogo=/.test(render));
 chk('al del catálogo le explica cómo armar la pauta en vez de decirle "Sin evaluaciones"',
-  /Todavía no tenemos la pauta de este ramo/.test(render) && /Ármala con el programa del curso/.test(render));
+  /Todavía no tenemos las ponderaciones de este ramo/.test(render) && /Ármalas con el programa del curso/.test(render));
 chk('al ramo manual le sigue diciendo Sin evaluaciones', /'Sin evaluaciones'/.test(render));
 // El mensaje vive dentro del bloque de categorías vacías: en cuanto el
 // estudiante agrega su primera evaluación, deja de renderizarse solo.
 chk('el aviso desaparece con la primera evaluación',
-  render.indexOf('if(r.categorias.length===0){') < render.indexOf('Todavía no tenemos la pauta de este ramo'));
+  render.indexOf('if(r.categorias.length===0){') < render.indexOf('Todavía no tenemos las ponderaciones de este ramo'));
 
 console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
 process.exit(fail ? 1 : 0);

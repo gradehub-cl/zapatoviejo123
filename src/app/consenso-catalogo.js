@@ -57,7 +57,13 @@ function pautaDeConsenso(est){
     // que un "3" no viene de un reporte legítimo y no hay por qué adivinarle.
     const slots=typeof e.slots==='number'&&Number.isInteger(e.slots)&&e.slots>1&&e.slots<=100?e.slots:0;
     const id=uid();
-    const cat={id,nombre,peso,ponderaNotas:false,directNota:!!slots,notas:[]};
+    // Sin cantidad, el reporte no distingue "una nota" de "varias sin contar":
+    // `firma` en reportes-pauta.js manda 1 en los dos casos. Se toma como una
+    // sola, igual que un preset, una evaluación creada a mano o "Reportar
+    // pauta". Antes quedaba como lista abierta, y un "Examen" reportado se
+    // dibujaba con "+ Agregar nota" en vez de su fila. Quien tenga varias lo
+    // marca en el editor ("Son varias notas"), que es el mismo camino de siempre.
+    const cat={id,nombre,peso,ponderaNotas:false,directNota:true,notas:[]};
     if(slots)cat.slots=slots;
     categorias.push(cat);
     if(enEscala(e.min))gates.push({type:'min_grade_required',catId:id,min:e.min,cap:enEscala(e.cap)?e.cap:SIM_MIN,nombre});
@@ -78,11 +84,18 @@ function pautaDeConsenso(est){
 // En un ramo vacío, aunque lo agregaran a mano, no hay nada que pisar.
 async function aplicarConsensoAuto(){
   if(esCuentaProfesor())return 0;
-  const cons=await cargarConsenso();
-  if(!cons||!cons.length)return 0;
+  // Vacía no corta: un ramo con secciones en disputa solo sale en la consulta
+  // de su sección. Esta llamada además deja lista la caché de consensoAlAgregar.
+  if(!await cargarConsenso())return 0;
+  await traerSiglasRamosManualesUC();
+  // Las mallas diferidas se traen solo si hay un ramo vacío que las necesita.
+  if((S.ramos||[]).some(r=>!(r.categorias||[]).length&&coordinacionRamo(r)===null))
+    await asegurarMallasCoordinacion(S.tenant);
   let puestas=0;
   for(const r of (S.ramos||[])){
     const especifico=await cargarConsenso(S.tenant,periodoReporte(r),seccionReporte(r));
+    if(!(r.categorias||[]).length&&(especifico||[]).some(c=>c.ramo_key===claveReporte(r)))
+      await prepararEvidenciaCoordinacion(r);
     if(ponerConsensoEnRamo(r,especifico||[]))puestas++;
   }
   if(puestas)save();
@@ -93,6 +106,11 @@ function ponerConsensoEnRamo(r,cons){
   if(!r||!cons||!cons.length)return false;
   if(r.origen&&r.origen.tenant&&r.origen.tenant!==S.tenant)return false;
   if((r.categorias||[]).length||(r.gates||[]).length)return false;
+  // Solo en ramos coordinados: en uno no coordinado, tres reportes iguales
+  // describen la pauta de un profesor, no la de todas las secciones. Ahí el
+  // consenso se ofrece como sugerencia (pauta-sugerida.js). Sin saberlo aún
+  // (mallas diferidas en camino) tampoco se aplica: la ficha vuelve a probar.
+  if(!ramoCoordinado(r))return false;
   if(!r.origen&&presetRamo(r.nombre,S.tenant,S.carrera))return false; // una oficial existente manda
   if(pautaPendiente(r))return false;                    // hay programa oficial esperando: ese manda
   const hit=cons.find(c=>c.ramo_key===claveReporte(r)&&consensoVigenteParaRamo(c,r)&&c.respaldos>=CONSENSO_AUTO);
@@ -123,13 +141,32 @@ function consensoAlAgregar(r){
 function yaAportada(r,est){
   return !!r.consensoAportado&&(r.consensoAportado===huellaEstructura(est)||r.consensoAportado===huellaEstructura(est,true));
 }
+function esListaSinCantidad(c){
+  return !!c&&c.directNota===false&&!(Number.isInteger(c.slots)&&c.slots>1)&&Number(c.peso)>0;
+}
 // Participan las pautas completas que alguien armó o corrigió, cualquiera sea
 // el camino: editor, ramo manual o propuesta del agente ya aceptada. Una pauta
 // oficial sin editar y una pauta recibida del propio consenso no son votos
 // independientes. El servidor cuenta personas distintas, no envíos.
+// Los reportes comparten estructura y pesos. Un descarte o un tope
+// personal vigente cambiaría el significado del voto al quitarle la regla.
+function pautaConReglasNoCompartibles(r){
+  const vigentes=catsDePauta(r.categorias).filter(c=>Number(c.peso)>0);
+  return vigentes.some(c=>c.dropLowest?.count>0||c.dropLowest?.fraction>0)||
+    (r.gates||[]).some(g=>g.origen==='editor'&&(g.catIds||[g.catId]).some(id=>vigentes.some(c=>c.id===id)));
+}
 function pautaPropiaParaConsenso(r){
   if(!r||!Array.isArray(r.categorias)||!r.categorias.length)return false;
-  if(typeof estadoReporte==='function'&&!estadoReporte(estructuraDe(r)).lista)return false;
+  // Una lista abierta ("Son varias notas", sin cantidad) no dice cuántas notas
+  // tiene: el reporte la manda como una sola, igual que un "Examen". Su voto
+  // describe otra pauta —unos "Controles" de 3 casillas quedan en otro grupo—
+  // y, si llega a consenso, a los demás les llega como evaluación de una nota.
+  // Se deja de aportar sola; el botón de reporte, donde la persona revisa lo
+  // que manda, no cambia.
+  if(pautaConReglasNoCompartibles(r)||catsDePauta(r.categorias).some(esListaSinCantidad))return false;
+  const est=estructuraDe(r);
+  if(typeof estadoReporte==='function'&&!estadoReporte(est).lista)return false;
+  if(repiteVotoSugerido(r,estructuraParaConsenso(est)))return false;
   if(presetRamo(r.nombre,(r.origen&&r.origen.tenant)||S.tenant,(r.origen&&r.origen.carrera)||S.carrera))return false;
   if(r.consensoRespaldos){
     return !!r.consensoAportado&&!yaAportada(r,estructuraParaConsenso(estructuraDe(r)));
@@ -145,13 +182,15 @@ function pautaPropiaParaConsenso(r){
 // guardada evita reenvíos sin cambios, y un fallo de red deja el aporte pendiente
 // para el siguiente guardado o inicio de sesión.
 async function aportarPautasAlCatalogo(){
+  // Ausente = comportamiento anterior: las cuentas existentes siguen aportando.
+  if(S.aportarPautasAutomaticamente===false)return 0;
   if(!supabaseClient||!currentUser)return 0;
   if(_aportePautasEnCurso)return _aportePautasEnCurso;
   const usuarioId=currentUser.id,estado=S;
   _aportePautasEnCurso=(async()=>{
     let n=0;
     for(const r of (estado.ramos||[])){
-      if(!currentUser||currentUser.id!==usuarioId||S!==estado)break;
+      if(!currentUser||currentUser.id!==usuarioId||S!==estado||estado.aportarPautasAutomaticamente===false)break;
       if(!pautaPropiaParaConsenso(r))continue;
       if(r.origen&&r.origen.tenant&&r.origen.tenant!==S.tenant)continue;
       const est=estructuraParaConsenso(estructuraDe(r)),huella=huellaEstructura(est);
@@ -160,7 +199,7 @@ async function aportarPautasAlCatalogo(){
       const seccion=seccionReporte(r);
       if(!huella||(yaAportada(r,est)&&(seccion===null||r.seccionAportada===seccion||_servidorSinSeccion)))continue;
       const enviado=await aportarPropuestaAlCatalogo(r);
-      if(!currentUser||currentUser.id!==usuarioId||S!==estado)break;
+      if(!currentUser||currentUser.id!==usuarioId||S!==estado||estado.aportarPautasAutomaticamente===false)break;
       if(enviado){r.consensoAportado=huella;n++;}
     }
     if(n&&currentUser&&currentUser.id===usuarioId&&S===estado)save();
@@ -185,3 +224,10 @@ async function aportarPautasAlCatalogo(){
 //
 // No sirve reusar findPresetName acá: esa exige que el preset traiga
 // ponderaciones y deja fuera a los que solo traen reglas, como Cálculo II.
+
+// Preferencia privada de la cuenta: apagar no retira reportes ya entregados.
+function cambiarCompartirPautas(activo){
+  S.aportarPautasAutomaticamente=activo===true;
+  if(!activo){clearTimeout(_aportePautasTimer);_aportePautasTimer=null;}
+  save();
+}

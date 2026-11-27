@@ -20,7 +20,7 @@ assert.equal(run('definicionDeSeccion(propia,5).creditos'),10);
 for(const seccion of ['null','4','undefined']){
  assert.equal(run(`definicionDeSeccion(propia,${seccion}).evals`),undefined);
  assert.equal(run(`definicionDeSeccion(propia,${seccion}).reglasDelCurso`),undefined);
- assert.equal(run(`presetRamo('Pauta sintética por sección','fen','IC',undefined,${seccion})`),null);
+ assert.equal(run(`presetRamo('Pauta sintética por sección','fen','IC',undefined,null,${seccion})`),null);
 }
 assert.equal(run(`(()=>{const d={evals:[['A',100]]};return definicionDeSeccion(d,5)===d})()`),true,'coordinadas idénticas, sin copiar');
 run(`globalThis.cinco=crearRamoDesdeCatalogo('Pauta sintética por sección','SYN909',5);globalThis.cuatro=crearRamoDesdeCatalogo('Pauta sintética por sección','SYN909',4);globalThis.otra=crearRamoDesdeCatalogo('Pauta sintética por sección','SYN909',null);`);
@@ -30,7 +30,7 @@ assert.match(run(`avisoSinPautaSeccion(cuatro.nombre,'fen','IC',4)`),/De la secc
 assert.match(run(`avisoSinPautaSeccion(otra.nombre,'fen','IC',null)`),/sin sección confirmada/);
 assert.deepEqual(json("reglasDelPreset(cinco,'reglasDelCurso')"),['Solo sección cinco']);
 assert.deepEqual(json("reglasDelPreset(cuatro,'reglasDelCurso')"),[]);
-assert.equal(run('definicionPresetDelRamo(cuatro).grupos'),undefined);
+assert.equal(run('definicionPresetDelRamo(cuatro)'),null,'una sección sin programa no recibe reglas de otra (programaQueCalza)');
 run(`cuatro.seccion=6;completarFechasOficiales(cuatro,{tenant:'fen',carrera:'IC'});`);
 assert.deepEqual(json('cuatro.categorias.map(c=>c.nombre)'),['Trabajo','Examen']);
 assert.equal(run('cuatro.gates.length'),0,'no hereda mínimo de sección cinco');
@@ -71,14 +71,21 @@ assert.match(html,/<label for="selector">Sección<\/label>/);assert.match(html,/
 run(`elegirSeccionRamo('Pauta%20sint%C3%A9tica%20por%20secci%C3%B3n','fen','IC','SYN909',{id:'selector',value:'5'});globalThis.elegido=crearRamoDesdeCatalogo('Pauta sintética por sección','SYN909');`);
 assert.equal(run('elegido.seccion'),5);assert.equal(run('elegido.categorias.length'),2);
 assert.match(run(`selectorSeccionRamoHTML('Pauta sintética por sección','fen','IC','SYN909','selector')`),/value="5" selected/);
-// Banco: cada sección ve su pauta y sus reportes; la desconocida no hereda.
-const filas=[{sigla:'SYN909-5',nombre:'Pauta sintética por sección',pauta:{sigla:'SYN909',coordinado:false,evals:[['Prueba',40],['Examen',60]]},variantes:[]},{sigla:'SYN909',nombre:'SYN909',pauta:null,variantes:[{seccion:5,huella:'a'},{seccion:6,huella:'b'},{seccion:null,huella:'c'}]}];
-ctx.filas=filas;
-const banco=json("pautasBancoPorSeccion(filas,'fen')");
-assert.equal(banco.length,3);assert.deepEqual(banco.find(f=>f.seccion===5).variantes.map(v=>v.huella),['a']);assert.equal(banco.find(f=>f.seccion===6).pauta,null);
 // El mismo mecanismo UC no requiere una excepción por carrera.
 run(`PRESETS_UC['Curso UC sintético por sección']=propia;S=normalize({tenant:'uc',carrera:'DER',onboardingDone:true,ramos:[]});`);
-assert.equal(run("definicionPreset('Curso UC sintético por sección','uc','DER',5).evals.length"),2);
+assert.equal(run("definicionPresetDeSeccion('Curso UC sintético por sección','uc','DER',null,5).evals.length"),2);
+assert.equal(run("definicionPreset('Curso UC sintético por sección','uc','DER')"),null,'definicionPreset conserva el filtro por carrera de main');
 run(`_horarioUCReconocido=[{nombre:'Curso UC sintético por sección',sigla:'SYN909',seccion:5}];_horarioSeccionesUC=[];renderHome=()=>{};showToast=()=>{};document.querySelectorAll=s=>s==='.horario-ramo-check'?[{checked:true,dataset:{i:'0'}}]:[];aplicarHorarioBuscacursos();`);
 assert.equal(run('S.ramos[0].seccion'),5);assert.equal(run('S.ramos[0].categorias.length'),2,'el horario usa la misma puerta y no adjunta la sección después del preset');
-console.log('PASS pautas por sección: puerta única, alta, reglas aisladas, cambio, confirmación, notas, cuenta existente, selector y banco');
+// Integración con main: un ramo coordinado con `porSeccion` conserva su pauta general.
+run(`globalThis.mixta={evals:[['General',100]],porSeccion:{2:{evals:[['Solo dos',100]]}}};`);
+assert.equal(run('definicionDeSeccion(mixta,2)===mixta&&definicionDeSeccion(mixta,null)===mixta'),true,'coordinado con porSeccion: idéntico, no pierde sus evaluaciones');
+// Lo que la persona decidió en la ficha (pauta-sugerida.js) manda sobre la carga sola.
+for(const extra of ["pautaSugerida:{descartada:3}","avgOverride:5.5","cierre:{nota:5}"]){
+ run(`globalThis.decidido=normalize({tenant:'fen',carrera:'IC',ramos:[{id:'decidido',nombre:'Pauta sintética por sección',seccion:5,origen:{tenant:'fen',carrera:'IC'},categorias:[],${extra}}]}).ramos[0];`);
+ assert.equal(run('decidido.categorias.length'),0,'no entra sola con '+extra);
+}
+// Otra sigla con el mismo nombre no recibe la pauta de la sección.
+run(`S=normalize({tenant:'fen',carrera:'IC',onboardingDone:true,ramos:[]});globalThis.homonimo=crearRamoDesdeCatalogo('Pauta sintética por sección','OTR111',5);`);
+assert.equal(run('homonimo.categorias.length'),0);assert.equal(run('homonimo.seccion'),undefined);
+console.log('PASS pautas por sección: puerta única, alta, reglas aisladas, cambio, confirmación, notas, cuenta existente, selector e integración con main');

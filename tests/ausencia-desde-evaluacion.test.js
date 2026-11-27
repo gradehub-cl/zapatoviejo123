@@ -88,6 +88,6 @@ run('abrirCasilla("control",1)');
 check('en un grupo con una casilla calificada, la hoja de otra casilla tampoco la ofrece',!/Falté con justificativo/.test(byId('modal-content').innerHTML));
 check('un grupo con una casilla ya calificada no ofrece ausencia para toda la evaluación',!/Falté con justificativo/.test(byId('cat-list').children[0].innerHTML));
 casillas.ausenciasJustificadas=['control'];setRamo(casillas);
-check('si una declaración antigua quedó inactiva por una nota, no esconde esa nota',/Declaración no aplicada/.test(html())&&/value="5\.5"/.test(byId('cat-list').children[0].innerHTML));
+check('si una declaración antigua quedó inactiva por una nota, no esconde esa nota',/Declaración no aplicada/.test(html())&&/value="5,5"/.test(byId('cat-list').children[0].innerHTML));
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);process.exit(fail?1:0);

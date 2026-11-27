@@ -11,6 +11,12 @@ function carrerasDeclarables(t){
   if(lista&&lista.length)return lista.slice().sort((a,b)=>(b.malla?1:0)-(a.malla?1:0)||a.n.localeCompare(b.n,'es'));
   return Object.entries(carrerasFor(t)).filter(([c])=>c!=='OTRA').map(([malla,n])=>({n,malla}));
 }
+// Los sinónimos solo amplían la búsqueda: elegir una opción conserva su nombre
+// y código canónicos. No crea otra carrera ni reinterpreta una cuenta existente.
+function coincideBusquedaCarrera(carrera,consulta){
+  const q=normName(consulta||'');
+  return [carrera.n,...(carrera.alias||[])].some(n=>normName(n).includes(q));
+}
 function carrerasFor(t){
   if(t==='uc')return CARRERAS_UC;
   if(t==='uai')return CARRERAS_UAI;
@@ -47,11 +53,12 @@ function mallasExtraDe(tenant){
   if(tenant==='uai'&&typeof MALLAS_UAI_EXTRA!=='undefined')return MALLAS_UAI_EXTRA;
   if(tenant==='uandes'&&typeof MALLAS_UANDES_EXTRA!=='undefined')return MALLAS_UANDES_EXTRA;
   if(tenant==='udd'&&typeof MALLAS_UDD_EXTRA!=='undefined')return MALLAS_UDD_EXTRA;
+  if(tenant==='ucn'&&typeof MALLAS_UCN_EXTRA!=='undefined')return MALLAS_UCN_EXTRA;
   return null;
 }
 // Qué archivo trae las mallas diferidas de cada universidad. Sin entrada acá,
 // el tenant funciona igual: sin sugerencia automática y agregando ramos a mano.
-const ARCHIVO_MALLAS={uc:'mallas-uc.js',uai:'mallas-uai.js',uandes:'mallas-uandes.js',udd:'mallas-udd.js'};
+const ARCHIVO_MALLAS={uc:'mallas-uc.js',uai:'mallas-uai.js',uandes:'mallas-uandes.js',udd:'mallas-udd.js',ucn:'mallas-ucn.js'};
 
 // Las mallas extra de UC y UAI se traen cuando se necesitan y no en cada carga:
 // meterlas en data.js habría cobrado ese peso a todo el mundo, incluida la gente

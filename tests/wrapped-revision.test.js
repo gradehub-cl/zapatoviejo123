@@ -38,6 +38,10 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
   mostrar([{...ramo('sin-pauta'),categorias:[]}]);assert.equal(run('cierreWrapped(ramosWrapped()).listo'),false);
   mostrar([ramo('reprobado',2)]);assert.equal(run('cierreWrapped(ramosWrapped()).listo'),true);
  });
+ check('la página pública explica quién elige el destino de una imagen sin anticipar la campaña',()=>{
+  assert.doesNotMatch(read('privacidad.html'),/\bwrapped\b/i);
+  assert.match(read('privacidad.html'),/tú eliges si enviarla y a quién/);
+ });
  check('Inicio no revela historias ni cifras antes de finalizar',()=>{
   mostrar([ramo('listo')]);run('renderWrappedHome()');
   assert.match(ids['home-wrapped'].innerHTML,/Semestre terminado/);
@@ -79,7 +83,7 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  });
  check('no afirma cierre de un ramo todavía pendiente ni celebra todos reprobados',()=>{
   const r=ramo('pendiente');r.categorias=[cat('control',50,3),cat('examen',50,null)];mostrar([r]);
-  const slides=JSON.stringify(run('slidesWrapped(datosWrapped(S.ramos),null,semester())'));assert.doesNotMatch(slides,/Cerraste|sacaste adelante|sobre el 4,0/);assert.match(slides,/con promedio de aprobación/);
+  const slides=JSON.stringify(run('slidesWrapped(datosWrapped(S.ramos),null,semester())'));assert.doesNotMatch(slides,/Cerraste|sacaste adelante|sobre el 4,0/);assert.doesNotMatch(slides,/0 de \d+ ramo/,'sin ramos aprobados no se escribe «0 de N» bajo el promedio');
  });
  check('no usa un historial de otro período ni adivina etiquetas antiguas',()=>{
   mostrar([]);set('S.historial',[{ramos:[ramo('archivado')]}]);assert.equal(run('ramosWrapped()'),null);
@@ -109,15 +113,15 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  set('currentUser',{id:'sintetico',email:'privado-sintetico@example.invalid'});run('subirNotasCurso=async()=>{};cargarPosicionesCurso=async()=>({});invalidarPosicionesCurso=()=>{}');
  set('supabaseClient',{rpc:async()=>({error:{message:'function does not exist'}})});
  assert.equal(JSON.stringify(await run('comparacionWrapped()')),'{}');
- ctx.cargarPosicionesCurso=async()=>({uno:{total:5,mejorQue:75}});
- assert.equal(JSON.stringify(await run('comparacionWrapped()')),'{"curso":{"ramo":"Ramo uno","total":5,"mejorQue":75}}','la RPC de universidad ausente conserva la pantalla del curso');
+ ctx.cargarPosicionesCurso=async()=>({uno:{total:11,mejorQue:75}});
+ assert.equal(JSON.stringify(await run('comparacionWrapped()')),'{"curso":{"ramo":"Ramo uno","total":11,"mejorQue":75}}','la RPC de universidad ausente conserva la pantalla del curso');
  ctx.cargarPosicionesCurso=async()=>({});
  check('comparación rechaza grupos pequeños y cifras no finitas',()=>{
-  for(const f of [{total:4,mejorQue:80},{total:5,mejorQue:NaN},{total:5,mejorQue:101},{total:undefined,mejorQue:0}])assert.equal(ctx.posicionWrappedValida(f),false);
-  assert.equal(ctx.posicionWrappedValida({total:5,mejorQue:0}),true);
+  for(const f of [{total:4,mejorQue:80},{total:11,mejorQue:NaN},{total:11,mejorQue:101},{total:undefined,mejorQue:0}])assert.equal(ctx.posicionWrappedValida(f),false);
+  assert.equal(ctx.posicionWrappedValida({total:11,mejorQue:0}),true);
  });
- set('supabaseClient',{rpc:async()=>({data:[{total:5,mejor_que:75,user_id:'no-proyectar'}]})});
- assert.equal(JSON.stringify(await run('comparacionWrapped()')),'{"uni":{"total":5,"mejorQue":75}}');
+ set('supabaseClient',{rpc:async()=>({data:[{total:11,mejor_que:75,user_id:'no-proyectar'}]})});
+ assert.equal(JSON.stringify(await run('comparacionWrapped()')),'{"uni":{"total":11,"mejorQue":75}}');
  console.log('  OK   RPC ausente funciona sin pantalla ni error; solo proyecta agregados');
  let resolverCurso;ctx.cargarPosicionesCurso=()=>new Promise(resolve=>{resolverCurso=resolve;});
  let invalidaciones=0;ctx.invalidarPosicionesCurso=()=>{invalidaciones++;};
@@ -127,7 +131,7 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  console.log('  OK   cambio de cuenta invalida también una caché de cursos tardía');
  let terminar;set('supabaseClient',{rpc:()=>new Promise(resolve=>{terminar=resolve;})});
  const pendiente=run('comparacionWrapped()');for(let i=0;i<20&&!terminar;i++)await Promise.resolve();assert.equal(typeof terminar,'function');
- set('currentUser',{id:'otro'});terminar({data:[{total:5,mejor_que:99}]});assert.equal(await pendiente,null);
+ set('currentUser',{id:'otro'});terminar({data:[{total:11,mejor_que:99}]});assert.equal(await pendiente,null);
  console.log('  OK   una respuesta de otra cuenta se descarta');
  // Una apertura pendiente no puede duplicarse ni abrir tras salir de la ventana.
  mostrar([ramo('uno')]);set('currentUser',null);run('comparacionWrapped=()=>new Promise(resolve=>{resolverComparacion=resolve})');
@@ -143,9 +147,9 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  await run('abrirWrapped()');assert.equal(fondo.inert,true);assert.equal(yaInert.inert,true);
  assert.equal(run('_wrapped.slides[0].tipo'),'umbral');
  assert.doesNotMatch(run('_wrapped.ov.querySelector(".wrapped-slide").innerHTML'),/Nombre Privado|5[.,]0|Mejor nota/);
- assert.equal(run('_wrapped.ov.querySelector(\'[data-paso="1"]\').textContent'),'Descubrir mi semestre');
+ assert.equal(run('_wrapped.ov.querySelector(\'[data-paso="1"]\').textContent'),'Revisar mi hoja');
  check('Tab permanece en el modal y Espacio respeta Compartir',()=>{
-  const ov=run('_wrapped.ov'),a=el(),b=el();ov.querySelectorAll=()=>[a,b];ctx.document.activeElement=b;let prevenido=false;
+  const ov=run('_wrapped.ov'),a=el(),b=el();ov.querySelector('.wrapped-indice').hidden=true;ov.querySelectorAll=()=>[a,b];ctx.document.activeElement=b;let prevenido=false;
   ctx.teclaWrapped({key:'Tab',preventDefault(){prevenido=true;}});assert.ok(prevenido);assert.equal(ctx.document.activeElement,a);
   const i=run('_wrapped.i');ctx.teclaWrapped({key:' ',target:{closest:()=>a},preventDefault(){throw Error('Espacio secuestrado');}});assert.equal(run('_wrapped.i'),i);
  });
@@ -183,6 +187,18 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  ctx.pasarWrapped(-1);assert.equal(ctx.document.activeElement,foco,'si la historia se cierra al repintar, no vuelve a enfocar el overlay retirado');
  ctx.pintarWrapped=pintarAntes;
  console.log('  OK   cambio de historia restaura solo el foco retirado y conserva navegación persistente');
+ // La goma no se salta con «Siguiente»: hay que borrar la nota entera.
+ const goma={tipo:'goma',borrada:false},pieGoma=el(),ovGoma=el();
+ ovGoma.querySelector=sel=>sel==='.hoja-goma-pie p'?pieGoma:el();
+ let repintes=0;ctx.pintarWrapped=()=>{repintes++;};
+ set('_wrapped',{ov:ovGoma,slides:[goma,{}],i:0,fase:'revela'});
+ ctx.pasarWrapped(1);assert.equal(run('_wrapped.i'),0,'sin borrar no avanza');assert.equal(repintes,0);
+ assert.match(pieGoma.textContent,/entera/);
+ set('_wrapped',{ov:ovGoma,slides:[goma,{}],i:0,fase:'prep'});ctx.pasarWrapped(1);assert.equal(run('_wrapped.i'),1,'en la preparación sigue como antes');
+ goma.borrada=true;set('_wrapped',{ov:ovGoma,slides:[goma,{}],i:0,fase:'revela'});ctx.pasarWrapped(1);assert.equal(run('_wrapped.i'),1,'borrada, avanza');
+ assert.ok(run('GOMA_BORRADO_WRAPPED')>=0.9,'hay que destapar casi toda la cifra');
+ ctx.pintarWrapped=pintarAntes;
+ console.log('  OK   la goma exige borrar la nota entera antes de seguir');
  // Compartir se llama sin esperar ninguna promesa: requisito de Safari iOS.
  const archivo={name:'mi-semestre-gradehub.png',type:'image/png'};set('_wrapped',{ov:el(),archivo,imagen:new Promise(()=>{}),slides:[],i:0});
  let invocado=false;ctx.navigator.canShare=()=>true;ctx.navigator.share=()=>{invocado=true;return Promise.resolve();};
@@ -201,7 +217,7 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  assert.equal(preparado.querySelector('.wrapped-slide').querySelector('.wrapped-compartir').disabled,false);
  assert.equal(run('_wrapped.archivo.name'),archivo.name);
  console.log('  OK   preparación lenta habilita compartir solo cuando el File está listo');
- mostrar([ramo('uno')]);const final=run('slidesWrapped(datosWrapped(S.ramos),null,semester()).at(-1)');assert.doesNotMatch(JSON.stringify(final),/Nombre Privado|privado-sintetico@example\.invalid|correo|email/);
+ mostrar([ramo('a'),ramo('b'),ramo('c'),ramo('d')]);const final=run('slidesWrapped(datosWrapped(S.ramos),null,semester()).at(-1)');assert.doesNotMatch(JSON.stringify(final),/Nombre Privado|privado-sintetico@example\.invalid|correo|email/);
  // Exportación sin Canvas.roundRect (Safari antiguo); nunca dibuja la identidad.
  const dibujado=[],curvas=[];
  const canvasCtx={fillRect(){},beginPath(){},moveTo(){},lineTo(){},quadraticCurveTo(...x){curvas.push(x);},closePath(){},fill(){},stroke(){},clip(){},save(){},restore(){},drawImage(){},arc(){},translate(){},rotate(){},
@@ -217,6 +233,16 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  assert.ok(curvas.length>=2,"el resaltador se dibuja como trazo, sin roundRect");assert.doesNotMatch(dibujado.join(' '),/Nombre Privado|Privado|privado-sintetico@example\.invalid|correo|email/);assert.ok(!dibujado.some(t=>t.includes('Promedio')),'el promedio no sale si la persona no lo pide');
  dibujado.length=0;await ctx.imagenWrapped(final,true);assert.ok(dibujado.some(t=>t.includes('Promedio')&&t.includes(final.big)),'y sale cuando lo pide');
  console.log('  OK   imagen 1080×1920: solo el primer nombre, sin apellido ni correo, y el promedio solo si se pide');
+ // El canvas recibe un DTO de textos permitidos, incluso si un nombre de cuenta
+ // o ramo contiene un correo. Capturar fillText comprueba la imagen real.
+ set('S.userName','nombre.privado@example.invalid Apellido');
+ run('S.ramos=ramosVistaPreviaWrapped();S.ramos[0].nombre="ramo.privado@example.invalid"');
+ const paginas=run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos),{uni:{mejorQue:70,total:22}},semester())');
+ for(const pagina of paginas.filter(p=>p.compartible)){
+   dibujado.length=0;await ctx.imagenWrapped(pagina);
+   assert.doesNotMatch(dibujado.join(' '),/@|Apellido|I3 de/);
+   assert.ok(dibujado.includes(pagina.compartible[0]));
+ }
  assert.equal(writes.length,0,'revisar Wrapped no escribe notas ni gradehub_v1');
  // Esta regresión se complementa con getAnimations y tamaños reales en Chrome.
  check('CSS apaga toda animación y conserva controles/safe areas',()=>{
@@ -225,5 +251,47 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
   assert.match(css,/\.wrapped\{[^}]*background-color:#F3EFE4;/);assert.match(css,/\.home-wrapped\{[^}]*background-color:#F3EFE4;/); // El papel tiene color fijo de respaldo: sin variables modernas, la tinta grafito sigue legible.
   const regla=css.match(/\.wrapped\{[^}]*\}/)[0];
   for(const lado of ['top','right','bottom','left'])assert.ok(regla.includes('safe-area-inset-'+lado));
+ });
+ check('la vista previa de la hoja usa un esquema que la CSP de producción permite',()=>{
+  const imgSrc=read('_headers').match(/img-src ([^;]*)/)[1];
+  assert.match(imgSrc,/\bdata:/);assert.doesNotMatch(imgSrc,/\bblob:/);
+  const fuente=read('src/render-main/wrapped-compartir.js');
+  assert.match(fuente,/readAsDataURL/);
+  assert.doesNotMatch(fuente.slice(fuente.indexOf('function actualizarCompartirWrapped'),fuente.indexOf('function descargarWrapped')),/createObjectURL/);
+ });
+ // Alternar «Mostrar mi promedio» no puede dejar lista la imagen de la opción contraria.
+ const pendientes=[];ctx.imagenWrapped=()=>new Promise(resolve=>pendientes.push(resolve));
+ ctx.FileReader=class{readAsDataURL(a){this.result='data:image/png;base64,'+a.name;this.onload();}};
+ set('_wrapped',{ov:el(),archivo:null,imagen:null,imagenTerminada:false,slides:[{tipo:'final'}],i:0});
+ ctx.prepararImagenWrapped({});const conPromedio=run('_wrapped.imagen');
+ run('_wrapped.imagen=null');ctx.prepararImagenWrapped({});const sinPromedio=run('_wrapped.imagen');
+ pendientes[1]({name:'sin-promedio.png'});await sinPromedio;
+ pendientes[0]({name:'con-promedio.png'});await conPromedio;
+ assert.equal(run('_wrapped.archivo.name'),'sin-promedio.png');
+ assert.equal(run('_wrapped.vista'),'data:image/png;base64,sin-promedio.png');
+ console.log('  OK   una imagen atrasada no reemplaza a la última pedida');
+ // Dos historias distintas pueden terminar de dibujarse en orden inverso.
+ const a={tipo:'pregunta'},b={tipo:'avance'},hoja=el();
+ set('_wrapped',{ov:hoja,slides:[a,b],i:0,imagen:null,archivo:null});
+ ctx.prepararImagenWrapped(a);const primera=run('_wrapped.imagen');
+ run('_wrapped.i=1;_wrapped.imagen=null;_wrapped.archivo=null');ctx.prepararImagenWrapped(b);const segunda=run('_wrapped.imagen');
+ pendientes[3]({name:'avance.png'});await segunda;pendientes[2]({name:'pregunta.png'});await primera;
+ assert.equal(run('_wrapped.archivo.name'),'avance.png');
+ check('la universidad siempre va con artículo',()=>{
+  for(const [id,t] of Object.entries(run('TENANTS')))assert.match(t.conArticulo,/^la /,id);
+  mostrar([ramo('a'),ramo('b'),ramo('c'),ramo('d')]);
+  const slides=run("slidesWrapped(datosWrapped(S.ramos),{uni:{mejorQue:71,total:120}},semester())");
+  const uni=slides.find(x=>/^En la/.test(x.k||''));
+  assert.equal(uni.k,'En la UC quedaste sobre el');assert.match(uni.sub,/otras 119 personas/);
+  for(const [tenant,articulo] of Object.entries(run('TENANTS'))){
+    set('S.tenant',tenant);
+    const pagina=run('slidesWrapped(datosWrapped(S.ramos),{uni:{mejorQue:71,total:120}},semester())').find(x=>x.forma==='gigante');
+    assert.equal(pagina.k,'En '+articulo.conArticulo+' quedaste sobre el');
+  }
+ });
+ check('en pantalla ancha la hoja es una columna centrada',()=>{
+  const ancho=read('styles.css').match(/@media \(min-width:768px\)\{\s*\.wrapped-arriba[^}]*\}/);
+  assert.ok(ancho);assert.match(ancho[0],/max-width:430px/);assert.match(ancho[0],/margin-inline:auto/);
+  assert.match(read('src/render-main/wrapped-presentacion.js'),/hoja\.left\+hoja\.width\/3/);
  });
 })().catch(e=>{console.error(e);process.exitCode=1;});

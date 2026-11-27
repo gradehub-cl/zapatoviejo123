@@ -7,23 +7,42 @@
 // El aviso vive AL PIE de Inicio, no flotando: aparece cuando alguien llega
 // hasta abajo, se va con el scroll y nunca tapa un botón ni interrumpe lo que
 // estaba haciendo. Y no en la primera visita —a quien recién llega no se le
-// pide instalar nada—, sino a partir de la segunda.
+// pide instalar nada—, sino al volver otro día y con notas guardadas.
 //
 // Dos caminos porque los navegadores son dos mundos:
 //   Android/Chrome dispara `beforeinstallprompt`; se guarda y el botón lo abre.
 //   iOS/Safari no tiene API: solo queda decir dónde está el menú Compartir.
 const INSTALAR_NO_KEY='gradehub_instalar_no';
 const VISITAS_KEY='gradehub_visitas';
+const INSTALAR_DIA_KEY='gradehub_instalar_primer_dia';
+const _visitasInstalar=new Map();
 let _promptInstalar=null;
 
 function lsLeer(k){try{return localStorage.getItem(k);}catch(e){return null;}}
 function lsEscribir(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 
-// La app iOS (Capacitor). app-session.js tiene su propia constante; esta es
-// función porque app.js carga antes y no puede declarar el mismo nombre.
+// La app de Capacitor, en iPhone o Android. app-session.js tiene su propia
+// constante; esta es función porque app.js carga antes y no puede declarar el
+// mismo nombre.
 function enAppNativa(){
   try{return !!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());}
   catch(e){return false;}
+}
+// Lo que existe solo en el iPhone: widgets, Actividad en Vivo, Apple nativo y
+// el gesto de volver desde el borde (en Android ese borde es del sistema).
+// Android es la excepción, así que sin getPlatform cuenta como iPhone.
+function enAppIOS(){
+  try{return enAppNativa()&&!(typeof window.Capacitor.getPlatform==='function'&&window.Capacitor.getPlatform()==='android');}
+  catch(e){return false;}
+}
+// Dentro de la app la página vive en capacitor://localhost. Una dirección que
+// sale de la app —el enlace de un correo, la URL que se pega en un calendario—
+// tiene que ser la de la web: con la de la app, Google Calendar no tiene qué
+// consultar y Supabase no reconoce el destino del correo.
+// ponytail: el correo vuelve a la web, no a la app; para que abra la app hacen
+// falta Universal Links (#663).
+function paginaPublica(ruta){
+  return enAppNativa()?'https://gradehub.cl'+(ruta||'/'):location.origin+(ruta||location.pathname);
 }
 // La clase html.app-nativa la pone index.html antes de pintar.
 // Vibración, solo en la app (HIG Playing haptics): un toque suave al agregar
@@ -36,7 +55,9 @@ function vibrar(tipo){
   try{
     const H=enAppNativa()&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Haptics;
     if(!H)return;
-    if(tipo==='borrar')H.notification({type:'WARNING'}).catch(()=>{});
+    // «exito»: algo salió bien que no es una nota (aceptar un amigo, elegir username).
+    if(tipo==='nota'||tipo==='exito')H.notification({type:'SUCCESS'}).catch(()=>{});
+    else if(tipo==='borrar'||tipo==='error')H.notification({type:'WARNING'}).catch(()=>{});
     else if(tipo==='levantar')H.impact({style:'MEDIUM'}).catch(()=>{});
     // El generador de selección se prepara una vez y queda listo para cada tic.
     else if(tipo==='seleccion'){
@@ -46,10 +67,10 @@ function vibrar(tipo){
     else H.impact({style:'LIGHT'}).catch(()=>{});
   }catch(e){}
 }
-// Un interruptor de iOS hace tic al cambiar; los de la app (.toggle) también.
+// Un interruptor de iOS hace tic al cambiar; todos los de la app también.
 document.addEventListener('change',e=>{
   const t=e.target;
-  if(t&&t.matches&&t.matches('.toggle input[type=checkbox]'))vibrar('seleccion');
+  if(t&&t.matches&&t.matches('.toggle input[type=checkbox],input[type=checkbox][role=switch]'))vibrar('seleccion');
 });
 // Dentro de la app no hay "otra pestaña": un enlace con target=_blank no abría
 // nada (Términos, Privacidad, Preguntas, Google Calendar) y navegar la vista web
@@ -88,10 +109,27 @@ function esSafariDeIOS(){
   const iOS=/iPad|iPhone|iPod/.test(ua)||(/Macintosh/.test(ua)&&(navigator.maxTouchPoints||0)>1);
   return iOS&&!/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
 }
-function contarVisita(){
+function claveVisitaInstalar(){
+  const owner=typeof currentUser!=='undefined'&&currentUser&&currentUser.id||lsLeer('gradehub_cache_owner')||'local';
+  return INSTALAR_DIA_KEY+':'+owner;
+}
+function contarVisita(ahora=new Date()){
   const n=Number(lsLeer(VISITAS_KEY)||0)+1;
   lsEscribir(VISITAS_KEY,String(Math.min(n,99)));
+  const clave=claveVisitaInstalar();
+  // Una recarga el mismo día no cuenta como haber vuelto otro día. Tampoco
+  // basta con dejar la primera sesión abierta hasta pasada medianoche.
+  if(!_visitasInstalar.has(clave)){
+    const hoy=isoFechaLocal(ahora),primera=lsLeer(clave);
+    const valida=!!fechaLocalDesdeISO(primera)&&primera<=hoy;
+    _visitasInstalar.set(clave,valida&&primera<hoy);
+    if(!valida)lsEscribir(clave,hoy);
+  }
   return n;
+}
+function tieneNotasParaInstalar(){
+  const ramos=[...(S.ramos||[]),...(S.historial||[]).flatMap(h=>h.ramos||[])];
+  return ramos.some(r=>(r.categorias||[]).some(c=>(c.notas||[]).some(n=>Number.isFinite(n.valor))));
 }
 function descartarAvisoInstalar(){
   lsEscribir(INSTALAR_NO_KEY,'1');
@@ -112,8 +150,7 @@ async function instalarApp(){
 function pintarAvisoInstalar(){
   const el=document.getElementById('instalar-aviso');
   if(!el)return;
-  const visitas=Number(lsLeer(VISITAS_KEY)||0);
-  if(appYaInstalada()||lsLeer(INSTALAR_NO_KEY)==='1'||visitas<2){el.hidden=true;el.innerHTML='';return;}
+  if(appYaInstalada()||lsLeer(INSTALAR_NO_KEY)==='1'||_visitasInstalar.get(claveVisitaInstalar())!==true||!tieneNotasParaInstalar()){el.hidden=true;el.innerHTML='';return;}
   const puede=!!_promptInstalar, iOS=esSafariDeIOS();
   if(!puede&&!iOS){el.hidden=true;el.innerHTML='';return;}
   const icono='<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>';
@@ -143,6 +180,8 @@ function showMainApp(){
   document.getElementById('screen-onboard').classList.remove('active');
   document.getElementById('bottom-nav').style.display='flex';
   document.querySelector('.app').classList.add('tab-mode');
+  // Al abrir, iOS tarda en dar el alto final y el rol de admin llega después.
+  [800,2500,6000].forEach(ms=>setTimeout(compensarAltoPwa,ms));
   renderHome();renderStats();renderAgenda(); // los 3 siempre montados
   // Una cuenta de profesor abre en Clases (#697): sus pestañas se arman antes.
   recalcularNavTabs();
@@ -150,7 +189,8 @@ function showMainApp(){
   contarVisita();
   pintarAvisoInstalar();
   // Si llegó con el link de un profesor, ahora que hay sesión se le ofrece compartir.
-  if(typeof revisarInvitacionProfesor==='function')setTimeout(revisarInvitacionProfesor,600);
+  const enlaceUniversal=typeof activarEnlacesUniversales==='function'&&activarEnlacesUniversales();
+  if(enlaceUniversal!=='profe'&&typeof revisarInvitacionProfesor==='function')setTimeout(revisarInvitacionProfesor,600);
   // En una cuenta existente el catálogo puede no haberse pedido nunca: si un
   // ramo UC quedó sin SCT, hay que traerlo incluso sin abrir el buscador. Si ya
   // se cargó durante onboarding, completa de inmediato.
@@ -172,3 +212,65 @@ function showMainApp(){
 // Orden izq→der para el deslizar. Es una lista VIVA: la pestaña de profesor solo
 // existe para quien está aprobado, así que el carrusel tiene que poder crecer y
 // encogerse sin dejar a nadie parado en una pestaña que ya no está.
+// En la app, la barra de pestañas se puede recorrer con el dedo, como en iOS:
+// se aprieta, se desliza y la pestaña bajo el dedo queda marcada; al soltar se
+// abre esa. Un toque normal sigue siendo un clic. Si el dedo sale de la barra
+// hacia arriba, no se abre nada.
+(function(){
+  const nav=document.getElementById('bottom-nav');
+  const raiz=document.documentElement;
+  if(!nav||typeof nav.addEventListener!=='function'||!raiz||!raiz.classList||!raiz.classList.contains('app-nativa'))return;
+  let inicio=null,arrastrando=false,bajo=null,anularClic=false;
+  const itemEn=(x,y)=>{
+    const r=nav.getBoundingClientRect();
+    if(y<r.top-40)return null;
+    // Por posición, no con elementFromPoint: así no importa qué esté encima.
+    const visibles=[...nav.querySelectorAll('.nav-item')].filter(i=>i.offsetParent!==null);
+    if(!visibles.length)return null;
+    const xs=Math.min(Math.max(x,r.left+1),r.right-1);
+    const centro=i=>{const b=i.getBoundingClientRect();return (b.left+b.right)/2;};
+    return visibles.reduce((a,i)=>Math.abs(xs-centro(i))<Math.abs(xs-centro(a))?i:a);
+  };
+  const marcar=it=>{
+    if(it===bajo)return;
+    if(bajo)bajo.classList.remove('nav-bajo-dedo');
+    bajo=it;
+    if(bajo){bajo.classList.add('nav-bajo-dedo');vibrar('seleccion');}
+  };
+  const terminar=()=>{
+    if(bajo)bajo.classList.remove('nav-bajo-dedo');
+    nav.classList.remove('nav-arrastrando');
+    inicio=null;arrastrando=false;bajo=null;
+  };
+  nav.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    inicio={x:e.clientX,y:e.clientY,id:e.pointerId};
+  });
+  nav.addEventListener('pointermove',e=>{
+    if(!inicio||e.pointerId!==inicio.id)return;
+    if(!arrastrando){
+      if(Math.abs(e.clientX-inicio.x)<10)return;
+      arrastrando=true;
+      try{nav.setPointerCapture(e.pointerId);}catch(_){}
+      nav.classList.add('nav-arrastrando');
+      bajo=null;
+    }
+    marcar(itemEn(e.clientX,e.clientY));
+  });
+  nav.addEventListener('pointerup',e=>{
+    if(!inicio||e.pointerId!==inicio.id)return;
+    if(arrastrando){
+      const it=itemEn(e.clientX,e.clientY);
+      anularClic=true;setTimeout(()=>{anularClic=false;},400);
+      terminar();
+      if(it&&!it.classList.contains('active'))it.click();
+      return;
+    }
+    inicio=null;
+  });
+  nav.addEventListener('pointercancel',terminar);
+  // El clic que el navegador dispara al soltar tras arrastrar no debe abrir otra pestaña.
+  nav.addEventListener('click',e=>{
+    if(anularClic&&e.isTrusted){e.stopPropagation();e.preventDefault();anularClic=false;}
+  },true);
+})();

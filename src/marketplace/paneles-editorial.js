@@ -34,56 +34,6 @@ function serieHistorialPrivado(filas,periodo,clave='vistas',ahora=Date.now()){
   }
   return {...rango,puntos,semanal:paso===7};
 }
-function cifraPrivadaHTML(valor,etiqueta,detalle=''){
-  return `<div class="pe-cifra"><strong>${esc(valor)}</strong><span>${esc(etiqueta)}</span>${detalle?`<small>${esc(detalle)}</small>`:''}</div>`;
-}
-function graficoPrivadoHTML(puntos,{titulo,tipo='columnas',unidad='vistas',id='privado'}={}){
-  if(!puntos.length)return '<p class="clase-sin-datos">Aún no hay datos para este período.</p>';
-  const max=typeof topeEjeAdmin==='function'?Math.max(2,topeEjeAdmin(Math.max(...puntos.map(p=>p.valor)))):Math.max(2,...puntos.map(p=>p.valor));
-  const coords=puntos.map((p,i)=>({x:puntos.length===1?500:i/(puntos.length-1)*1000,y:220*(1-p.valor/max)}));
-  const media=puntos.reduce((n,p)=>n+p.valor,0)/puntos.length;
-  const gradiente='pe-grad-'+String(id).replace(/[^a-z0-9-]/gi,'');
-  let dibujo='';
-  if(tipo==='linea'&&puntos.length>1){
-    const d=typeof trazoEvolucionNotas==='function'?trazoEvolucionNotas(coords):'M'+coords.map(p=>p.x+','+p.y).join(' L');
-    dibujo=`<path d="${d} L1000,220 L0,220 Z" fill="url(#${gradiente})"/><path d="${d}" class="pe-curva"/>`;
-  }else{
-    const ancho=Math.min(90,1000/puntos.length*.68);
-    dibujo=puntos.map((p,i)=>{const x=(i+.5)/puntos.length*1000-ancho/2,y=220*(1-p.valor/max);return `<rect x="${x}" y="${y}" width="${ancho}" height="${220-y}" fill="url(#${gradiente})"/><path d="M${x},${y} h${ancho}" class="pe-curva"/>`;}).join('');
-  }
-  return `<figure class="pe-grafico" data-pe-grafico><figcaption><h3>${esc(titulo)}</h3><span>${esc(puntos[0].etiqueta)}${puntos.length>1?' – '+esc(puntos[puntos.length-1].etiqueta):''}</span></figcaption>
-    <div class="pe-chart"><div class="pe-eje" aria-hidden="true">${[max,max/2,0].map((n,i)=>`<span style="top:${i*50}%">${numeroPrivado(n)}</span>`).join('')}</div>
-    <div class="pe-plot" role="slider" tabindex="0" aria-label="Explorar ${esc(titulo)}" aria-valuemin="0" aria-valuemax="${puntos.length-1}" aria-valuenow="${puntos.length-1}" aria-valuetext="${esc(puntos.at(-1).etiqueta+', '+numeroPrivado(puntos.at(-1).valor)+' '+unidad)}" data-pe-puntos="${esc(JSON.stringify(puntos))}" data-pe-max="${max}" data-pe-tipo="${tipo}" data-pe-unidad="${esc(unidad)}">
-      <div class="pe-media" style="top:${100*(1-media/max)}%" aria-hidden="true"></div>
-      <svg viewBox="0 0 1000 220" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="${gradiente}" x1="0" x2="0" y1="0" y2="1"><stop stop-color="var(--pe-acento)" stop-opacity=".25"/><stop offset="1" stop-color="var(--pe-acento)" stop-opacity="0"/></linearGradient></defs>${dibujo}</svg>
-      <div class="pe-cursor" hidden aria-hidden="true"></div><div class="pe-notita" hidden aria-hidden="true"><span></span><b></b></div>
-    </div></div><div class="pe-fechas" aria-hidden="true"><span>${esc(puntos[0].etiqueta)}</span><span>${puntos.length>1?esc(puntos.at(-1).etiqueta):''}</span></div>
-    <p class="pe-media-texto">Promedio ${/semana/.test(titulo)?'semanal':'diario'} · ${esc(new Intl.NumberFormat('es-CL',{maximumFractionDigits:1}).format(media))} ${esc(unidad)}</p>
-    <details class="pe-tabla"><summary>Ver datos</summary><table><thead><tr><th>Fecha</th><th>${esc(unidad)}</th></tr></thead><tbody>${puntos.map(p=>`<tr><td>${esc(p.etiqueta)}</td><td>${numeroPrivado(p.valor)}</td></tr>`).join('')}</tbody></table></details></figure>`;
-}
-function enlazarGraficosPrivados(raiz){
-  raiz.querySelectorAll('[data-pe-puntos]').forEach(plot=>{
-    if(typeof plot.getBoundingClientRect!=='function'||plot.dataset.peEnlazado)return;
-    plot.dataset.peEnlazado='1';
-    const pts=JSON.parse(plot.dataset.pePuntos),tip=plot.querySelector('.pe-notita'),cursor=plot.querySelector('.pe-cursor');let elegido=pts.length-1,arrastrando=false;
-    const ocultar=()=>{tip.hidden=cursor.hidden=true;};
-    const elegir=i=>{
-      elegido=Math.max(0,Math.min(pts.length-1,i));const p=pts[elegido],barras=plot.dataset.peTipo!=='linea';
-      const x=barras?(elegido+.5)/pts.length*100:pts.length===1?50:elegido/(pts.length-1)*100;
-      plot.setAttribute('aria-valuenow',String(elegido));plot.setAttribute('aria-valuetext',p.etiqueta+', '+numeroPrivado(p.valor)+' '+plot.dataset.peUnidad);
-      tip.querySelector('span').textContent=p.etiqueta;tip.querySelector('b').textContent=numeroPrivado(p.valor)+' '+plot.dataset.peUnidad;
-      tip.hidden=cursor.hidden=false;cursor.style.left=x+'%';
-      tip.style.left=`clamp(0px, calc(${x}% - 5rem), max(0px, calc(100% - 10rem)))`;
-      tip.style.top=Math.max(0,(1-p.valor/Number(plot.dataset.peMax))*plot.clientHeight-tip.offsetHeight-12)+'px';
-    };
-    const mover=e=>{const r=plot.getBoundingClientRect();elegir(plot.dataset.peTipo==='linea'?Math.round((e.clientX-r.left)/r.width*(pts.length-1)):Math.floor((e.clientX-r.left)/r.width*pts.length));};
-    plot.addEventListener('pointerdown',e=>{if(e.button!==0)return;arrastrando=true;plot.focus({preventScroll:true});plot.setPointerCapture(e.pointerId);mover(e);});
-    plot.addEventListener('pointermove',e=>{if(arrastrando||e.pointerType==='mouse')mover(e);});
-    plot.addEventListener('pointerup',()=>{arrastrando=false;});plot.addEventListener('pointercancel',()=>{arrastrando=false;ocultar();});
-    plot.addEventListener('pointerleave',()=>{if(!arrastrando)ocultar();});plot.addEventListener('blur',ocultar);plot.addEventListener('focus',()=>elegir(elegido));
-    plot.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','Home','End','Escape'].includes(e.key))e.preventDefault();if(e.key==='ArrowLeft')elegir(elegido-1);if(e.key==='ArrowRight')elegir(elegido+1);if(e.key==='Home')elegir(0);if(e.key==='End')elegir(pts.length-1);if(e.key==='Escape')ocultar();});
-  });
-}
 // Mejora progresiva: conserva el select y sus eventos para los filtros actuales.
 function enlazarSelectoresPrivados(raiz){
   if(typeof document==='undefined'||typeof document.createElement!=='function'||typeof raiz.appendChild!=='function')return;

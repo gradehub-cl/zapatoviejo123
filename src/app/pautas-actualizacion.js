@@ -26,7 +26,13 @@ function catsDePauta(cats){return (cats||[]).filter(c=>!c.fueraDePauta);}
 // manda y no se le ofrece nada—. Pero esa persona es justo la que tiene el dato
 // que al catálogo le falta: agarró nuestra pauta oficial y la arregló. Hasta
 // acá la app se daba cuenta y no le decía nada.
+function pautaConReglasDelEditor(r){
+  return !!r&&((r.gates||[]).some(g=>g.origen==='editor')||
+    catsDePauta(r.categorias).some(c=>c.descarteOrigen==='editor'));
+}
 function pautaEditada(r){
+  if(pautaConReglasDelEditor(r))return true;
+  if(r?.pautaSugerida?.aceptada)return !pautaSugeridaIntacta(r);
   if(!r||!r.pautaHuella)return false;
   const cats=catsDePauta(r.categorias);
   return cats.length>0&&huellaPauta(cats)!==r.pautaHuella;
@@ -53,26 +59,43 @@ function requisitosDeGrupo(r){
   return (r.gates||[]).filter(g=>g.type==='group_min').map(g=>({nombre:g.nombre||'Requisito',min:g.min,efecto:g.efecto||'tope',
     clave:JSON.stringify([g.min,g.cap,g.efecto||'tope',(g.catIds||[]).map(id=>nombres.get(id)).filter(Boolean).sort()])}));
 }
+function pautaOficialIntacta(r){
+  if(!r.origen?.tenant||!r.pautaHuella||r.consensoRespaldos||r.pautaSugerida?.aceptada||pautaEditada(r))return false;
+  const {tenant,carrera}=r.origen;
+  const programa=presetRamo(r.nombre,tenant,carrera,undefined,siglaParaPrograma(r));
+  return !!programa&&firmaPautaSugerida(r)===firmaPautaSugerida(programa);
+}
 function cambioDePauta(r){
-  if(!r||!r.origen||!r.origen.tenant||!r.pautaHuella)return null;
-  const nombre=findPresetName(r.nombre,r.origen.tenant,r.origen.carrera);
+  if(!r?.pautaHuella||pautaConReglasDelEditor(r))return null;
+  const sugerida=r.pautaSugerida?.aceptada;
+  const origen=r.origen||(sugerida&&{tenant:sugerida.tenant,carrera:S.carrera});
+  if(!origen?.tenant||(sugerida&&!pautaSugeridaIntacta(r)))return null;
+  // Con la sigla del ramo tal cual, aunque traiga la pauta del consenso: el
+  // programa se le OFRECE. Nada entra sin que la persona acepte.
+  const sigla=typeof r.sigla==='string'&&r.sigla.trim()?r.sigla:null;
+  const nombre=findPresetName(r.nombre,origen.tenant,origen.carrera,sigla);
   if(!nombre)return null;
-  const p=presetRamo(nombre,r.origen.tenant,r.origen.carrera);
+  const p=presetRamo(nombre,origen.tenant,origen.carrera,undefined,sigla);
   if(!p)return null;
   const actual=huellaPauta(catsDePauta(r.categorias));
-  if(actual!==r.pautaHuella)return null;      // la editó: no se opina
+  if(!sugerida&&actual!==r.pautaHuella)return null;
+  // Una pauta que llegó sola del consenso y nadie editó se ve "al día" si sus
+  // pesos coinciden con el programa, y se quedaba para siempre como reportada
+  // por estudiantes, sin las reglas del programa. El programa manda sobre el
+  // consenso: se ofrece igual que a una pauta sugerida aceptada.
+  const consenso=!sugerida&&!!r.consensoRespaldos;
   const oficial=huellaPauta(p.categorias);
   const reglasCambian=firmaReglasCalculo(r)!==firmaReglasCalculo(p);
   const reqAntes=requisitosDeGrupo(r),reqDespues=requisitosDeGrupo(p);
   const claves=lista=>new Set(lista.map(g=>g.clave));
   const reqLlegan=reqDespues.filter(g=>!claves(reqAntes).has(g.clave));
   const reqSeVan=reqAntes.filter(g=>!claves(reqDespues).has(g.clave));
-  if(oficial===actual&&!reglasCambian&&!reqLlegan.length&&!reqSeVan.length)return null; // al día
+  if(!sugerida&&!consenso&&oficial===actual&&!reglasCambian&&!reqLlegan.length&&!reqSeVan.length)return null; // al día
   // Qué cambia exactamente, para poder mostrárselo antes de que decida.
   const antes=new Map(catsDePauta(r.categorias).map(c=>[c.nombre,Number(c.peso)||0]));
   const despues=new Map((p.categorias||[]).map(c=>[c.nombre,Number(c.peso)||0]));
   const cambios=reglasCambian?[{tipo:'regla',nombre:'Se incorporan las fórmulas condicionales y los límites de ausencias definidos por el programa'}]:[];
-  const minimo=g=>simConComa(nf(g.min));
+  const minimo=g=>nf(g.min);
   // Si solo cambiaron las evaluaciones del grupo, el requisito es el mismo: esas
   // evaluaciones ya salen en la lista, y decir "nuevo" y "deja de exigirse" del
   // mismo requisito se lee como un error.
@@ -90,9 +113,11 @@ function cambioDePauta(r){
   const nombresReconocidos=new Set((p.categorias||[]).flatMap(c=>[
     c.nombre,...(c.nombresAnteriores||[]).map(x=>typeof x==='string'?x:x.nombre),
   ]).map(normName));
+  const conNota=x=>(x.notas||[]).some(n=>typeof n.valor==='number');
   const notasFueraDePauta=cambios.filter(c=>c.tipo==='se-va'&&!nombresReconocidos.has(normName(c.nombre)))
-    .some(c=>((r.categorias.find(x=>x.nombre===c.nombre)||{}).notas||[])
-      .some(n=>typeof n.valor==='number'));
+    .some(c=>r.categorias.filter(x=>x.nombre===c.nombre).some(conNota))||
+    repetidasSinPareja(r,p.categorias).some(conNota);
+  if((sugerida||consenso)&&!cambios.length)cambios.push({tipo:'regla',nombre:'Puedes usar las ponderaciones del programa del curso'});
   return {preset:p,cambios,notasFueraDePauta};
 }
 
@@ -105,13 +130,13 @@ function verCambioDePauta(ramoId){
     if(c.tipo==='regla')return `<li>${esc(c.nombre)}</li>`;
     if(c.tipo==='peso')return `<li><b>${esc(c.nombre)}</b>: ${r2(c.antes)}% → <b>${r2(c.despues)}%</b></li>`;
     if(c.tipo==='llega')return `<li><b>${esc(c.nombre)}</b>: nueva, ${r2(c.despues)}%</li>`;
-    return `<li><b>${esc(c.nombre)}</b>: ya no está en la pauta del catálogo</li>`;
+    return `<li><b>${esc(c.nombre)}</b>: ya no está en el catálogo</li>`;
   };
   const aviso=cambio.notasFueraDePauta
     ? `<p class="modal-desc" style="margin-top:10px;">Alguna de las evaluaciones que desaparecen tiene notas tuyas. <b>No se borran</b>: quedan en tu ficha con sus notas y en 0%, así no mueven tu promedio.</p>`
     : `<p class="modal-desc" style="margin-top:10px;">Tus notas se conservan: se reconocen por el nombre de la evaluación.</p>`;
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">La pauta de este ramo cambió</div>
+    <div class="modal-title">Las ponderaciones de este ramo cambiaron</div>
     <p class="modal-desc">Esto es lo que cambia respecto de lo que tienes hoy en <b>${esc(r.nombre)}</b>.</p>
     <ul style="margin:10px 0 0;padding-left:18px;font-size:0.875rem;color:var(--fg2);line-height:1.6;">${cambio.cambios.map(fila).join('')}</ul>
     ${aviso}
@@ -129,6 +154,11 @@ function verCambioDePauta(ramoId){
 function actualizarPauta(ramoId){
   const r=(S.ramos||[]).find(x=>x.id===ramoId);if(!r)return false;
   const cambio=cambioDePauta(r);if(!cambio)return false;
+  // Aceptar el programa deja atrás la pauta del consenso, también la que se
+  // aplicó sola. Solo acá, cuando la persona aprieta «Actualizar»: la
+  // corrección automática de normalize() no le cambia la procedencia a nadie.
+  delete r.consensoRespaldos;
+  delete r.consensoAportado;
   aplicarCambioDePauta(r,cambio);
   return true;
 }
@@ -150,6 +180,12 @@ function aplicarCambioDePauta(r,cambio){
   r.recuperativo=cambio.preset.recuperativo||null;
   r.reemplazosOptativos=traducirIdsCategoria(cambio.preset.reemplazosOptativos||null,ids);
   r.reglasAusenciaJustificada=traducirIdsCategoria(cambio.preset.reglasAusenciaJustificada||null,ids);
+  if(r.pautaSugerida?.aceptada){
+    if(!r.origen)r.origen=origenActual(r.nombre);
+    quitarProcedenciaSugerida(r);
+    delete r.consensoRespaldos;
+    delete r.consensoAportado;
+  }
   r.bonus=resolverBonus(definicionPresetDelRamo(r),r.categorias)||null;
   r.pautaHuella=huellaPauta(catsDePauta(r.categorias));
 }
@@ -173,10 +209,40 @@ function idCategoriaEstable(r,nombre){
   for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}
   return 'c'+h.toString(36);
 }
+// Las evaluaciones viejas agrupadas por nombre normalizado, cada grupo en una
+// fila de espera: un ramo puede tener dos "Controles" (5,0 y 6,0). Con un solo
+// lugar por nombre la segunda pisaba a la primera y esas notas desaparecían al
+// adoptar o actualizar una pauta. Cada evaluación nueva toma la primera que
+// queda con su nombre; la segunda "Controles" nueva, la segunda vieja. Las vivas
+// van antes que las que ya estaban fuera de pauta: si coinciden en nombre, manda
+// la que está viva, y la otra sigue conservada.
+function viejasPorNombre(r){
+  const viejas=new Map();
+  [...catsDePauta(r.categorias),...(r.categorias||[]).filter(c=>c&&c.fueraDePauta)].forEach(c=>{
+    const k=normName(c.nombre);
+    if(!viejas.has(k))viejas.set(k,[]);
+    viejas.get(k).push(c);
+  });
+  return viejas;
+}
+// Las evaluaciones vivas que se quedarían sin pareja por estar repetidas: si la
+// pauta nueva trae un "Controles" y el ramo tiene dos, la segunda queda en 0%.
+// Una que desaparece del todo ya la cuenta cambioDePauta como 'se-va'.
+function repetidasSinPareja(r,nuevas){
+  const sobran=[];
+  viejasPorNombre({categorias:catsDePauta(r.categorias)}).forEach((grupo,k)=>{
+    if(!grupo[1])return;
+    const lugares=(nuevas||[]).filter(c=>[c.nombre,...(c.nombresAnteriores||[]).map(x=>typeof x==='string'?x:x&&x.nombre)]
+      .some(n=>normName(n)===k)).length;
+    if(lugares)sobran.push(...grupo.slice(lugares));
+  });
+  return sobran;
+}
 function fusionarPauta(r,nuevas){
   const nombresAusencia=new Map((r.categorias||[]).map(c=>[c.id,normName(c.nombre)]));
-  const viejas=new Map([...(r.categorias||[]).filter(c=>c.fueraDePauta),...catsDePauta(r.categorias)]
-    .map(c=>[normName(c.nombre),c]));
+  const originales=(r.categorias||[]).filter(Boolean);
+  const viejas=viejasPorNombre(r);
+  const tomadas=new Set();
   const idsFinales={},idsUsados=new Set();
   r.categorias=nuevas.map(c=>{
     const fuentes=[{nombre:c.nombre},...(c.nombresAnteriores||[]).map(x=>
@@ -184,17 +250,20 @@ function fusionarPauta(r,nuevas){
     const usadas=new Set(),idsNotas=new Set(),notas=[];
     let idHeredado=null;
     fuentes.forEach(f=>{
-      let k=normName(f.nombre),vieja=viejas.get(k);
-      if(!vieja){
+      let k=normName(f.nombre),cola=viejas.get(k);
+      if(!cola){
         // El mismo nombre salvo conectores o plural ("Controles Ejercicios" y
         // "Control de Ejercicios"): sin esto, adoptar una pauta dejaba esas
-        // notas en 0%. Solo si hay una candidata; con dos no se adivina.
+        // notas en 0%. Solo si hay un nombre candidato; con dos no se adivina.
         const clave=nombreHuella(f.nombre);
-        const candidatas=[...viejas].filter(([,v])=>nombreHuella(v.nombre)===clave);
-        if(candidatas.length===1)[k,vieja]=candidatas[0];
+        const candidatas=[...viejas].filter(([,g])=>nombreHuella(g[0].nombre)===clave);
+        if(candidatas.length===1)[k,cola]=candidatas[0];
       }
-      if(!vieja||usadas.has(k))return;
-      usadas.add(k);viejas.delete(k);
+      if(!cola||usadas.has(k))return;
+      usadas.add(k);
+      const vieja=cola.shift();
+      if(!cola.length)viejas.delete(k);
+      tomadas.add(vieja);
       if(!idHeredado&&vieja.id&&!idsUsados.has(vieja.id))idHeredado=vieja.id;
       (vieja.notas||[]).forEach(n=>{
         if(n&&n.id&&idsNotas.has(n.id))return;
@@ -218,9 +287,19 @@ function fusionarPauta(r,nuevas){
   // es del estudiante, y la escribió porque rindió esa evaluación. Se queda en
   // 0%, así no mueve el promedio, y sigue estando donde la dejó. Las que quedaron
   // vacías sí se van: no hay nada que conservar y ensucian la ficha.
-  viejas.forEach(v=>{
-    const conValor=(v.notas||[]).filter(n=>typeof n.valor==='number');
-    if(conValor.length)r.categorias.push({...v,peso:0,notas:conValor,fueraDePauta:true});
+  // Van en el orden en que el estudiante las tenía, y sin repetir un id que ya
+  // tomó una evaluación de la pauta nueva. Una nota cuyo id ya quedó en otra
+  // evaluación es la misma nota (una copia duplicada por la sincronización): no
+  // se conserva dos veces.
+  const notasQuedan=new Set(r.categorias.flatMap(c=>(c.notas||[]).map(n=>n&&n.id).filter(Boolean)));
+  originales.filter(v=>!tomadas.has(v)).forEach(v=>{
+    const conValor=(v.notas||[]).filter(n=>n&&typeof n.valor==='number'&&!(n.id&&notasQuedan.has(n.id)));
+    conValor.forEach(n=>{if(n.id)notasQuedan.add(n.id);});
+    if(!conValor.length)return;
+    let id=v.id;
+    if(id)while(idsUsados.has(id))id+='_';
+    if(id)idsUsados.add(id);
+    r.categorias.push({...v,id,peso:0,notas:conValor,fueraDePauta:true});
   });
   // Un cambio de pauta genera ids nuevos. La declaración pertenece a
   // una evaluación por su nombre, no al id efímero; si esa evaluación ya no
@@ -228,6 +307,10 @@ function fusionarPauta(r,nuevas){
   const idAusenciaEnPautaNueva=id=>{
     const casilla=/^__gh_ausencia_(.+)_([0-9]+)$/.exec(id);
     if(casilla)return gh_claveAusenciaCasilla(idAusenciaEnPautaNueva(casilla[1]),Number(casilla[2]));
+    // Si su evaluación sigue en el ramo con el mismo id —en la pauta o
+    // conservada fuera de ella—, la declaración se queda donde estaba: con dos
+    // "Controles", la de la segunda no puede pasar a la primera.
+    if((r.categorias||[]).some(c=>c.id===id))return id;
     const nombre=nombresAusencia.get(id);
     const nueva=(r.categorias||[]).find(c=>[c.nombre,...(c.nombresAnteriores||[]).map(x=>typeof x==='string'?x:x.nombre)]
       .some(n=>normName(n)===nombre));
@@ -297,15 +380,27 @@ function traducirIdsCategoria(valor,mapa){
   if(valor&&typeof valor==='object'){const out={};Object.keys(valor).forEach(k=>{out[k]=traducirIdsCategoria(valor[k],mapa);});return out;}
   return valor;
 }
+// Filas con peso propio que la pauta nueva junta en una (`nombresAnteriores`
+// con peso): si solo algunas tienen nota, la que queda pasa a valer el peso de
+// todas y el promedio se mueve. Eso no se aplica sin preguntar.
+function juntaFilasAMedias(r,cambio){
+  const conNota=new Set(catsDePauta(r.categorias).filter(c=>(c.notas||[]).some(n=>typeof n.valor==='number')).map(c=>normName(c.nombre)));
+  return (cambio.preset.categorias||[]).some(c=>{
+    const filas=(c.nombresAnteriores||[]).filter(x=>x&&typeof x==='object'&&Number.isFinite(x.peso)).map(x=>normName(x.nombre));
+    const llenas=filas.filter(n=>conNota.has(n)).length;
+    return llenas>0&&llenas<filas.length;
+  });
+}
 function aplicarPautaNueva(ramoId){
   if(!actualizarPauta(ramoId))return;
   save();track('pauta_actualizada');closeModal();renderRamo();
-  showToast('Pauta actualizada — tus notas se conservaron');
+  showToast('Ponderaciones actualizadas — tus notas se conservaron');
 }
 
 function pautaPendiente(r){
   if(!r||!r.origen||!r.origen.tenant)return null;
   if((r.categorias||[]).length||(r.gates||[]).length)return null;
-  const nombre=findPresetName(r.nombre,r.origen.tenant,r.origen.carrera);
-  return nombre?presetRamo(nombre,r.origen.tenant,r.origen.carrera):null;
+  const sigla=siglaParaPrograma(r);
+  const nombre=findPresetName(r.nombre,r.origen.tenant,r.origen.carrera,sigla);
+  return nombre?presetRamo(nombre,r.origen.tenant,r.origen.carrera,undefined,sigla):null;
 }

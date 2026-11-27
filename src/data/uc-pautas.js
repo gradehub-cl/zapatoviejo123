@@ -31,6 +31,29 @@
 // suelen seguir sirviendo después, pero las fechas solo se precargan mientras
 // ese período siga vigente. Si un programa no declara el período, se omite el
 // campo y la app conserva los pesos sin presentar sus fechas como actuales.
+// Programa de Juan Pablo Espinosa Arce, 2026-2. Lucas confirmó el
+// 2026-11-11 que aplica a ambas secciones, 1 y 2. Una sola definición para
+// ese profesor; no se infiere una sección por tener los mismos porcentajes.
+const PROGRAMA_TTF012_JP_2026_2={
+    evals:[['Evaluación 1',20,{fecha:'2026-09-07'}],['Evaluación 2',20,{fecha:'2026-10-14'}],['Evaluación 3',30,{fecha:'2026-11-16'}],['Examen final',30]],
+    // Aclaraciones de Lucas, 2026-11-11: exime desde 5,95; texto previo;
+    // décimas a la nota más baja tras decidir la eximición, como dice el
+    // programa y por si acaso (Lucas, 2026-11-11, en vez de repartirlas); examen eximido = máxima final;
+    // empates a mayor peso y notas mejoradas con tope 7,0. Contador: hasta 6 faltas.
+    eximicion:{secciones:[1,2],evaluacion:'Examen final',segun:['Evaluación 1','Evaluación 2','Evaluación 3'],
+      min:5.95,promedio:'simple',notaExamen:'maxima',maxInasistencias:6,ignoraDescartes:true,requierePautaOriginal:true,
+      requiereConfirmacion:false},
+    bonus:[
+      {id:'texto',secciones:[1,2],entrada:'confirmacion',a:'grupo',evals:['Evaluación 1','Evaluación 2','Evaluación 3'],
+        operacion:'promediar',valor:7,etapa:'previa',pregunta:'Presenté un texto',
+        ayuda:'Promedia un 7,0 con la menor de E1, E2 y E3 antes de calcular la presentación.'},
+      {id:'talleres',secciones:[1,2],entrada:'decimas',a:'grupo',evals:['Evaluación 1','Evaluación 2','Evaluación 3','Examen final'],
+        operacion:'sumar',etapa:'final',pregunta:'Décimas de talleres',
+        ayuda:'Solo las ganadas asistiendo al taller. Se suman a tu nota más baja al final del semestre, con tope 7,0. 5 décimas = +0,5.'},
+    ],
+    reglasDelCurso:['Una evaluación no rendida sin justificación autorizada dentro de 48 horas recibe un 1,0; ingresa esa nota cuando el profesor la confirme'],
+};
+
 const PRESETS_UC={
   // MAT1610, programa 2026-1: la primera interrogación justificada toma la
   // nota del examen; las siguientes se recuperan con pruebas especiales (P).
@@ -108,8 +131,17 @@ const PRESETS_UC={
   // es "causal de reprobación del curso, independientemente del promedio";
   // como no dice con qué nota, va el 3,9 de siempre. La asistencia mínima pasa
   // el filtro de reglas visibles: el estudiante puede cumplirla y cambia su nota.
+  //
+  // NO ES COORDINADO (Lucas, 2026-11-25): cada sección arma su programa. Por
+  // eso va en `evalsReferencia` y no en `evals`: no se carga sola a nadie. La
+  // ficha la ofrece como una opción más, diciendo que puede no ser la de tu
+  // sección, junto a lo que reportan los compañeros de cada sección
+  // (distribuciones-pauta.js). Quien ya la tenía cargada conserva sus reglas
+  // (programaQueCalza).
   'Filosofía: ¿para qué?':{
-    evals:[['Prueba 1',30],['Ejercicio de análisis',20],['Prueba 2',30],['Podcast',20,{min:4.0,cap:3.9}]],
+    sigla:'FIL2001',
+    coordinado:false,
+    evalsReferencia:[['Prueba 1',30],['Ejercicio de análisis',20],['Prueba 2',30],['Podcast',20,{min:4.0,cap:3.9}]],
     reglasDelCurso:[
       'Necesitas al menos 75% de asistencia a clases: si no, el curso queda con nota R, que equivale a 3,0. La app no registra asistencia',
     ],
@@ -218,34 +250,43 @@ const PRESETS_UC={
     sigla:'BIO141C',
     periodo:'2026-2',
     creditos:10,
-    evals:[
-      ['Interrogaciones',45.5,{slots:3,slotLabel:'Interrogación'}],
-      ['Talleres',14,{lista:true}],
-      ['Trabajos prácticos',7,{slots:2,slotLabel:'Trabajo práctico'}],
-      ['Trabajo grupal',3.5],
-      ['Examen final',30],
-    ],
-    // La app puede comprobar la presentación y los mínimos de notas, pero no
-    // sabe cuántos Talleres faltó la persona ni cuántos controles habrá. Por
-    // eso llegar al 5,0 solo OFRECE la eximición: el estudiante confirma que
-    // ingresó todo y que cumple la asistencia antes de sacar el Examen.
-    eximicion:{
-      evaluacion:'Examen final',
-      segun:['Interrogaciones','Talleres','Trabajos prácticos','Trabajo grupal'],
-      min:5,
-      ignoraDescartes:true,
-      requiereConfirmacion:true,
-      confirmar:'cumples la asistencia de Taller exigida por tu sección',
-      ocultaEvaluacion:true,
-      minimos:[
-        {evaluacion:'Interrogaciones',min:4,cadaNota:true},
-        {evaluacion:'Talleres',min:4},
-      ],
-    },
-    noCalcula:[
-      'Con 100% de los controles de Taller puedes eliminar la peor nota, pero el programa no especifica cuántos controles habrá durante el semestre',
-      'El Examen es reprobatorio bajo las condiciones de Interrogaciones y Talleres que define el programa, pero no publica la fórmula con que se transforma esa situación en la nota final',
-    ],
+    // No es coordinado (Lucas, 2026-11-09) y este programa es el de las
+    // secciones 4 y 5: va en `porSeccion`, como Derecho UC. Las demás secciones
+    // reciben las pautas que reportan sus compañeros (distribuciones-pauta.js).
+    coordinado:false,
+    porSeccion:(()=>{
+      const programa={
+        evals:[
+          ['Interrogaciones',45.5,{slots:3,slotLabel:'Interrogación'}],
+          ['Talleres',14,{lista:true}],
+          ['Trabajos prácticos',7,{slots:2,slotLabel:'Trabajo práctico'}],
+          ['Trabajo grupal',3.5],
+          ['Examen final',30],
+        ],
+        // La app puede comprobar la presentación y los mínimos de notas, pero no
+        // sabe cuántos Talleres faltó la persona ni cuántos controles habrá. Por
+        // eso llegar al 5,0 solo OFRECE la eximición: el estudiante confirma que
+        // ingresó todo y que cumple la asistencia antes de sacar el Examen.
+        eximicion:{
+          evaluacion:'Examen final',
+          segun:['Interrogaciones','Talleres','Trabajos prácticos','Trabajo grupal'],
+          min:5,
+          ignoraDescartes:true,
+          requiereConfirmacion:true,
+          confirmar:'cumples la asistencia de Taller exigida por tu sección',
+          ocultaEvaluacion:true,
+          minimos:[
+            {evaluacion:'Interrogaciones',min:4,cadaNota:true},
+            {evaluacion:'Talleres',min:4},
+          ],
+        },
+        noCalcula:[
+          'Con 100% de los controles de Taller puedes eliminar la peor nota, pero el programa no especifica cuántos controles habrá durante el semestre',
+          'El Examen es reprobatorio bajo las condiciones de Interrogaciones y Talleres que define el programa, pero no publica la fórmula con que se transforma esa situación en la nota final',
+        ],
+      };
+      return {4:programa,5:programa};
+    })(),
   },
   // Formación General UC · programa recibido con el nombre de archivo
   // "CFG FON 104", pero el propio documento declara la sigla como pendiente.
@@ -375,6 +416,12 @@ const PRESETS_UC={
       {nombre:'Pruebas',evals:['Interrogación 1','Interrogación 2','Examen'],min:4.0,cap:3.9},
       {nombre:'Tareas',evals:['Tarea 1','Tarea 2','Tarea 3'],min:4.0,cap:3.9},
     ],
+    // El motor pondera sin redondear NP y NT por separado: con NP 5,16 y NT 6,0
+    // el programa da 5,4 (5,2 y 6,0) y la app 5,3. Las compuertas sí calzan,
+    // porque se miden a la décima.
+    noCalcula:[
+      'El programa redondea la nota de Pruebas y la de Tareas a un decimal antes de calcular la final, así que tu nota oficial puede diferir en una décima',
+    ],
     reglasDelCurso:[
       'Las actividades de taller pueden bonificar una nota final aprobada; la regla de acumulación se informa durante el semestre en Canvas',
     ],
@@ -431,10 +478,8 @@ const PRESETS_UC={
       'Si tienes 2 o más ausencias justificadas a sesiones con ticket, el equipo docente ajustará la regla de Participación; el programa no publica la fórmula de ese ajuste',
     ],
   },
-  // Programas históricos recibidos por Lucas el 28-10-2026. El período va
-  // declarado: se ofrecen los pesos, pero nunca sus fechas como si fueran
-  // del semestre actual. Las pautas personales existentes no se reemplazan.
-  // ICS1513 - 01 - 2025 - sección 4 - Programa, pp. 4-5.
+  // ICS1513 - 01 - 2025 - sección 4 - Programa, pp. 4-5. La versión de
+  // 2026-2 corresponde a otra sección y queda registrada aparte.
   'Introducción a la Economía':{
     sigla:'ICS1513',periodo:'2025-1',creditos:10,
     evals:[
@@ -456,48 +501,74 @@ const PRESETS_UC={
       'El proyecto tiene una etapa grupal y otra individual, pero este programa no publica sus pesos internos: ingresa la nota final del proyecto',
       'El examen es obligatorio y no hay eximición. Si no asistes, la nota es 1,0, salvo que el curso apruebe el procedimiento de nota pendiente',
     ],
+    // ICS1513 - 02 - 2026 - Programa sección 2, pp. 1 y 4-5.
+    // Mientras el catálogo no seleccione pautas por sección, no se ofrece esta
+    // como pauta general. Las fechas de controles son las de esta sección.
+    porSeccion:{
+      2:{
+        periodo:'2026-2',
+        evals:[
+          ['Interrogación 1',20,{fecha:'2026-09-30'}],
+          ['Interrogación 2',20,{fecha:'2026-11-12'}],
+          ['Examen',30,{fecha:'2026-12-09',min:3.0,cap:3.9,exacto:true}],
+          ['Controles',15,{slots:5,slotLabel:'Control',dropLowest:{count:1}}],
+          ['Proyecto escrito',15],
+        ],
+        fechasPorSeccion:{2:{Controles:['2026-08-27','2026-09-10','2026-10-08','2026-10-29','2026-11-26']}},
+        noCalcula:['Una inasistencia justificada a una interrogación puede transferir su peso al examen. Este ajuste no se aplica automáticamente'],
+      },
+    },
   },
-  // Programa_y_Reglas_FIS1523_1er_sem_2025, pp. 3-4. Los pesos de abajo
+  // Reglas_FIS1523_2do_sem_2026, pp. 3-5. Los pesos de abajo
   // son de CÁTEDRA; el laboratorio FIS0152 aporta el 30% de la nota final.
-  // El PDF superpone ≥ y ≤ en 4,0. Lucas confirmó el 28-10-2026 que 4,0
-  // cuenta como aprobado, igual que en Dinámica; se usa el vínculo existente.
+  // El PDF vuelve a superponer ≥ y ≤ en 4,0. Se conserva la resolución
+  // de Lucas del 28-10-2026 para ambas físicas: 4,0 cuenta como aprobado.
   'Termodinámica':{
-    sigla:'FIS1523',periodo:'2025-1',creditos:10,
+    sigla:'FIS1523',periodo:'2026-2',creditos:10,
     evals:[
-      ['Interrogación 1',30,{fecha:'2025-04-07'}],
-      ['Interrogación 2',30,{fecha:'2025-05-19'}],
-      ['Examen',40,{fecha:'2025-06-30'}],
+      ['Interrogación 1',30,{fecha:'2026-09-22'}],
+      ['Interrogación 2',30,{fecha:'2026-11-06'}],
+      ['Examen',40], // El 11 de diciembre figura por confirmar.
     ],
     aporta:{ramo:'Laboratorio de Termodinámica',peso:30,min:4.0},
+    // El examen reemplaza UNA interrogación justificada. Con las dos, el
+    // programa exige reprobar: la segunda queda bloqueada y se sigue avisando.
+    ausenciasJustificadas:{maxReemplazos:1,reemplazos:[
+      {desde:'Interrogación 1',hacia:'Examen'},
+      {desde:'Interrogación 2',hacia:'Examen'},
+    ]},
     noCalcula:[
-      'El examen puede reemplazar una sola interrogación con inasistencia justificada. Este ajuste no se aplica automáticamente',
       'Si justificas ambas interrogaciones, el programa exige reprobar el ramo. La app no aplica esa reprobación por inasistencias',
     ],
     reglasDelCurso:[
-      'Programa 2025-1. El documento indica los mismos criterios para todas las secciones de ese período; confirma que sigan vigentes en tu curso',
+      'Programa 2026-2. El documento indica los mismos criterios para todas las secciones de ese período',
       'La nota final combina 70% de cátedra y 30% del Laboratorio de Termodinámica. Si una parte reprueba, queda la menor de ambas notas; 4,0 cuenta como aprobado',
       'El programa no detalla la pauta interna del laboratorio: ingresa sus evaluaciones según las instrucciones de ese curso',
       'No hay eximición ni pruebas recuperativas. Las notas de las evaluaciones y la final se redondean a una décima',
     ],
   },
-  // Programa_FIS1533_2026_1, pp. 4-5. Tres controles, sin descarte general:
-  // se puede excluir uno solo si su inasistencia fue justificada.
-  // Mismo límite de 4,0 aclarado por Lucas para ambas físicas (28-10-2026).
+  // Programa FIS1533 - 2026.2, pp. 4-5. La cátedra tiene dos interrogaciones
+  // y examen; el programa de 2026-1 tenía controles. Quien ya tiene la
+  // pauta anterior puede revisar el cambio antes de aplicarlo.
   'Electricidad y Magnetismo':{
-    sigla:'FIS1533',periodo:'2026-1',creditos:10,
+    sigla:'FIS1533',periodo:'2026-2',creditos:10,
     evals:[
-      ['Interrogación 1',30,{fecha:'2026-04-17'}],
-      ['Interrogación 2',30,{fecha:'2026-06-05'}],
-      ['Examen',30,{fecha:'2026-07-02'}],
-      ['Controles',10,{slots:3,slotLabel:'Control'}],
+      ['Interrogación 1',30,{fecha:'2026-09-29'}],
+      ['Interrogación 2',30,{fecha:'2026-11-13'}],
+      ['Examen',40,{fecha:'2026-12-01'}],
     ],
     aporta:{ramo:'Laboratorio de Electricidad y Magnetismo',peso:30,min:4.0},
+    // El examen reemplaza una única interrogación justificada; con dos, el
+    // programa remite a la facultad y la segunda queda bloqueada.
+    ausenciasJustificadas:{maxReemplazos:1,reemplazos:[
+      {desde:'Interrogación 1',hacia:'Examen'},
+      {desde:'Interrogación 2',hacia:'Examen'},
+    ]},
     noCalcula:[
-      'El examen reemplaza una única interrogación con inasistencia justificada. Este ajuste no se aplica automáticamente; con dos o más inasistencias, debes consultar a tu facultad',
-      'Puedes justificar como máximo un control y eliminarlo del promedio. La app no elimina controles por justificación ni descarta por defecto el peor',
+      'Con dos inasistencias justificadas a interrogaciones, el programa no dice cómo se calcula: debes consultar a tu facultad',
     ],
     reglasDelCurso:[
-      'Programa 2026-1. Revisa que esta pauta corresponda a tu curso',
+      'Programa 2026-2. El documento indica los mismos criterios para todas las secciones de ese período',
       'La nota final combina 70% de cátedra y 30% del Laboratorio de Electricidad y Magnetismo. Si una parte reprueba, queda la menor de ambas notas; 4,0 cuenta como aprobado',
       'El programa no detalla la pauta interna del laboratorio: ingresa sus evaluaciones según las instrucciones de ese curso',
       'No hay eximición ni pruebas recuperativas. La nota final se redondea a una décima',
@@ -549,9 +620,11 @@ const PRESETS_UC={
     // podrá faltar a 2 talleres, independiente de la justificación". La
     // profesora aclaró después que son 8. Se pregunta por las faltas, que es
     // como el programa la opera y no depende de cuántos talleres hay en total.
+    // Las décimas van sobre el promedio de los Controles, que solo existe con
+    // los tres rendidos: antes de eso no se suman (Lucas, 2026-11-20).
     bonus:[
-      {id:'talleres',pregunta:'Talleres a los que has faltado',entrada:'faltas',hasta:2,suma:0.5,a:'Controles',
-        ayuda:'Si faltas como máximo a 2 talleres, con o sin justificación, sumas 5 décimas al promedio de los Controles'},
+      {id:'talleres',pregunta:'Talleres a los que has faltado',entrada:'faltas',hasta:2,suma:0.5,a:'Controles',alCompletar:true,
+        ayuda:'Si faltas como máximo a 2 talleres, con o sin justificación, sumas 5 décimas al promedio de los Controles cuando estén los 3 anotados'},
     ],
     noCalcula:[
       'El programa no indica si se conserva el laboratorio al repetir la cátedra o al revés: confirma en tu Escuela',
@@ -909,12 +982,31 @@ const PRESETS_UC={
       'Si el traspaso por pruebas justificadas hace que el examen supere 60%, habrá una recuperativa adicional definida por el profesor, que puede ser oral. En ese caso ajusta la pauta con sus instrucciones',
     ],
   },
+  // prospecto-mat1630-2025-1.pdf, pp. 1-2. El encabezado dice 2024-1,
+  // distinto del nombre de archivo. No se asigna un año a las fechas.
   'Cálculo III':{
+    sigla:'MAT1630',
     evals:[
-      ['Evaluaciones sumativas',60,{lista:true}],
-      ['Laboratorios',10,{lista:true}],
-      ['Examen final escrito',30],
+      ['Interrogación 1',20],
+      ['Interrogación 2',20],
+      ['Interrogación 3',20],
+      ['Laboratorio',10],
+      ['Examen',30],
     ],
+    reglasDelCurso:['Pauta de un programa anterior. Confirma que corresponda a tu semestre'],
+  },
+  // Contenidos-Normativas-MAT1640, pp. 1-2. El calendario es de abril a julio;
+  // el recuperativo se ubica al comienzo del segundo semestre de 2026.
+  'Ecuaciones Diferenciales':{
+    sigla:'MAT1640',periodo:'2026-1',
+    evals:[
+      ['Interrogación 1',20,{fecha:'2026-04-14'}],
+      ['Interrogación 2',20,{fecha:'2026-05-12'}],
+      ['Interrogación 3',20,{fecha:'2026-06-10'}],
+      ['Laboratorio',10],
+      ['Examen',30,{fecha:'2026-07-02'}],
+    ],
+    reglasDelCurso:['Programa 2026-1. El programa solo da el peso de la nota global de laboratorio'],
   },
   // ── FORMACIÓN TEOLÓGICA: LOS 24 QUE PUBLICAN SU PAUTA ─────────────────────
   // Misma fuente y mismo criterio que el bloque de arriba: catalogo.uc.cl, el
@@ -929,9 +1021,18 @@ const PRESETS_UC={
   // Los teológicos que NO están acá son los que el catálogo no publica con
   // porcentajes, o los publica sumando distinto de 100. Esos siguen en
   // `CURSOS_UC` sin pauta, que es lo honesto mientras no haya un programa.
+  //
+  // NO SON COORDINADOS (Lucas, 2026-11-09): cada profesor arma su pauta, y los
+  // reportes lo confirman (TTF205: 7 de 11 estudiantes reportan otra distinta
+  // a la del catálogo). Por eso la pauta va en `evalsReferencia` y no en
+  // `evals`: no se carga sola a nadie. La ficha la ofrece como una opción más,
+  // diciendo que es la del catálogo y que puede no ser la de tu sección, junto
+  // a las que reportan los estudiantes (distribuciones-pauta.js). Siguen en el
+  // buscador por el catálogo completo de cursos (cursos-uc.js).
   'La Biblia de Jesús':{
     sigla:'TTF036',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Infografía digital',20],
       ['Corto de video',20],
       ['Aplicación de lectura bíblica',30],
@@ -940,7 +1041,8 @@ const PRESETS_UC={
   },
   'La Belleza de la Fragilidad Humana':{
     sigla:'TTF109',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Fichas de lectura',30,{lista:true}],
       ['Relatos autobiográficos',30,{lista:true}],
       ['Texto autoetnográfico',40],
@@ -948,7 +1050,8 @@ const PRESETS_UC={
   },
   'Virgen María y Feminismo: ¿Diálogo o Confrontación?':{
     sigla:'TTF115',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Control personal de contenido y lecturas',20],
       ['Tareas grupales',30,{lista:true}],
       ['Pre-entrega del trabajo del video',10],
@@ -957,7 +1060,8 @@ const PRESETS_UC={
   },
   'Arquitectura Sacra':{
     sigla:'TTF116',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Prueba escrita',30],
       ['Informe análisis de caso individual',15],
       ['Informe de análisis de caso grupal',15],
@@ -966,7 +1070,8 @@ const PRESETS_UC={
   },
   'Esperanza Cristiana, Muerte y Más Allá':{
     sigla:'TTF118',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Tareas grupales en clases',40,{lista:true}],
       ['Presentación grupal',20],
       ['Co evaluación',20],
@@ -975,7 +1080,8 @@ const PRESETS_UC={
   },
   'Búsquedas Religiosas y Cristianismo':{
     sigla:'TTF202',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Síntesis de debates',40,{lista:true}],
       ['Controles de lectura',30,{lista:true}],
       ['Prueba',30],
@@ -983,7 +1089,8 @@ const PRESETS_UC={
   },
   '¿Quién Es Jesús de Nazareth?':{
     sigla:'TTF205',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Infografía grupal',30],
       ['Producción escrita',30],
       ['Podcast',40],
@@ -991,7 +1098,8 @@ const PRESETS_UC={
   },
   'El Padrenuestro: la Oración de Jesús':{
     sigla:'TTF206',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Informes investigación',20,{lista:true}],
       ['Informes de lectura',30,{lista:true}],
       ['Controles escritos',30,{lista:true}],
@@ -1000,7 +1108,8 @@ const PRESETS_UC={
   },
   'Doctrina Social de la Iglesia':{
     sigla:'TTF207',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Pruebas',40,{lista:true}],
       ['Controles de lectura',20,{lista:true}],
       ['Ensayos',40,{lista:true}],
@@ -1008,7 +1117,8 @@ const PRESETS_UC={
   },
   'Fe y Razón: Una Perspectiva Histórica':{
     sigla:'TTF208',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Pruebas',30,{lista:true}],
       ['Informes de lectura',30,{lista:true}],
       ['Trabajo grupal',40],
@@ -1016,7 +1126,8 @@ const PRESETS_UC={
   },
   'Experiencia Creyente y Secularismo':{
     sigla:'TTF210',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Prueba de desarrollo',30],
       ['Tareas',20,{lista:true}],
       ['Producción audiovisual grupal',10],
@@ -1025,14 +1136,16 @@ const PRESETS_UC={
   },
   'Para Pensar la Muerte':{
     sigla:'TTF211',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Ensayos individuales',60,{lista:true}],
       ['Interrogaciones grupales',40,{lista:true}],
     ],
   },
   'Espiritualidad Laical y Cultura Moderna':{
     sigla:'TTF213',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Controles de lecturas',50,{lista:true}],
       ['Pruebas',20,{lista:true}],
       ['Informe escrito grupal',30],
@@ -1040,7 +1153,8 @@ const PRESETS_UC={
   },
   'Teología y Ecología':{
     sigla:'TTF215',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Presentación síntesis de contenidos',30],
       ['Informe escrito',35],
       ['Análisis de caso grupal',35],
@@ -1048,7 +1162,8 @@ const PRESETS_UC={
   },
   '¿Creer o No Creer?':{
     sigla:'TTF216',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Pruebas',40,{lista:true}],
       ['Informes de lectura',20,{lista:true}],
       ['Trabajo grupal',30],
@@ -1057,7 +1172,8 @@ const PRESETS_UC={
   },
   '¿Es Necesaria la Iglesia?':{
     sigla:'TTF217',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Pruebas',40,{lista:true}],
       ['Trabajo grupal (entrevistas y análisis)',35],
       ['Ensayo individual',25],
@@ -1065,7 +1181,8 @@ const PRESETS_UC={
   },
   'Lectura Contemporánea de la Biblia':{
     sigla:'TTF218',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Presentaciones grupales',30,{lista:true}],
       ['Análisis de casos individual',40],
       ['Ensayo final',30],
@@ -1073,7 +1190,8 @@ const PRESETS_UC={
   },
   'Existencia Humana y la Búsqueda de Sentido':{
     sigla:'TTF219',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Prueba escrita',30],
       ['Informe de análisis de caso grupal',30],
       ['Ensayo final',40],
@@ -1081,7 +1199,8 @@ const PRESETS_UC={
   },
   'Teología del Cuerpo Humano':{
     sigla:'TTF220',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Presentaciones grupales',60,{lista:true}],
       ['Análisis de casos individual',25],
       ['Ensayo final',15],
@@ -1089,7 +1208,8 @@ const PRESETS_UC={
   },
   'Cristianismo y Crisis Ecológica':{
     sigla:'TTF222',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Controles de lectura',50,{lista:true}],
       ['Evaluación de pares',20],
       ['Portafolio',30],
@@ -1097,7 +1217,8 @@ const PRESETS_UC={
   },
   'Fe y Ciencia':{
     sigla:'TTF225',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Control escrito de contenidos',35],
       ['Ensayo',30],
       ['Trabajo colaborativo y exposición',35],
@@ -1105,7 +1226,8 @@ const PRESETS_UC={
   },
   'Religión y Política':{
     sigla:'TTF226',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Pruebas',60,{lista:true}],
       ['Exposiciones grupales',30,{lista:true}],
       ['Participación en el curso',10],
@@ -1113,7 +1235,8 @@ const PRESETS_UC={
   },
   'Teología Feminista: Un Signo de los Tiempos':{
     sigla:'TTF232',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Tareas',20,{lista:true}],
       ['Control de lectura',25],
       ['Análisis de casos',25],
@@ -1123,25 +1246,17 @@ const PRESETS_UC={
   },
   'Teología y Literatura':{
     sigla:'TTF233',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Informe de lectura',15],
       ['Ejercicios grupales',60,{lista:true}],
       ['Relectura final individual',25],
     ],
   },
   'Revelación y Fe':{
-    sigla:'TTF012',
-    periodo:'2026-2',
-    // BuscaCursos 2026-2 (las 4 secciones de TTF012). Sin este dato los créditos
-    // salían del homónimo TEB110 (8) o quedaban vacíos. Reportado el 2026-10-01.
-    creditos:10,
-    evals:[['Evaluación 1',20,{fecha:'2026-09-07'}],['Evaluación 2',20,{fecha:'2026-10-14'}],['Evaluación 3',30,{fecha:'2026-11-16'}],['Examen final',30]],
-    noCalcula:[
-      'Si tienes más de 75% de asistencia y una nota de presentación igual o superior a 6,00, te eximes del Examen final; tu nota de presentación se calcula como el promedio simple de Evaluación 1, Evaluación 2 y Evaluación 3, sin usar sus ponderaciones',
-      'Si te eximes del Examen final, la nota del Examen final se reemplaza por la nota más alta que obtuviste entre Evaluación 1, Evaluación 2 y Evaluación 3',
-      'Si obtienes décimas en los talleres, se agregan al finalizar el semestre a tu nota más baja',
-      'Si presentas voluntariamente uno de los textos del curso cumpliendo las condiciones indicadas, obtienes un 7,0 que se promedia con tu nota más baja entre Evaluación 1, Evaluación 2 y Evaluación 3',
-    ],
+    sigla:'TTF012',periodo:'2026-2',creditos:10,coordinado:false,
+    reglasPorSeccion:true,
+    porSeccion:{1:PROGRAMA_TTF012_JP_2026_2,2:PROGRAMA_TTF012_JP_2026_2},
   },
   // ─── Derecho UC · formularios de condiciones y evaluaciones 2026-2 ───
   // Ramos NO coordinados (`coordinado:false`, confirmado por Lucas el
@@ -1251,6 +1366,150 @@ const PRESETS_UC={
         ],
       },
     },
+  },
+  // Ética para Ingeniería · ETI188 · syllabus 2026-2 de la sección 4 (Constanza
+  // Guajardo). BuscaCursos da otros profesores en las secciones 2 y 3, y la 1,
+  // aunque es de la misma profesora, no tiene syllabus recibido: por eso va en
+  // `porSeccion` y no se copia a otra. No coordinado: confirmado por Martín
+  // el 2026-11-09.
+  // NP = 35% Prueba 1 + 35% Prueba 2 + 30% Trabajo final, y con examen
+  // NF = 70% NP + 30% Examen. Los pesos son ese producto exacto; al eximirse,
+  // repondera sobre el 70% y vuelve a dar 35/35/30. Trabajo final no lleva
+  // fecha: los grupos exponen sus casos entre el 26-10 y el 18-11.
+  'Ética para Ingeniería':{
+    sigla:'ETI188',
+    periodo:'2026-2',
+    creditos:10,
+    coordinado:false,
+    porSeccion:{
+      4:{
+        evals:[
+          ['Prueba 1',24.5,{fecha:'2026-08-31'}],
+          ['Prueba 2',24.5,{fecha:'2026-10-07'}],
+          ['Trabajo final',21],
+          ['Examen',30,{fecha:'2026-11-25'}],
+        ],
+        // La app no sabe a cuántas charlas fue la persona: llegar al 5,0 solo
+        // ofrece la eximición, y ella confirma la asistencia.
+        eximicion:{
+          evaluacion:'Examen',
+          segun:['Prueba 1','Prueba 2','Trabajo final'],
+          min:5,
+          ignoraDescartes:true,
+          requiereConfirmacion:true,
+          confirmar:'asististe al menos a ¾ de las charlas del Auditorio Luksic',
+        },
+        noCalcula:[
+          'El syllabus exime «sobre 5,0» sin aclarar si un 5,0 exacto alcanza: confírmalo con tu profesora',
+        ],
+        reglasDelCurso:[
+          'La profesora puede sumar décimas al promedio final por asistencia y participación sobresalientes',
+        ],
+      },
+    },
+  },
+  // ── Medicina UC · 4° semestre. Programas recibidos de Martín el 2026-11-25.
+  // Solo llegan a su carrera por PRESETS_UC_MEDICINA (uc-comunicaciones.js).
+  //
+  // MED210A · "ACTIVIDADES 2026", actualizado en julio de 2026 → 2026-2. No
+  // dice cuántas tareas hay ni cómo se reparte Bienestar: van como lista. La
+  // evaluación por pares es "un 10%" dentro de la nota del proyecto y no queda
+  // claro de qué base: no se separa.
+  'Integrado Ciencias Médicas III':{
+    sigla:'MED210A',
+    periodo:'2026-2',
+    creditos:5,
+    evals:[
+      ['Tareas posteriores a clases',20,{lista:true}],
+      ['Módulo de Bienestar',20,{lista:true}],
+      ['Prueba escrita sumativa',30],
+      ['Proyecto grupal final',30],
+    ],
+    reglasDelCurso:[
+      'La nota del Proyecto grupal final ya incluye la evaluación por pares de tu grupo',
+    ],
+  },
+  // MED213A · archivo fechado 25FEB25, sin período declarado. Nota de capítulos
+  // = 55% gymkhanas + 35% globales + 10% minitest; con examen, 70/30. Los pesos
+  // son ese producto exacto. Hay una global y una gymkhana "en cada capítulo" y
+  // el programa enumera cuatro; su promedio simple son cuatro filas iguales
+  // (38,5/4 y 24,5/4). Van separadas y no en casillas porque las compuertas de
+  // grupo pesan la categoría completa aunque falten casillas.
+  //
+  // "Las notas no se aproximan y se trabajan con 1 decimal": 3,5x es 3,5 y
+  // reprueba sin examen (por eso 3,6 exacto), y un 3,95 final es 3,9. El
+  // programa no dice con qué nota queda un examen reprobado: va el 3,9 de siempre.
+  'Morfología III':(()=>{
+    const gymkhanas=['Gymkhana Cabeza 1','Gymkhana Cabeza 2','Gymkhana Cuello','Gymkhana Neuroanatomía'];
+    const globales=['Global Cabeza 1','Global Cabeza 2','Global Cuello','Global Neuroanatomía'];
+    const capitulos=[...gymkhanas,...globales,'Minitest'];
+    return {
+      sigla:'MED213A',
+      creditos:15,
+      evals:[
+        ...gymkhanas.map(n=>[n,9.625]),
+        ...globales.map(n=>[n,6.125]),
+        ['Minitest',7,{lista:true}],
+        ['Examen',30,{min:4.0,cap:3.9,exacto:true}],
+      ],
+      grupos:[
+        {nombre:'Nota de capítulos',evals:capitulos,min:3.6,cap:'self',exacto:true},
+        {nombre:'Nota final',evals:[...capitulos,'Examen'],min:4.0,cap:3.9,exacto:true},
+      ],
+      eximicion:{
+        evaluacion:'Examen',
+        segun:capitulos,
+        min:5.5,
+        ignoraDescartes:true,
+        requierePautaOriginal:true,
+        requiereConfirmacion:true,
+        confirmar:'el curso te informó que tu nota de capítulos es superior a 5,5',
+      },
+      noCalcula:[
+        'El programa exime con nota «superior a 5,5» y manda a examen entre 3,6 y 5,4: no dice qué pasa con un 5,5 justo. Confírmalo con tu profesor',
+        'El curso usa notas con un decimal y sin aproximar (un 4,58 es 4,5). La app redondea a la décima, así que tu nota oficial puede quedar una décima más abajo',
+      ],
+      reglasDelCurso:[
+        'Con nota de capítulos de 3,5 o menos, repruebas sin derecho a examen',
+        'Un minitest que no rindes queda en 1,0, salvo que te acepten formalmente la justificación',
+        'Si faltas a más del 25% de las actividades prácticas, aunque sea con justificación, repites el curso',
+      ],
+    };
+  })(),
+  // MED214A · el archivo dice 2026 y el programa no declara semestre. Cada uno
+  // de los cinco módulos vale 16% de la presentación (90% interrogación, 10%
+  // minitest y seminarios); póster 10% y minitest de anatomía patológica 10%.
+  // Presentación 70%, examen 30%. Los pesos son ese producto exacto:
+  // 5 × 16 × 0,9 × 0,7 = 50,4 y 16 × 0,1 × 0,7 = 1,12. El programa no dice
+  // cuántos minitest lleva cada módulo: van como lista.
+  'Bases y Mecanismos de la Enfermedad I':{
+    sigla:'MED214A',
+    creditos:30,
+    evals:[
+      ['Interrogaciones',50.4,{slots:5,slotLabel:'Interrogación'}],
+      ...[1,2,3,4,5].map(n=>['Minitest y seminarios módulo '+n,1.12,{lista:true}]),
+      ['Trabajo final grupal (póster y escrito)',7],
+      ['Minitest de Anatomía Patológica',7,{lista:true}],
+      ['Examen final',30,{min:4.0,cap:3.9}],
+    ],
+    eximicion:{
+      evaluacion:'Examen final',
+      segun:['Interrogaciones'],
+      min:6,
+      ignoraDescartes:true,
+      requierePautaOriginal:true,
+      requiereConfirmacion:true,
+      confirmar:'tu promedio de las cinco interrogaciones es superior a 6,0, presentaste el 100% de los minitest y seminarios y no perdiste el derecho a eximirte',
+      ayuda:'La nota que se compara es el promedio de las cinco interrogaciones, ninguna bajo 4,0, y tiene que ser superior a 6,0: un 6,0 justo no alcanza',
+      minimos:[{evaluacion:'Interrogaciones',min:4,cadaNota:true}],
+    },
+    noCalcula:[
+      'El programa dice que repruebas con un examen «inferior a 4,0», pero también que apruebas con uno «superior a 4,0». La app cuenta el 4,0 como aprobado: confírmalo con tu profesor',
+    ],
+    reglasDelCurso:[
+      'Faltar sin justificación a un seminario o a la presentación final te quita el derecho a eximirte',
+      'Una interrogación no rendida y sin justificar a tiempo queda en 1,0 y te obliga a dar el examen',
+    ],
   },
 };
 

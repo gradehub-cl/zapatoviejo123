@@ -55,6 +55,13 @@ async function alcanceAnuncio(anuncioId){
 async function renderProfesor(){
   const raiz=document.getElementById('profesor-body');
   if(!raiz)return;
+  // Ir a Alumnos y volver no borra un anuncio a medias: si se pidió una vista,
+  // el formulario pregunta antes de cerrarse; si no, sigue donde quedó.
+  if(raiz.querySelector('#profesor-borrador')){
+    const vista=typeof tomarVistaNav==='function'&&tomarVistaNav('profesor');
+    if(vista&&typeof vistasPanelNav!=='undefined'&&typeof vistasPanelNav.profesor==='function')vistasPanelNav.profesor(vista);
+    return;
+  }
   await renderEspacioProfesor(raiz,{titulo:false});
 }
 async function openEspacioProfesor(){
@@ -81,15 +88,17 @@ async function renderEspacioProfesor(raiz,{titulo=true}={}){
       ?`Enviada el ${new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'long',year:'numeric',timeZone:'America/Santiago'}).format(fecha)}.`
       :'Fecha de envío no disponible.';
     const borradores=mios.ok?mios.anuncios.filter(a=>a.estado==='borrador'):[];
+    // En la app no se prepara el anuncio: lleva a configurar la campaña (3.1.1).
+    const compras=campanasSeCompranAqui();
     raiz.innerHTML=cabecera('Espacio de profesor')+
-      `<div class="profesor-hig"><section class="clases-seccion" aria-labelledby="profesor-postulacion-titulo"><h2 id="profesor-postulacion-titulo">Tu postulación</h2><p class="profesor-info" role="status">Está pendiente de revisión. ${esc(enviada)}</p><p class="profesor-info">Te avisaremos cuando esté aprobada. Mientras tanto, puedes preparar un anuncio y guardarlo como borrador.</p></section>`+
-      `<section class="clases-seccion" aria-labelledby="profesor-borradores-titulo"><h2 id="profesor-borradores-titulo">Tu borrador</h2>`+
+      `<div class="profesor-hig"><section class="clases-seccion" aria-labelledby="profesor-postulacion-titulo"><h2 id="profesor-postulacion-titulo">Tu postulación</h2><p class="profesor-info" role="status">Está pendiente de revisión. ${esc(enviada)}</p><p class="profesor-info">${compras?'Te avisaremos cuando esté aprobada. Mientras tanto, puedes preparar un anuncio y guardarlo como borrador.':'Te avisaremos cuando esté aprobada.'}</p></section>`+
+      (!compras?'</div>'+salida():`<section class="clases-seccion" aria-labelledby="profesor-borradores-titulo"><h2 id="profesor-borradores-titulo">Tu borrador</h2>`+
       (mios.ok
         ?borradores.length
           ?`<div class="clase-lista">${borradores.map(a=>`<div class="clase-card"><div class="clase-card-top"><strong>${esc(a.titulo||'Sin título')}</strong><span class="clase-estado">Borrador</span></div><p class="clase-card-meta">Nadie lo ve todavía.</p><button type="button" class="clase-accion" data-borrador-pendiente="${esc(a.id)}">Seguir preparando</button></div>`).join('')}</div>`
           :'<p class="profesor-info">Todavía no tienes un borrador.</p><button type="button" class="btn-confirm" id="clase-nueva-pendiente">Preparar anuncio</button>'
         :`<p class="profesor-info" role="alert">${esc(mios.error)}</p>`)+
-      '</section></div>'+salida();
+      '</section></div>'+salida());
     const nueva=raiz.querySelector('#clase-nueva-pendiente');
     if(nueva)nueva.addEventListener('click',()=>renderBorradorProfesor(raiz,null,{pendiente:true}));
     if(typeof raiz.querySelectorAll==='function')raiz.querySelectorAll('[data-borrador-pendiente]').forEach(b=>b.addEventListener('click',()=>{
@@ -142,7 +151,7 @@ function renderPostulacionProfesor(raiz){
       if(typeof cargarPerfilProfesor==='function')cargarPerfilProfesor().then(()=>{
         if(typeof renderSettingsSiAbierto==='function')renderSettingsSiAbierto();
       }).catch(()=>{});
-      raiz.innerHTML='<div class="modal-title" id="modal-titulo">Postulación enviada</div><p class="profesor-info" role="status">Quedó pendiente de revisión. Aún no puedes publicar clases. En Ajustes · Clases particulares puedes ver en qué va.</p><div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cerrar</button></div>';
+      raiz.innerHTML='<div class="modal-title" id="modal-titulo">Postulación enviada</div><p class="profesor-info" role="status">Quedó pendiente de revisión. Aún no puedes publicar clases. En Ajustes · Apoyo puedes ver en qué va.</p><div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cerrar</button></div>';
       return;
     }
     estado.textContent=resultado.error;boton.disabled=false;enviando=false;
@@ -381,8 +390,11 @@ function cifrasClase({alcance,campana,costo,eventos=null},pesos,etiquetaPersonas
   if(costo&&!costo.sinCosto&&!conPresupuesto)f.push(['Va costando',pesos(costo.total),costo.tope!==null?`de tu tope de ${pesos(costo.tope)}`:'hasta ahora']);
   if(costo&&!costo.sinCosto&&campana&&campana.contactos)f.push(['Por contacto',pesos(Math.round(costo.total/campana.contactos)),'lo que costó cada uno']);
   const ocultos=medido&&['impresion','clic','contacto'].some(k=>eventos[k]===null)?' Los totales menores a 15 quedan ocultos.':'';
-  const nota=eventos?.anterior?'Esta campaña terminó antes de contar cada vez: el total cuenta una vez por persona.'+ocultos
-    :medido?`Desde el ${new Date(eventos.desde).toLocaleDateString('es-CL',{timeZone:'America/Santiago',day:'numeric',month:'long'})} se cuenta cada vez; antes, una vez por persona.`+ocultos
+  const fecha=d=>new Date(d).toLocaleDateString('es-CL',{timeZone:'America/Santiago',day:'numeric',month:'long',year:'numeric'});
+  const nota=eventos?.cada_vez_desde&&!eventos.anterior?
+    `Desde el ${fecha(eventos.cada_vez_desde)} se cuenta cada vista de al menos un segundo con un 50 % visible, apertura y toque en un contacto, con límites contra abuso. Antes, el total es un mínimo: una vez por persona antes de la medición y repeticiones limitadas después. Estos totales no cambian el cobro.`+ocultos
+    :eventos?.anterior?'Esta campaña terminó antes de contar cada vez: el total cuenta una vez por persona.'+ocultos
+    :medido?`Desde el ${new Date(eventos.desde).toLocaleDateString('es-CL',{timeZone:'America/Santiago',day:'numeric',month:'long'})} se cuentan repeticiones limitadas; antes, una vez por persona. El total es un mínimo histórico.`+ocultos
     :'El total de veces aún no está disponible. Las cifras de personas distintas se conservan.';
   return `<div class="clase-etapas">${html}</div><p class="clase-privacidad">${esc(nota)}</p>`+(conPresupuesto?presupuestoProfesorHTML(costo):'')+(f.length?`<div class="clase-nums">${f.map(([t,v,d])=>
     `<div class="clase-num"><span>${t}</span><b>${v}</b><small>${d}</small></div>`).join('')}</div>`:'');
@@ -395,4 +407,23 @@ function embudoClase(totales){
   const filas=[['Se mostró',totales.impresion],['La abrieron',totales.clic],['Te contactaron',totales.contacto]].filter(([,n])=>n>0);
   if(filas.length<2)return '';
   return barrasDetalleClaseHTML({titulo:'Interacciones',filas:filas.map(([nombre,valor])=>({nombre,valor})),unidad:'registros'});
+}
+
+// Denominador agregado solo para admin MFA. Desconocido nunca equivale a cero.
+async function publicoAdminAnuncio(anuncio){
+ try{const {data,error}=await supabaseClient.rpc('admin_anuncio_publico',{p_anuncio_id:anuncio.id});return !error&&data&&['activos','activos_ramo','vieron','abrieron','contactaron'].every(k=>Number.isSafeInteger(data[k])&&data[k]>=0)?data:null;}catch(e){return null;}
+}
+function publicoAdminAnuncioHTML(a,p){
+ if(!p)return '<p class="clase-privacidad">Comparación de alcance no disponible. El resto de las métricas sigue disponible.</p>';
+ const n=p.activos_ramo,porcentaje=x=>n?(100*x/n).toFixed(1).replace('.',',')+'%':'Sin base para porcentaje';
+ const filas=[['Activos con el ramo',n],['Lo vieron',p.vieron],['Abrieron',p.abrieron],['Contactaron',p.contactaron]];
+ const bajo=n>0&&p.vieron/n<.1;
+ const causas=[];
+ if(bajo){
+  if(criteriosClaseValidos(a.criterios))causas.push(`promedio menor a ${String(a.criterios.promedioMenorA).replace('.',',')} y al menos ${a.criterios.avanceMinimo}% evaluado`);else causas.push('sin criterios válidos no se recomienda en Inicio');
+  causas.push('sin evaluación en 7 días pierde prioridad, aunque no queda excluido');
+  if(a.estado==='agotado'||a.campana&&costoCampanaClase(a.campana)?.agotada)causas.push('tope alcanzado');else causas.push('un tope alcanzado puede detener la campaña');
+  causas.push('cerrar con la X oculta ese anuncio hasta el día siguiente');
+ }
+ return `<section class="admin-publico"><h4>Alcance frente a quienes tienen el ramo</h4><p>${p.activos} personas activas en la app · ${esc(p.desde)} → ${esc(p.hasta)}</p>${filas.map(([titulo,v])=>`<div><span>${titulo} <b>${v}</b> <small>${porcentaje(v)}</small></span><progress max="${Math.max(1,n,p.vieron,p.abrieron,p.contactaron)}" value="${v}" aria-label="${titulo}: ${v}. ${porcentaje(v)}"></progress></div>`).join('')}<p class="clase-privacidad">Base: visitas registradas durante la publicación y ramos guardados actualmente. Usa siglas explícitas (o una clave de origen que coincida exactamente); un ramo sin sigla reconocida queda fuera. No reconstruye la matrícula histórica. Los porcentajes usan activos con el ramo; no son una conversión de la misma cohorte. ${p.visitas_retencion_parcial?'La campaña supera la retención de visitas: la base es parcial.':''}</p>${bajo?`<p>Alcance bajo 10%. Causas posibles, no comprobadas por persona: ${esc(causas.join('; '))}. También influyen la rotación y una pauta incompleta.</p>`:''}</section>`;
 }

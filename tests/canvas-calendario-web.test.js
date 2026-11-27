@@ -1,4 +1,4 @@
-// Fechas desde la fuente de calendario de Canvas UC, en la web (#647).
+// Fechas desde la fuente de calendario de Canvas (UC y FEN): web, Android y FEN en iPhone (#647).
 // 1. La función de Cloudflare no es un proxy abierto: solo esa URL, con sesión,
 //    sin redirecciones, con tope de tamaño y sin caché.
 // 2. La app empareja por la sigla entre corchetes, convierte la hora UTC al día
@@ -10,6 +10,7 @@ let ok=0,fail=0;
 const chk=(n,c)=>{if(c){ok++;console.log('  OK   '+n);}else{fail++;console.log('  FAIL '+n);}};
 
 const URL_OK='https://cursos.canvas.uc.cl/feeds/calendars/user_AbCdEf0123456789XyZw0123456789abcdEFGHij.ics';
+const URL_FEN=URL_OK.replace('cursos.canvas.uc.cl','canvas.fen.uchile.cl');
 const ICS=(eventos)=>['BEGIN:VCALENDAR','VERSION:2.0',...eventos.flatMap(([t,inicio])=>['BEGIN:VEVENT','SUMMARY:'+t,'DTSTART'+inicio,'END:VEVENT']),'END:VCALENDAR'].join('\r\n');
 
 (async()=>{
@@ -18,6 +19,11 @@ const ICS=(eventos)=>['BEGIN:VCALENDAR','VERSION:2.0',...eventos.flatMap(([t,ini
   vm.runInContext(leer('functions/canvas-calendario.js').replace(/^export /gm,''),fn);
   const valida=u=>vm.runInContext('urlCanvasValida',fn)(u);
   chk('acepta la fuente de calendario de Canvas UC',valida(URL_OK));
+  chk('acepta la de Canvas FEN',valida(URL_FEN));
+  const fenMalas=['https://canvas.fen.uchile.cl.ejemplo.com/feeds/calendars/user_AbCdEf0123456789XyZw.ics',
+    'https://x.canvas.fen.uchile.cl/feeds/calendars/user_AbCdEf0123456789XyZw.ics','https://canvas.uchile.cl/feeds/calendars/user_AbCdEf0123456789XyZw.ics',
+    'https://canvasXfenXuchileXcl/feeds/calendars/user_AbCdEf0123456789XyZw.ics',URL_FEN+'?x=1',URL_FEN.replace('user_','course_')];
+  chk('y nada parecido a la FEN',!fenMalas.some(valida));
   const malas={'http':URL_OK.replace('https:','http:'),'webcal':URL_OK.replace('https:','webcal:'),
     'otro host':URL_OK.replace('cursos.canvas.uc.cl','cursos.canvas.uc.cl.ejemplo.com'),
     'subdominio ajeno':URL_OK.replace('cursos.','x.cursos.'),'con puerto':URL_OK.replace('.cl/','.cl:8443/'),
@@ -58,6 +64,25 @@ const ICS=(eventos)=>['BEGIN:VCALENDAR','VERSION:2.0',...eventos.flatMap(([t,ini
   chk('una URL que Canvas no reconoce lo dice sin repetirla',r.status===502&&!(await r.text()).includes('user_'));
   r=await traer(pedido({url:URL_OK}),pedir({canvas:()=>{throw new Error('abort');}}));
   chk('si Canvas no responde a tiempo: 504',r.status===504);
+  // La app de iPhone llama desde capacitor://localhost; nadie más recibe CORS.
+  const desde=(origen,metodo='POST')=>new Request('https://gradehub.cl/canvas-calendario',{method:metodo,
+    headers:{Origin:origen,Authorization:'Bearer eyJhbGciOiJIUzI1NiJ9.sintetico.firma'},body:metodo==='POST'?JSON.stringify({url:URL_FEN}):undefined});
+  r=await traer(desde('capacitor://localhost','OPTIONS'),pedir({canvas:calendario}));
+  chk('el preflight de la app de iPhone: 204 con CORS para Authorization',r.status===204&&r.headers.get('Access-Control-Allow-Origin')==='capacitor://localhost'
+    &&/Authorization/.test(r.headers.get('Access-Control-Allow-Headers')||'')&&/POST/.test(r.headers.get('Access-Control-Allow-Methods')||''));
+  f=pedir({canvas:calendario});r=await traer(desde('capacitor://localhost'),f);
+  chk('la app de iPhone recibe el calendario y puede leerlo',r.status===200&&r.headers.get('Access-Control-Allow-Origin')==='capacitor://localhost'&&f.llamadas.some(x=>x.url===URL_FEN));
+  r=await traer(desde('capacitor://localhost'),pedir({sesion:false,canvas:calendario}));
+  chk('y también lee el error, sin sesión válida no pasa',r.status===401&&r.headers.get('Access-Control-Allow-Origin')==='capacitor://localhost');
+  const ajenas=await Promise.all(['https://ejemplo.com','null','capacitor://localhost.ejemplo.com'].map(o=>traer(desde(o,'OPTIONS'),pedir({canvas:calendario}))));
+  chk('otro origen no recibe CORS',ajenas.every(x=>!x.headers.get('Access-Control-Allow-Origin')));
+  r=await traer(new Request('https://gradehub.cl/canvas-calendario'),pedir({canvas:calendario}));
+  chk('un GET: 405',r.status===405);
+  chk('la función atiende el preflight',/export async function onRequest\(/.test(leer('functions/canvas-calendario.js')));
+  const dato=vm.runInContext(leer('data.js')+';CANVAS_ICS_POR_TENANT',vm.createContext({console}));
+  chk('la función acepta justo los Canvas de CANVAS_ICS_POR_TENANT',Object.keys(dato).join()==='uc,fen'
+    &&Object.values(dato).every(c=>valida(URL_OK.replace('cursos.canvas.uc.cl',c.host)))
+    &&(leer('functions/canvas-calendario.js').match(/\(\?:([^)]*)\)\\\/feeds/)||[])[1].split('|').length===Object.keys(dato).length);
   chk('el deploy publica la función',/functions\/canvas-calendario\.js/.test(leer('.github/workflows/deploy.yml')));
 
   console.log('\n=== La app empareja por sigla y con el día de Chile ===');
@@ -92,6 +117,42 @@ const ICS=(eventos)=>['BEGIN:VCALENDAR','VERSION:2.0',...eventos.flatMap(([t,ini
   chk('lo que ya pasó queda fuera',!props.some(p=>p.fecha==='2026-09-01'));
   chk('sin corchetes, se empareja por el nombre del ramo como un .ics',props.some(p=>p.titulo==='I3 Cálculo II'&&p.target==='calc|i3|'));
   chk('un evento suelto que no calza con nada queda fuera',!props.some(p=>p.titulo==='Feriado'));
+  const zonaOriginal=process.env.TZ;
+  try{
+    process.env.TZ='Pacific/Kiritimati';
+    const hoyEnChile=run(`propuestasCanvasIcs(__ev,new Date('2026-10-16T01:00:00Z'))`);
+    chk('en otra zona horaria, mantiene la fecha y el día de corte de Chile',hoyEnChile.some(p=>p.target==='calc|i2|'&&p.fecha==='2026-10-15'));
+  }finally{
+    if(zonaOriginal===undefined)delete process.env.TZ;
+    else process.env.TZ=zonaOriginal;
+  }
+
+  console.log('\n=== FEN: su Canvas, su sigla sin EN ===');
+  run(`S.tenant='fen';S.ramos=[{id:'mm2',nombre:'Métodos Matemáticos II',sigla:'MEM1505',gates:[],categorias:[
+      {id:'c1',nombre:'Control 1',peso:50,notas:[]},{id:'ex',nombre:'Examen',peso:50,notas:[]}]}]`);
+  ctx.__evFen=JSON.parse(JSON.stringify(run(`parseIcsCalendario(${JSON.stringify(ICS([
+    ['Control 1 [ENMEM1505-02]',':20261016T025900Z'],
+    ['Examen [MEM1505]',';VALUE=DATE:20261201'],
+    ['Taller [ENECO1505-01]',';VALUE=DATE:20261020']]))},{inicioCrudo:true})`)));
+  const fen=run(`propuestasCanvasIcs(__evFen,new Date(2026,9,12,9))`);
+  chk('[ENMEM1505-02] calza con MEM1505, con la fecha de Chile',fen.some(p=>p.target==='mm2|c1|'&&p.fecha==='2026-10-15'));
+  chk('sin el EN también calza',fen.some(p=>p.target==='mm2|ex|'&&p.fecha==='2026-12-01'));
+  chk('otro curso de la FEN queda fuera',!fen.some(p=>/Taller/.test(p.titulo)));
+  run(`currentUser={id:'u1'};enAppNativa=()=>false`);
+  chk('una cuenta FEN ve el calendario de Canvas',run('canvasIcsDisponible()')===true);
+  chk('en la app con el plugin (solo UC), la FEN sigue con el calendario',run(`(()=>{const pc=pluginCanvas;pluginCanvas=()=>({});const r=canvasIcsDisponible();pluginCanvas=pc;return r;})()`)===true);
+  chk('una universidad sin Canvas no lo ve',run(`(()=>{S.tenant='uai';const r=canvasIcsDisponible();S.tenant='fen';return r;})()`)===false);
+  {
+    let html='';const cajaFen={set innerHTML(h){html=h;}};
+    const gid=ctx.document.getElementById;ctx.document.getElementById=id=>id==='s-canvas-ics'?cajaFen:stub;
+    run('pintarCanvasIcsAjustes()');
+    chk('Ajustes nombra Canvas FEN y su dirección, no la UC',/En Canvas FEN abre/.test(html)&&/https:\/\/canvas\.fen\.uchile\.cl\/feeds/.test(html)&&!/uc\.cl|Canvas UC/.test(html));
+    let aviso={...stub,textContent:''};ctx.document.getElementById=id=>id==='s-canvas-ics-estado'?aviso:stub;
+    stub.value=URL_OK;await run('conectarCanvasIcs()');
+    chk('una cuenta FEN que pega la URL de la UC recibe el error con su dirección',/Canvas FEN/.test(aviso.textContent)&&/canvas\.fen\.uchile\.cl/.test(aviso.textContent));
+    stub.value='';ctx.document.getElementById=gid;
+  }
+  run(`S.tenant='uc'`);
 
   console.log('\n=== La URL es secreta: solo en el dispositivo y de esta cuenta ===');
   chk('webcal:// se acepta como la misma URL',run(`normalizarUrlCanvasIcs(${JSON.stringify(' '+URL_OK.replace('https:','webcal:')+' ')})`)===URL_OK);
@@ -103,7 +164,7 @@ const ICS=(eventos)=>['BEGIN:VCALENDAR','VERSION:2.0',...eventos.flatMap(([t,ini
   chk('otra cuenta en el mismo navegador no la ve, y se borra',run('urlCanvasIcsGuardada()')===null&&!('gradehub_canvas_ics' in guardado));
   chk('cerrar sesión la borra',/olvidarUrlCanvasIcs\(\)/.test(leer('app-session.js').split('async function cerrarSesion')[1].split('\n}\n')[0]));
   chk('desconectar pide confirmar, con Cancelar a mano',/function desconectarCanvasIcs\(\)\{[^]*showConfirm\([^]*focusCancel:true/.test(leer('app.js')));
-  chk('en la app iOS no aparece: ahí está el token',run(`enAppNativa=()=>true;canvasIcsDisponible()`)===false);
+  chk('en la app con Canvas nativo no aparece: ahí está el token',run(`const pc=pluginCanvas;pluginCanvas=()=>({});const r=canvasIcsDisponible();pluginCanvas=pc;r`)===false);
 
   run(`enAppNativa=()=>false;S.tenant='uc';currentUser={id:'u1'};supabaseClient={auth:{getSession:async()=>({data:{session:{access_token:'jwt-sintetico'}}})}};icsImportDraft=null`);
   let responder;ctx.fetch=()=>new Promise(r=>responder=r);
@@ -112,6 +173,29 @@ const ICS=(eventos)=>['BEGIN:VCALENDAR','VERSION:2.0',...eventos.flatMap(([t,ini
   run(`currentUser={id:'u2'}`);
   responder(new Response(ICS([['I2 [MAT1620-2]',':20991116T025900Z']])));
   chk('respuesta tardía de otra cuenta no abre ni guarda propuestas',(await tardia)===false&&run('icsImportDraft')===null);
+
+  ctx.fetch=async()=>new Response(ICS([]));
+  let estadoVisible={...stub,textContent:''};
+  const caja={set innerHTML(html){estadoVisible={...stub,textContent:''};}};
+  ctx.document.getElementById=id=>id==='s-canvas-ics-estado'?estadoVisible:id==='s-canvas-ics'?caja:stub;
+  stub.value=URL_OK;
+  await run('conectarCanvasIcs()');
+  chk('conectar un calendario vacío lo guarda y explica que no hay fechas próximas',run('urlCanvasIcsGuardada()')===URL_OK&&/no tiene fechas próximas/.test(estadoVisible.textContent));
+  await run('actualizarDesdeCanvasIcs()');
+  chk('actualizar un calendario vacío mantiene el aviso',/no tiene fechas próximas/.test(estadoVisible.textContent));
+
+  console.log('\n=== En el iPhone: la FEN con calendario, la UC con su token ===');
+  let pidioA=null;ctx.fetch=async u=>{pidioA=u;return new Response(ICS([]));};
+  await run('actualizarDesdeCanvasIcs()');
+  chk('en la web pide a /canvas-calendario, el mismo origen',pidioA==='/canvas-calendario');
+  // La app de la App Store: capacitor://localhost y el plugin de Canvas UC.
+  ctx.location.protocol='capacitor:';run(`__pc=pluginCanvas;pluginCanvas=()=>({});S.tenant='fen'`);
+  chk('una cuenta FEN en el iPhone ve el calendario',run('canvasIcsDisponible()')===true);
+  pidioA=null;await run('actualizarDesdeCanvasIcs()');
+  chk('y lo pide a gradehub.cl',pidioA==='https://gradehub.cl/canvas-calendario');
+  run(`S.tenant='uc'`);
+  chk('una cuenta UC en el iPhone sigue con su token, sin calendario',run('canvasIcsDisponible()')===false&&run('canvasDisponible()')===true);
+  delete ctx.location.protocol;run(`pluginCanvas=__pc`);
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
   process.exit(fail?1:0);
 })().catch(e=>{console.error(e);process.exit(1);});

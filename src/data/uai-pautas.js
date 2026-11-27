@@ -23,7 +23,7 @@ const PRESETS_UAI={
       'Se exige al menos 80% de asistencia. La eximición requiere estar en el 20% superior del curso, presentación de al menos 5,5 y todas las evaluaciones rendidas; la app no conoce el ranking',
     ],
   },
-  // Fuente: 142134 (1).pdf, MAT124, pp. 1, 3–4. NPE=.1T+.2C+.7P;
+  // Fuente: 142134 (1).pdf (sec. 2) y 142140.pdf (sec. 1, mismas reglas), MAT124, pp. 1, 3–4. NPE=.1T+.2C+.7P;
   // sin eximición NF=.7NPE+.3EX. No se activa un recuperativo genérico: éste
   // requiere haber rendido el primer examen en la fecha indicada.
   'Matemáticas Avanzadas I':{
@@ -54,7 +54,7 @@ const PRESETS_UAI={
       'Si apruebas el segundo examen, la final queda en 4,0; si lo repruebas, conservas la final anterior. La app solo avisa cuándo podrías rendirlo',
     ],
     reglasDelCurso:[
-      'Programa MAT124 UAI 2026-2, sección 2, Santiago. Esta pauta calcula el camino con examen',
+      'Programa MAT124 UAI 2026-2, secciones 1 y 2, Santiago. Esta pauta calcula el camino con examen',
       'Si rendiste todas las pruebas y controles en sus fechas originales y obtienes al menos 4,0 en el examen, puedes reemplazar una prueba por el examen; no se otorga este beneficio con sanción de Honor',
     ],
   },
@@ -274,6 +274,61 @@ const PRESETS_UAI={
     reglasDelCurso:[
       'En Evaluaciones de lectura ingresa el promedio consolidado de tu sección: el programa dice 10 en la ponderación y 11 en el texto, así que no precargamos casillas',
       'El curso exige 80% de asistencia: bajo eso repruebas, con 3,9 si tu promedio era 4,0 o más, o con tu promedio si era 3,9 o menos. La app no registra asistencia',
+    ],
+  },
+  // Fuente: PRELIMINAR Programa Intro Economía - 2Sem - 2026 - Seccion 01 y 02
+  // MGomez.pdf, pp. 5–8. 20/25/25/30 y 3,95 para aprobar, sin mínimo de examen.
+  // Los controles no se precargan: el mismo programa dice 4 y 6. Es otro curso
+  // que la Introducción a la Economía de FEN aunque se llamen igual.
+  'Introducción a la Economía':{
+    periodo:'2026-2',
+    reemplazosOptativos:[{tipo:'reemplazo',fuente:'Examen',destinos:['Prueba 1','Prueba 2'],
+      rendidas:['Prueba 1','Prueba 2'],minFuente:4.8}],
+    // "En caso de inasistencia justificada a una o más pruebas, la ponderación
+    // se transferirá al examen": sin tope de cantidad.
+    ausenciasJustificadas:{traspasos:[
+      {desde:'Prueba 1',hacia:'Examen'},
+      {desde:'Prueba 2',hacia:'Examen'},
+    ]},
+    evals:[
+      ['Controles',20],
+      ['Prueba 1',25],
+      ['Prueba 2',25],
+      ['Examen',30],
+    ],
+    noCalcula:[
+      'Un control justificado se reemplaza por la nota del examen, pero el bloque está consolidado y el programa no fija cuántos controles son',
+    ],
+    reglasDelCurso:[
+      'Programa preliminar de Introducción a la Economía UAI 2026-2, secciones 01 y 02, Santiago (prof. Marcos Gómez). Revisa que corresponda a tu sección',
+      'En Controles ingresa el promedio consolidado: el programa habla de 4 y de 6 controles de lectura, así que no precargamos casillas',
+      'Si sacas 4,8 o más en el examen y rendiste ambas pruebas, el examen reemplaza tu peor prueba cuando eso sube la final',
+      'Se aprueba con promedio ponderado de al menos 3,95. El examen es obligatorio y no tiene nota mínima',
+    ],
+  },
+  // Fuente: Programa Lectura crítica FIL 22026 - El príncipe.docx, sección de
+  // Benjamín Álvarez. El documento no trae el número del ramo; se asigna a
+  // Lectura Crítica II porque es la de 2° semestre de la malla (mallas-uai.js).
+  // NPE = 40 comentarios + 30 controles + 15 participación + 15 actividades;
+  // final = .7 NPE + .3 Examen → 28 / 21 / 10,5 / 10,5 / 30.
+  'Lectura Crítica II':{
+    periodo:'2026-2',
+    evals:[
+      ['Comentarios críticos',28,{slots:2,slotLabel:'Comentario crítico'}],
+      ['Controles de lectura',21,{slots:3,slotLabel:'Control'}],
+      ['Participación en clases',10.5],
+      ['Actividades en clase',10.5,{lista:true}],
+      ['Examen',30],
+    ],
+    noCalcula:[
+      'Te eximes del examen si tu nota de presentación te deja en el 20% superior del curso, es al menos 5,5 y no tienes evaluaciones pendientes: la app no conoce las notas del resto del curso',
+      'Si hubo 6 o más actividades y asististe a todas, se borran tus dos peores notas de actividades; la app no sabe si se cumple, así que no las descarta sola',
+    ],
+    reglasDelCurso:[
+      'Programa UAI 2026-2 de Lectura Crítica sobre El príncipe de Maquiavelo (prof. Benjamín Álvarez). Revisa que corresponda a tu sección',
+      'Se rinden al menos 4 actividades en clase. Un control o comentario justificado se rinde al final del semestre en fecha acordada',
+      'El examen es un comentario crítico extenso y no tiene nota mínima',
+      'El curso exige 75% de asistencia: bajo eso repruebas, con 3,9 si tu promedio era 4,0 o más, o con tu promedio si era 3,9 o menos. La app no registra asistencia',
     ],
   },
 };

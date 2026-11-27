@@ -113,7 +113,7 @@ function metodos(s1, s2, s3, ex) {
   return {
     id: 'mm', nombre: 'Métodos Matemáticos II',
     categorias: [
-      { id: 'sol', nombre: 'Solemnes', peso: 60, slots: 3, notas: [s1, s2, s3].map((v, i) => ({ id: 's' + i, valor: v, peso: 1 })) },
+      { id: 'sol', nombre: 'Solemnes', peso: 60, slots: 3, notas: [s1, s2, s3].map((v, i) => ({ id: 's' + i, valor: v, peso: 1, slot:i })) },
       { id: 'ex', nombre: 'Examen Final', peso: 40, notas: [{ id: 'e', valor: ex, peso: 1 }] },
     ],
     gates: [{ type: 'min_grade_required', catId: 'ex', min: 3.0, cap: 3.9, nombre: 'Examen Final' }],
@@ -131,12 +131,12 @@ const lecturaRamo={id:'lectura',categorias:[
   {id:'ya',peso:50,notas:[{id:'n',valor:3.0,peso:1}]},
   {id:'falta',peso:50,notas:[]}
 ],gates:[]};
-if(ctx.lecturaDespuesDeNota(lecturaRamo).includes('necesitas 4.9')){ok++;console.log('  OK   explica la nota necesaria en lo pendiente');}
+if(ctx.lecturaDespuesDeNota(lecturaRamo).includes('necesitas 4,9')){ok++;console.log('  OK   explica la nota necesaria en lo pendiente');}
 else {fail++;console.log('  FAIL lectura post-nota → '+ctx.lecturaDespuesDeNota(lecturaRamo));}
 const lecturaConTope={id:'tope',categorias:[
   {id:'ex',nombre:'Examen',peso:100,notas:[{id:'n',valor:2.5,peso:1}]}
 ],gates:[{type:'min_grade_required',catId:'ex',min:3.0,cap:3.9,nombre:'Examen'}]};
-if(ctx.lecturaDespuesDeNota(lecturaConTope).includes('nota topada en 3.9')){ok++;console.log('  OK   explica una compuerta activa');}
+if(ctx.lecturaDespuesDeNota(lecturaConTope).includes('nota topada en 3,9')){ok++;console.log('  OK   explica una compuerta activa');}
 else {fail++;console.log('  FAIL lectura con tope → '+ctx.lecturaDespuesDeNota(lecturaConTope));}
 
 console.log('\n=== Estadísticas · avance y tendencia ===');
@@ -192,10 +192,10 @@ eq('historial archivado vacío', ctx.ultimoHistorialConGpa([]), null);
 
 console.log('\n=== Onboarding · carga flexible ===');
 eq('el último paso llena la barra', ctx.obProgressPct(5), 100);
-const obDatos={nombre:'Antonia',edad:20,tenant:'fen',carrera:'ING',semestre:2};
-if(ctx.obStepValid(1,obDatos)&&ctx.obStepValid(2,obDatos)&&ctx.obStepValid(3,obDatos)&&ctx.obStepValid(4,obDatos)&&ctx.obStepValid(5,obDatos)){ok++;console.log('  OK   cada paso valida su propio dato');}
+const obDatos={generacion:2025,nombre:'Antonia',edad:20,tenant:'fen',carrera:'ING',semestre:2};
+if(ctx.obStepValid(1,obDatos)&&ctx.obStepValid(2,obDatos)&&ctx.obStepValid(3,obDatos)&&ctx.obStepValid(5,obDatos)){ok++;console.log('  OK   cada paso valida su propio dato');}
 else {fail++;console.log('  FAIL validación de pasos del onboarding');}
-if(!ctx.obStepValid(1,{tenant:'fen'})&&!ctx.obStepValid(2,{nombre:'Antonia'})&&!ctx.obStepValid(3,{tenant:'fen'})&&!ctx.obStepValid(4,{carrera:'ING'})&&ctx.obStepValid(5,{})){ok++;console.log('  OK   ramos sugeridos no son obligatorios');}
+if(!ctx.obStepValid(1,{tenant:'fen'})&&!ctx.obStepValid(2,{nombre:'Antonia'})&&!ctx.obStepValid(3,{tenant:'fen'})&&!ctx.obStepValid(1,{nombre:'Antonia',semInvalido:true})&&ctx.obStepValid(5,{})){ok++;console.log('  OK   ramos sugeridos no son obligatorios');}
 else {fail++;console.log('  FAIL cada paso debería ser independiente');}
 
 console.log('\n=== Onboarding · ramos agregados siguen visibles ===');
@@ -288,7 +288,7 @@ try{ctx.openPautaManualModal();
   // El título dejó de ser "Configurar pauta": era jerga y el estudiante no viene
   // a configurar nada, viene a escribir sus evaluaciones. Un ramo sin
   // evaluaciones llega desde "Armar mi pauta" y el título dice eso.
-  if(pautaNodes.modal.classList.open&&pautaNodes['modal-content'].innerHTML.includes('Armar mi pauta')){ok++;console.log('  OK   ramo FEN sin preset abre el editor de evaluaciones');}
+  if(pautaNodes.modal.classList.open&&pautaNodes['modal-content'].innerHTML.includes('Armar mis ponderaciones')){ok++;console.log('  OK   ramo FEN sin preset abre el editor de evaluaciones');}
   else {fail++;console.log('  FAIL el editor no abrió para ramo sin preset');}
 }catch(e){fail++;console.log('  FAIL ramo sin preset lanzó → '+e.message);}
 ctx.document.getElementById=getBeforePauta;ctx.document.querySelector=queryBeforePauta;

@@ -20,6 +20,16 @@
 // RECOMENDACIONES_CLASES_ACTIVAS es el interruptor. Apagarlo esconde el banner
 // sin tocar el catálogo, que es la puerta abierta a todos.
 const RECOMENDACIONES_CLASES_ACTIVAS=true;
+// «Usar mis notas para elegir anuncios» (Ajustes, Lucas 2026-11-17): prendido
+// salvo que la persona lo apague. Apagado no hay recomendación en Inicio, que
+// es lo único que compara notas y avance; Apoyo y el catálogo siguen abiertos.
+// Campo opcional de la cuenta: sin él (cuentas existentes) cuenta como prendido.
+function anunciosConNotasActivos(){return !(S&&S.anunciosConNotas===false);}
+function cambiarAnunciosConNotas(activo){
+  S.anunciosConNotas=activo===true;
+  save();
+  track(activo?'anuncios_con_notas_prendido':'anuncios_con_notas_apagado');
+}
 const CLAVE_MARKETPLACE='gradehub_marketplace_v1';
 let estadoMarketplaceMemoria={},marketplaceSoloMemoria=false;
 
@@ -260,21 +270,31 @@ function cargarAnunciosRecomendacion(tenant,alTerminar){
 
 const RECOMENDACIONES_VISTAS=new Set();
 const EVENTOS_RECOMENDACION=new Map();
+const RECOMENDACIONES_MIDIENDO=new Set();
+let visitaInicioAnuncios=0,pantallaAnunciosActual='home';
+function cambiarPantallaMedicionAnuncios(pantalla){
+  if(pantalla!==pantallaAnunciosActual){
+    visitaInicioAnuncios++;
+    pantallaAnunciosActual=pantalla;
+  }
+}
 function observarRecomendacionClase(banner,anuncio,sigla){
-  const clave=claveMedicionClase(anuncio.id)+':'+VISITA_CLASES,doc=typeof document==='undefined'?null:document;
+  const clave=claveMedicionClase(anuncio.id)+':'+VISITA_CLASES+':'+visitaInicioAnuncios,doc=typeof document==='undefined'?null:document;
   if(typeof IntersectionObserver!=='function'||RECOMENDACIONES_VISTAS.has(clave))return;
   if(!EVENTOS_RECOMENDACION.has(clave))EVENTOS_RECOMENDACION.set(clave,nuevoEventoMetricaClase());
   let timer=null,visible=false,registrando=false;
   const registrar=async()=>{
     timer=null;
-    if(doc&&doc.visibilityState==='hidden'||!banner.isConnected||!visible||registrando||RECOMENDACIONES_VISTAS.has(clave))return;
-    registrando=true;
+    // Un observador viejo no pertenece al regreso ni a otra cuenta.
+    if(clave!==claveMedicionClase(anuncio.id)+':'+VISITA_CLASES+':'+visitaInicioAnuncios)return;
+    if(doc&&doc.visibilityState==='hidden'||!banner.isConnected||!visible||registrando||RECOMENDACIONES_VISTAS.has(clave)||RECOMENDACIONES_MIDIENDO.has(clave))return;
+    registrando=true;RECOMENDACIONES_MIDIENDO.add(clave);
     const usuario=currentUser&&currentUser.id;
     const alcance=await registrarAlcanceAnuncio(anuncio.id,'recomendacion');
-    if(!currentUser||currentUser.id!==usuario){registrando=false;return;}
-    const metrica=alcance===null?null:await registrarMetricaAnuncio(anuncio.id,'impresion',sigla,
-      {eventoId:EVENTOS_RECOMENDACION.get(clave),publicacion:anuncio.publicado_at});
-    registrando=false;
+    if(!currentUser||currentUser.id!==usuario){registrando=false;RECOMENDACIONES_MIDIENDO.delete(clave);return;}
+    const metrica=await registrarMetricaAnuncio(anuncio.id,'impresion',sigla,
+      {eventoId:EVENTOS_RECOMENDACION.get(clave),publicacion:anuncio.publicado_at,cobroConfirmado:alcance!==null});
+    registrando=false;RECOMENDACIONES_MIDIENDO.delete(clave);
     if(alcance===null||metrica===null){
       if(banner.isConnected&&visible)timer=setTimeout(registrar,5000);
     }else{RECOMENDACIONES_VISTAS.add(clave);obs.disconnect();if(doc&&doc.removeEventListener)doc.removeEventListener('visibilitychange',alCambiarVisibilidad);}
@@ -314,18 +334,18 @@ function lineaDatosClase(a){
 }
 // El mismo contenido para el banner de Inicio y para la vista previa que ve el
 // profesor al armar su clase: lo que ve uno es exactamente lo que verá el otro.
-function contenidoRecomendacionClase(anuncio,{logoUrl='',vistaPrevia=false}={}){
+function contenidoRecomendacionClase(anuncio,{logoUrl='',vistaPrevia=false,enPanelProfesor=false}={}){
   const a=anuncio||{},linea=lineaDatosClase(a);
-  return `<button type="button" class="clase-apoyo-abrir"${vistaPrevia?' tabindex="-1" aria-hidden="true"':''}>
+  return `<button type="button" class="clase-apoyo-abrir"${vistaPrevia&&!enPanelProfesor?' tabindex="-1" aria-hidden="true"':''}>
       <span class="clase-apoyo-texto">
         <span class="ca-cabeza"><small>Publicidad · ${etiquetaTipoClase(a)}</small><strong>${esc(a.titulo||(esMaterialClase(a)?'Tu material':'Tu clase'))}</strong></span>
-        <span class="ca-pie">${linea||(vistaPrevia&&!esMaterialClase(a))?`<span class="clase-apoyo-datos">${esc(linea||'Formato · Lugar')}</span>`:''}<span class="clase-apoyo-ver">${esMaterialClase(a)?'Ver material':'Ver clase'} ›</span></span>
+        <span class="ca-pie">${linea||(vistaPrevia&&!enPanelProfesor&&!esMaterialClase(a))?`<span class="clase-apoyo-datos">${esc(linea||'Formato · Lugar')}</span>`:''}<span class="clase-apoyo-ver">${esMaterialClase(a)?'Ver material':'Ver clase'} ›</span></span>
       </span>
     </button>
     <span class="clase-apoyo-logo" aria-hidden="true"${logoUrl?'':' hidden'}>${logoUrl?imgLogoClase(logoUrl):''}</span>
-    <button type="button" class="clase-apoyo-cerrar" aria-label="Ocultar este anuncio por hoy"${vistaPrevia?' tabindex="-1"':''}>
+    ${enPanelProfesor?'':`<button type="button" class="clase-apoyo-cerrar" aria-label="Ocultar este anuncio por hoy"${vistaPrevia?' tabindex="-1"':''}>
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
-    </button>`;
+    </button>`}`;
 }
 
 let timerRecomendacionClase=null;
@@ -355,6 +375,7 @@ function pintarRecomendacionClase(contenedor){
   contenedor.querySelectorAll('.clase-apoyo').forEach(b=>b.remove());
   contenedor.querySelectorAll('.tiene-clase-apoyo').forEach(f=>{f.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');f.style.removeProperty('--info-mitad');});
   limpiarPosicionesRecomendaciones(contenedor);
+  if(!anunciosConNotasActivos())return;
   const uid=currentUser.id,cierre=cierreAnunciosCuenta(uid);
   if(!cierre.leido){
     sincronizarCierreAnuncios().then(()=>{if(currentUser?.id===uid&&contenedor.isConnected)pintarRecomendacionClase(contenedor);});

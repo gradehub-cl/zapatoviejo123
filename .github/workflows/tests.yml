@@ -1,9 +1,16 @@
 name: tests
 
+# Solo en PRs. En main los tests ya corren dentro del deploy (deploy.yml →
+# «Tests»), que es lo que protege producción; correrlos también acá gastaba
+# unos 240 minutos de Actions al mes sin proteger nada más (2026-11-10). El
+# sellado del CACHE_NAME también lo revisa `npm test` (tests/sintaxis.test.js).
 on:
-  push:
-    branches: [main]
   pull_request:
+
+# Un commit nuevo en la misma PR deja obsoleta la corrida anterior: se cancela.
+concurrency:
+  group: tests-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 # Repo público: cualquiera puede abrir un PR. El token solo necesita leer.
 permissions:
@@ -17,27 +24,31 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+          cache: npm
 
       - run: npm ci
 
       - run: npm test
 
       # Ya no compara contra la base —el número lo pone el deploy, no el PR—,
-      # solo revisa que las dos mitades del sellado sigan puestas. Corre siempre,
-      # también en push a main: el mecanismo se puede romper sin pasar por un PR.
+      # solo revisa que las dos mitades del sellado sigan puestas. En main lo
+      # cubre `npm test` dentro del deploy.
       - name: Sellado del CACHE_NAME
         run: bash bin/check-cache-name.sh
 
   # Avisa que el token de Cloudflare sirve ANTES de mergear, en vez de
   # descubrirlo cuando el deploy ya falló. No publica nada: solo lista proyectos.
+  # Corre al abrir o reabrir la PR, no en cada commit: un commit no cambia si el
+  # token sirve, y cada corrida se cobra como un minuto entero.
   credenciales:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.action != 'synchronize'
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+          cache: npm
       - run: npm ci
       - name: El token puede ver Cloudflare Pages
         run: npx --no-install wrangler pages project list

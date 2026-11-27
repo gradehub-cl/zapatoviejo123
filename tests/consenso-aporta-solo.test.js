@@ -25,7 +25,7 @@ const val = c => vm.runInContext(c, ctx);
 ctx.enviados = enviados;
 val(`currentUser={id:'u1'};
 supabaseClient={rpc:(nombre,args)=>{enviados.push({nombre,args});return Promise.resolve({error:null});}};
-S.tenant='uc';S.carrera='Ingeniería';`);
+S.tenant='uc';S.carrera='Ingeniería';S.aportarPautasAutomaticamente=true;`);
 
 const ramo = (extra) => Object.assign({
   id: 'r1', nombre: 'Ramo Sintético', color: '#000', gates: [],
@@ -36,7 +36,7 @@ const ramo = (extra) => Object.assign({
   ],
 }, extra || {});
 
-console.log('=== Se aporta sin preguntar ===');
+console.log('=== Se aporta con consentimiento previo ===');
 val('S.ramos=' + JSON.stringify([ramo()]));
 let n = null;
 (async () => { n = await val('aportarPautasAlCatalogo')(); })();
@@ -81,16 +81,37 @@ setTimeout(() => {
           setTimeout(() => {
             chk('sin sesión no se manda nada', enviados.length === 0);
 
+            console.log('\n=== Una lista abierta no vota ===');
+            val("currentUser={id:'u1'}");
+            const propia = val('pautaPropiaParaConsenso');
+            const conLista = ramo({ categorias: [
+              { id: 'c1', nombre: 'Controles', peso: 40, directNota: false, notas: [{ id: 'n1', nombre: 'Control 1', valor: 5.5, peso: 1 }] },
+              { id: 'c2', nombre: 'Examen', peso: 60, directNota: true, notas: [] },
+            ] });
+            chk('una lista sin cantidad no se aporta', propia(conLista) === false);
+            chk('todas listas, tampoco', propia(ramo({ categorias: [
+              { id: 'c1', nombre: 'Trabajo Final', peso: 40, directNota: false, notas: [] },
+              { id: 'c2', nombre: 'Examen', peso: 60, directNota: false, notas: [] },
+            ] })) === false);
+            const conCasillas = JSON.parse(JSON.stringify(conLista));
+            conCasillas.categorias[0].directNota = true; conCasillas.categorias[0].slots = 3;
+            chk('con casillas fijas sí se aporta', propia(conCasillas) === true);
+            const fuera = JSON.parse(JSON.stringify(conLista));
+            fuera.categorias[0].fueraDePauta = true; fuera.categorias[0].peso = 0;
+            fuera.categorias.push({ id: 'c3', nombre: 'Prueba', peso: 40, notas: [] });
+            chk('una lista que la pauta dejó atrás no lo bloquea', propia(fuera) === true);
+
             console.log('\n=== Reportar catálogo es para corregir una pauta oficial ===');
             const render = leer('render-main.js');
             chk('solo una pauta oficial ofrece el botón de reporte',
               /if\(r\.categorias\.length&&oficial\)/.test(render));
             chk('el reporte de la oficial conserva su texto',
-              /'¿La pauta oficial no calza con tu curso\? Repórtala'/.test(render) &&
-              /'Corregiste la pauta oficial · agrega un reporte'/.test(render));
+              /'¿El programa cargado no calza con tu curso\? Repórtalo'/.test(render) &&
+              /'Corregiste las ponderaciones del programa · agrega un reporte'/.test(render));
             chk('la política dice que esto pasa y que las notas no viajan',
               /ramo agregado a mano/.test(leer('privacidad.html')) &&
-              /tus notas no salen de tu cuenta/.test(leer('privacidad.html')));
+              /Nunca se incluyen tus calificaciones/.test(leer('privacidad.html')) &&
+              /Compartir mis ponderaciones en forma anónima/.test(leer('privacidad.html')));
 
             console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
             process.exit(fail ? 1 : 0);
