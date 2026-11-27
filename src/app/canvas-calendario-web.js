@@ -1,17 +1,20 @@
-// Calendario Canvas web: URL secreta local y revisión compartida de #806.
+// Calendario de Canvas (.ics): URL secreta local y revisión compartida de #806.
 const CANVAS_ICS_KEY='gradehub_canvas_ics';
 // Cualquiera de los Canvas de CANVAS_ICS_POR_TENANT: una URL guardada no se
 // borra porque la universidad todavía no esté cargada.
 const URL_CANVAS_ICS_RE=new RegExp('^https://(?:'+Object.values(CANVAS_ICS_POR_TENANT).map(c=>c.host.replace(/\./g,'\\.')).join('|')+')/feeds/calendars/user_[A-Za-z0-9]{20,80}\\.ics$');
 function canvasIcsTenant(){return CANVAS_ICS_POR_TENANT[S.tenant]||null;}
 const CANVAS_ICS_SIN_FECHAS='Tu calendario de Canvas no tiene fechas próximas para tus ramos.';
-// Si la app trae Canvas nativo (el token en el llavero del iPhone), manda ese.
-// Sin él —Android, que carga gradehub.cl— el calendario .ics funciona igual que
-// en la web. Desde capacitor:// no hay /canvas-calendario que consultar.
-// Con el plugin pero sin conector para su universidad, sigue el calendario.
+// Si la app trae Canvas nativo para su universidad (la UC, con el token en el
+// llavero), manda ese. Si no —la web, Android o la FEN en iPhone— sigue el
+// calendario .ics.
 function canvasIcsDisponible(){
-  return !esCuentaProfesor()&&!!currentUser&&!!canvasIcsTenant()&&!canvasDisponible()
-    &&!(typeof location!=='undefined'&&location.protocol==='capacitor:');
+  return !esCuentaProfesor()&&!!currentUser&&!!canvasIcsTenant()&&!canvasDisponible();
+}
+// El iPhone vive en capacitor://localhost, sin /canvas-calendario propio: va a
+// gradehub.cl. La web y Android ya están ahí.
+function urlFuncionCanvasIcs(){
+  return typeof location!=='undefined'&&location.protocol==='capacitor:'?'https://gradehub.cl/canvas-calendario':'/canvas-calendario';
 }
 // Canvas también la ofrece como webcal://; es la misma.
 function normalizarUrlCanvasIcs(texto){
@@ -83,7 +86,7 @@ async function pedirCalendarioCanvas(url){
   const sesion=supabaseClient&&(await supabaseClient.auth.getSession()).data;
   const token=sesion&&sesion.session&&sesion.session.access_token;
   if(!token)throw new Error('Inicia sesión para traer tu calendario de Canvas.');
-  const r=await fetch('/canvas-calendario',{method:'POST',
+  const r=await fetch(urlFuncionCanvasIcs(),{method:'POST',
     headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({url})});
   const texto=await r.text();
   if(!r.ok){let m='No pudimos leer tu calendario de Canvas.';try{m=JSON.parse(texto).error||m;}catch(e){}throw new Error(m);}
