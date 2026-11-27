@@ -9,7 +9,7 @@
 // elegir universidad (sin «de Chile» en la UC para que quepa en una línea a
 // 375 pt); `name` sigue siendo la forma corta del resto de la app.
 const TENANTS={
-  fen:{name:'U. de Chile', nombreCompleto:'Universidad de Chile', colores:{fondo:'#004B93',texto:'#FFFFFF'}, short:'UChile', conArticulo:'la U. de Chile', mono:'UCH', sub:'Economía y Negocios'},
+  fen:{name:'U. de Chile', nombreCompleto:'Universidad de Chile', colores:{fondo:'#004B93',texto:'#FFFFFF'}, short:'UChile', conArticulo:'la U. de Chile', mono:'UCH', sub:'Todas las carreras'},
   // profiles guarda el código estable del tenant; name/label son solo visibles.
   uc :{name:'U. Católica', label:'U. Católica', nombreCompleto:'Pontificia Universidad Católica', colores:{fondo:'#173F8A',texto:'#FEC60D'}, short:'UC', conArticulo:'la UC', mono:'UC', sub:'Ingeniería, Comercial y más carreras'},
   // oculto:true → no se ofrece al elegir universidad, pero sigue funcionando
