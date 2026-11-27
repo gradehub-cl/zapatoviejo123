@@ -292,6 +292,12 @@ const CARRERAS_DECLARABLES={
   ],
   // La U. de Chile completa. El código del tenant sigue siendo `fen` porque
   // así está guardado en profiles y en gradehub_v1; lo visible dice UChile.
+  // UACh: por ahora solo Derecho, que es la única facultad que publica su plan
+  // ramo por ramo. Valdivia y Puerto Montt comparten el plan y los programas,
+  // así que es una sola opción. Fuentes: docs/mallas-uach.md.
+  uach:[
+    {n:'Derecho',malla:'UACH-DERECHO'},
+  ],
   // PUCV: por ahora solo Ingeniería Civil, que es la única escuela que publica
   // su plan ramo por ramo. No confundir con Civil Industrial, Civil Informática
   // y las demás ingenierías civiles de la PUCV, que son otras carreras: quien
