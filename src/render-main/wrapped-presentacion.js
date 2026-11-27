@@ -157,7 +157,8 @@ function ramosVistaPreviaWrapped(){
   const n=(id,valor,fecha)=>({id,nombre:id,valor,fecha});
   const r=(id,nombre,notas)=>({id:'vista-'+id,nombre,creditos:10,color:'#000',gates:[],categorias:[{id:'vista-'+id+'c',nombre:'Evaluaciones',peso:100,notas}]});
   return [
-    r('a','Cálculo II',[n('I1',3.2,'2026-08-20'),n('I2',3.6,'2026-09-15'),n('I3',7.0,'2026-10-20'),n('Examen',5.8,'2026-11-25')]),
+    // Con sección, para que la vista previa muestre la invitación a calificar.
+    {...r('a','Cálculo II',[n('I1',3.2,'2026-08-20'),n('I2',3.6,'2026-09-15'),n('I3',7.0,'2026-10-20'),n('Examen',5.8,'2026-11-25')]),seccion:1},
     r('b','Cálculo III',[n('P1',6.1,'2026-08-28'),n('P2',6.5,'2026-10-02'),n('P3',6.7,'2026-11-20')]),
     r('c','Inglés IV',[n('T1',6.0,'2026-09-03'),n('T2',6.2,'2026-09-17'),n('T3',7.0,'2026-10-29')]),
     r('d','Estadística',[n('C1',4.4,'2026-09-14'),n('C2',4.9,'2026-09-16'),n('C3',4.6,'2026-11-18')]),
@@ -227,7 +228,7 @@ function montarWrapped(slides,estado){
     if(e.target.closest('.hoja-goma,.hoja-video,.hoja-pregunta'))return;
     if(e.target.closest('.wrapped-descargar'))return descargarWrapped();
     const accion=e.target.closest('[data-ramo]');
-    if(accion){const id=accion.dataset.ramo;cerrarWrapped(true);if(S.ramos.some(r=>r.id===id))openRamo(id);return;}
+    if(accion)return calificarEnWrapped(accion);
     if(e.target.closest('.wrapped-promedio,input,label'))return;
     const b=e.target.closest('[data-paso]');
     if(!b&&mantuvo)return;
@@ -538,8 +539,84 @@ function pasarWrapped(paso){
   // del DOM. El teclado sigue en el control persistente de ese paso.
   if(focoEnHistoria&&_wrapped===estado)estado.ov.querySelector(`[data-paso="${paso>0?1:-1}"]`).focus({preventScroll:true});
 }
+// Calificar al profe sin salir del Wrapped (Martín, 2026-11-27): la hoja de
+// calificar de siempre sube encima de la historia y, al cerrarla, la historia
+// sigue donde estaba. Mientras está abierta, el teclado y el foco son de ella.
+const CAPAS_SOBRE_WRAPPED=['modal','confirm-overlay','toast'];
+function avisoAccionWrapped(texto){
+  const caja=_wrapped&&_wrapped.ov.querySelector('.wrapped-slide');if(!caja)return;
+  let p=caja.querySelector('.wrapped-sub');
+  if(!p){p=document.createElement('p');p.className='wrapped-sub';caja.querySelector('.wrapped-accion')?.before(p);}
+  if(p.textContent===texto)return;
+  p.setAttribute('role','status');p.textContent=texto;
+}
+async function calificarEnWrapped(boton){
+  if(!_wrapped||_wrapped.calificando)return;
+  const estado=_wrapped,i=estado.i,s=estado.slides[i],r=(S.ramos||[]).find(x=>x.id===boton.dataset.ramo);
+  if(estado.vistaPrevia||!r)return avisoAccionWrapped('En la vista previa no se califica.');
+  const sigue=()=>_wrapped===estado&&estado.i===i&&boton.isConnected;
+  if(s.sub)avisoAccionWrapped(s.sub);
+  estado.calificando=true;clearTimeout(estado.timer);
+  boton.disabled=true;boton.setAttribute('aria-busy','true');
+  let d=null,error=null;
+  try{d=await consultarDocenteRamo(r);}catch(e){error=e;}
+  boton.disabled=false;boton.removeAttribute('aria-busy');
+  if(!sigue()){estado.calificando=false;return;}
+  if(!d||d.calif.puede_calificar!==true){
+    estado.calificando=false;
+    return avisoAccionWrapped(error?errorDocente(error):'Por ahora no puedes calificar al profe de esta sección.');
+  }
+  // Las capas viven dentro de `.app`, que el Wrapped dejó inerte. Mientras
+  // haya una hoja abierta se despierta el camino hasta ellas y se adormece el
+  // resto de `.app`, para que el foco no se escape a la pantalla de abajo.
+  // Guardar puede cerrar la hoja y abrir otra («¿Y el ramo?»): cada vez que
+  // se abre una, se vuelve a despertar.
+  if(estado.alCerrar)estado.alCerrar(); // Una sola vigilancia aunque se toque dos veces.
+  const capas=CAPAS_SOBRE_WRAPPED.map(id=>document.getElementById(id)).filter(Boolean);
+  const camino=new Set();
+  capas.forEach(c=>{for(let e=c;e&&e!==document.body;e=e.parentElement)camino.add(e);});
+  let raices=null,dentro=null;
+  const despertar=()=>{
+    if(dentro)return;
+    raices=[];dentro=[];
+    camino.forEach(e=>{
+      if(e.parentElement===document.body){raices.push([e,e.inert]);e.inert=false;}
+      else [...e.parentElement.children].forEach(h=>{if(!camino.has(h)&&!dentro.some(([x])=>x===h)){dentro.push([h,h.inert]);h.inert=true;}});
+    });
+    document.documentElement.classList.add('wrapped-encima');
+    estado.calificando=true;
+  };
+  const dormir=()=>{
+    if(!dentro)return;
+    dentro.reverse().forEach(([el,v])=>{el.inert=v;});
+    // Si el Wrapped se cerró, `cerrarWrapped` ya devolvió el fondo.
+    if(_wrapped===estado)raices.forEach(([el,v])=>{el.inert=v;});
+    raices=dentro=null;
+    document.documentElement.classList.remove('wrapped-encima');
+    estado.calificando=false;
+  };
+  const abierta=()=>capas.some(el=>el.classList.contains('open'));
+  const obs=new MutationObserver(async()=>{
+    if(abierta()){if(_wrapped===estado)despertar();return;}
+    if(!dentro)return;
+    dormir();
+    if(_wrapped!==estado)return obs.disconnect();
+    if(boton.isConnected)boton.focus({preventScroll:true});
+    // Si quedó calificado, la historia lo dice y el botón pasa a editar.
+    try{
+      const ya=await consultarDocenteRamo(r);
+      if(!ya||!(Number(ya.calif.mi_estrellas)>0)||_wrapped!==estado)return;
+      s.sub='¡Gracias! Tu calificación quedó guardada.';s.accion.texto='Editar calificación';
+      if(sigue()){avisoAccionWrapped(s.sub);boton.textContent=s.accion.texto;}
+    }catch(e){}
+  });
+  capas.forEach(el=>obs.observe(el,{attributes:true,attributeFilter:['class']}));
+  estado.alCerrar=()=>{if(!abierta()){dormir();obs.disconnect();}};
+  despertar();
+  abrirCalificarProfesor(r,d.contexto,d);
+}
 function teclaWrapped(e){
-  if(!_wrapped)return;
+  if(!_wrapped||_wrapped.calificando)return;
   if(e.key==='Tab'){
     const indiceAbierto=_wrapped.ov.querySelector('.wrapped-indice');
     const dentro=indiceAbierto.hidden?_wrapped.ov:indiceAbierto;
@@ -563,6 +640,7 @@ function cerrarWrapped(yaSalio){
   if(!_wrapped||_wrapped.saliendo)return;
   _wrapped.saliendo=true;clearTimeout(_wrapped.timer);
   document.removeEventListener('keydown',teclaWrapped);
+  if(_wrapped.alCerrar)_wrapped.alCerrar();
   const {ov,foco,fondo}=_wrapped;
   const fin=()=>{ov.remove();fondo.forEach(({el,inert})=>{el.inert=inert;});_wrapped=null;if(foco&&foco.isConnected&&foco.focus)foco.focus();};
   if(yaSalio===true||movimientoReducido())return fin();
