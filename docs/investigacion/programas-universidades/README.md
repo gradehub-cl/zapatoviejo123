@@ -191,9 +191,11 @@ Lo que hay que saber antes de usar esto:
   carreras (ICCI, ICI e ITI) por semestre, sus mallas, el calendario de
   evaluaciones del semestre y el reglamento de docencia. Detalle en
   [`ucn/`](ucn/README.md).
-- **UACh, Derecho** — programas por semestre y año bajo
-  `www.derecho.uach.cl/images/<año>/Programas/<SEMESTRE>/`, con versiones de 2019
-  a 2025 según el buscador.
+- **UACh, Derecho** — la página
+  [Programas y Malla](https://derecho.uach.cl/programas-y-mallas/) enlaza el
+  programa de cada ramo por semestre. **Ya se leyó:** 47 ramos obligatorios con
+  programa vigente (2025 y 2026) y todos con sus pesos. Es la mejor fuente para
+  pautas hasta ahora. Detalle en [`uach/`](uach/README.md).
 - **USACH, FAE** — carpetas por carrera: `/cice/programas/` (Ingeniería
   Comercial), `/cca/programas-2024/` (Contador Auditor) y `/cap/programas_2014/`
   (Administración Pública).
@@ -288,8 +290,9 @@ Santo Tomás (`www.ust.cl/web/wp-content/uploads/sites/6/`) y Silva Henríquez
 3. **UCSC:** confirmar que el catálogo por sigla responde y si tiene índice.
 4. **UCN Coquimbo ya está leída** ([detalle](ucn/README.md)): es la primera con la
    que se podrían armar carreras completas. PUCV Ingeniería Civil también
-   ([detalle](pucv/README.md)): plan completo, pocas pautas. Quedan con carpeta
-   ordenada UACh Derecho y USACH FAE.
+   ([detalle](pucv/README.md)): plan completo, pocas pautas. UACh Derecho también
+   ([detalle](uach/README.md)): 47 ramos vigentes con pesos, la mejor para
+   pautas. Queda con carpeta ordenada USACH FAE.
 5. **Reglamentos:** leer el artículo de aproximación y de aprobación de cada
    universidad antes de tocar `GH_REGLAS_NOTA_POR_TENANT`. Parte por la USS.
 6. **Para el resto**, la vía es la que ya usa la UAI: que cada estudiante le pase
@@ -305,5 +308,6 @@ Santo Tomás (`www.ust.cl/web/wp-content/uploads/sites/6/`) y Silva Henríquez
 - [`udla/`](udla/README.md): lo que se alcanzó a leer del catálogo de la UDLA.
 - [`ucn/`](ucn/README.md): los 154 programas de Ingeniería UCN en Coquimbo.
 - [`pucv/`](pucv/README.md): el plan y los 41 programas de Ingeniería Civil PUCV.
+- [`uach/`](uach/README.md): los programas de Derecho UACh, con sus evaluaciones.
 - [`herramientas/`](herramientas/): el lector, el verificador, el extractor de
   texto y las herramientas de la UDLA. No se bajó ni se guardó en el repo ningún PDF de terceros.
