@@ -230,8 +230,24 @@ console.log('\n=== Todos pueden decir qué estudian ===');
 // hay cuarenta esperando esa malla, que es el dato que decide cuál construir.
 const DECL = run('CARRERAS_DECLARABLES');
 const declarables = run('carrerasDeclarables');
-chk('la oferta de pregrado completa de las dos universidades visibles',
-  DECL.uc.length > 40 && DECL.fen.length === 3);
+chk('la oferta de pregrado completa de la UC y de la U. de Chile',
+  DECL.uc.length > 40 && DECL.fen.length === 76);
+// La U. de Chile completa entra sin tocar a la FEN: las tres carreras que ya
+// eligieron cientos de cuentas conservan su nombre exacto y su malla.
+chk('las tres de la FEN siguen iguales',
+  DECL.fen.find(c => c.n === 'Ingeniería Comercial').malla === 'IC' &&
+  DECL.fen.find(c => c.n === 'Ingeniería en Información y Control de Gestión').malla === 'IICG' &&
+  !!DECL.fen.find(c => c.n === 'Contador Auditor'));
+chk('ninguna carrera de la Chile se repite',
+  new Set(DECL.fen.map(c => c.n)).size === DECL.fen.length);
+// En Beauchef se entra al Plan Común; la especialidad se elige en Ajustes,
+// igual que los majors de Ingeniería UC.
+const fcfm = DECL.fen.filter(c => (c.alias || []).includes('FCFM') || /\(FCFM\)/.test(c.n));
+chk('el Plan Común sale en el onboarding y las especialidades FCFM solo en Ajustes',
+  !DECL.fen.find(c => /^Plan Común/.test(c.n)).soloAjustes &&
+  fcfm.filter(c => !/^Plan Común/.test(c.n)).every(c => c.soloAjustes) && fcfm.length === 14);
+chk('buscar «kine» en la Chile encuentra Kinesiología',
+  run('carrerasDeclarables("fen").some(c=>coincideBusquedaCarrera(c,"kine")&&c.n==="Kinesiología")'));
 chk('las que tienen malla siguen apuntando a su código',
   DECL.uc.find(c => c.n === 'Ingeniería Civil').malla === 'ING-PC' &&
   DECL.fen.find(c => c.n === 'Ingeniería Comercial').malla === 'IC');

@@ -325,11 +325,15 @@ begin
     return;
   end if;
   return query
+    -- Una persona, una calificación: la sección la declara cada uno, así que
+    -- quien calificó al mismo docente en varias secciones cuenta una sola vez
+    -- (la más reciente) para el piso, el promedio y las etiquetas.
     with notas as materialized (
-      select k.user_id, k.estrellas, k.etiquetas, k.otros from public.profesor_calificaciones k
+      select distinct on (k.user_id) k.user_id, k.estrellas, k.etiquetas, k.otros from public.profesor_calificaciones k
       join public.profesor_aportes a on a.user_id=k.user_id and a.tenant=k.tenant
         and a.ramo_clave=k.ramo_clave and a.seccion=k.seccion and a.periodo=k.periodo
       where k.tenant=c.tenant and k.ramo_clave=c.ramo_clave and public.profesor_coinciden_en_ramo(k.tenant,k.ramo_clave,a.nombre,d)
+      order by k.user_id, k.actualizada desc
     ), conteo as (select count(*)::integer as n from notas),
     destacadas as (
       select jsonb_build_object('etiqueta',e) as j, count(*)::integer as n, e as orden
