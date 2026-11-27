@@ -99,6 +99,18 @@ function initCarreraGrid(){
   const todas=carrerasDeclarables(selectedTenant).filter(c=>!c.soloAjustes);
   const busqueda=document.getElementById('ob-carrera-busqueda');
   if(busqueda)busqueda.hidden=!todas.length;
+  // Universidad sin catálogo: no hay lista que buscar, así que el campo para
+  // escribir la carrera queda a la vista y sin triángulo. Con catálogo, «Otra
+  // carrera» es solo de la app; en la web la salida sigue siendo «Usar «…»».
+  const sola=!todas.length,otra=document.getElementById('ob-otra-carrera');
+  if(otra){
+    otra.hidden=!sola&&!enAppNativa();
+    // Al volver a una universidad con catálogo, se cierra lo que abrió la otra.
+    if(sola)otra.open=true;else if(/ sola$/.test(otra.className))otra.open=false;
+    otra.className='carrera-manual'+(sola?' sola':'');
+  }
+  const sub=document.getElementById('ob-carrera-sub');
+  if(sub)sub.textContent=sola?'Escribe el nombre de tu carrera.':'Busca tu carrera. Si no aparece, puedes escribirla.';
   const q=normName(carreraFiltro||'');
   const vistas=q?todas.filter(c=>coincideBusquedaCarrera(c,q)):todas;
   // Una carrera declarable no puede quedar escondida en un paso obligatorio.
@@ -140,7 +152,7 @@ function initCarreraGrid(){
 }
 function resetCampoOtraCarrera(){
   const otra=document.getElementById('ob-otra-carrera');
-  if(otra)otra.open=false;
+  if(otra)otra.open=/ sola$/.test(otra.className);
   const campo=document.getElementById('ob-carrera-manual');
   if(campo)campo.value='';
 }
