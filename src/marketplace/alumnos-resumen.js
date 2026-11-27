@@ -26,9 +26,14 @@ function alcanceResumenAlumnosPanel(datos,{ramo='',orden='urgencia'}={}){
     (a.proxima?.fecha||'9999').localeCompare(b.proxima?.fecha||'9999')||
     (a.proxima?.hora||'').localeCompare(b.proxima?.hora||''));
   const dias=datos.dias.map(d=>({...d,evaluaciones:d.evaluaciones.filter(e=>coincide(e.al,e.ramo))}));
-  return {casos,dias,evaluaciones:dias.flatMap(d=>d.evaluaciones),
+  // Un caso es un alumno en un ramo. Quien ya no tiene ramos compartidos no cuenta.
+  const niveles={bad:0,warn:0,good:0,neutral:0};
+  filas.forEach(f=>{if(f.ramo)niveles[f.nivel]++;});
+  return {casos,dias,niveles,evaluaciones:dias.flatMap(d=>d.evaluaciones),
     alumnos:ramo?personasResumenPanel(filas):datos.alumnos.length,atencion:personasResumenPanel(casos),ramos:datos.ramos};
 }
+// Sin nada hoy, la agenda parte en el primer día que tenga evaluaciones.
+const diaInicialResumenPanel=dias=>Math.max(0,dias.findIndex(d=>d.evaluaciones.length));
 function gruposResumenAlumnosPanel(evaluaciones){
   const grupos=new Map();
   evaluaciones.forEach(e=>{
@@ -37,6 +42,21 @@ function gruposResumenAlumnosPanel(evaluaciones){
     grupos.get(clave).push(e);
   });
   return [...grupos.values()];
+}
+// «Cómo van»: los casos repartidos en el semáforo, que acá sí dice lo suyo
+// (aprobando / al borde / reprobando). Cada tramo va con su palabra y su
+// cuenta en la leyenda: el color nunca es lo único que lo dice (HIG: Charts).
+const NIVELES_RESUMEN=[['bad','Reprobando','reprobando'],['warn','Al borde','al borde'],['good','Aprobando','aprobando'],['neutral','Sin notas','sin notas']];
+function comoVanResumenHTML(niveles){
+  const total=NIVELES_RESUMEN.reduce((s,[k])=>s+niveles[k],0);
+  if(!total)return '';
+  // El titular dice lo más urgente que haya, en el orden del semáforo.
+  const [clave,,palabra]=NIVELES_RESUMEN.find(([k])=>niveles[k]),n=niveles[clave];
+  const verbo=clave==='neutral'?(n===1?'sigue':'siguen'):(n===1?'va':'van');
+  return `<section class="ras-tarjeta ras-como" aria-labelledby="ras-como"><header class="ras-cabeza"><div><h2 id="ras-como">Cómo van</h2><small>${pluralResumenPanel(total,'ramo compartido','ramos compartidos')}</small></div></header>
+    <p class="ras-titular"><strong>${n}</strong> de ${total} ${verbo} ${palabra}</p>
+    <div class="ras-semaforo" aria-hidden="true">${NIVELES_RESUMEN.filter(([k])=>niveles[k]).map(([k])=>`<i data-nivel="${k}" style="flex-grow:${niveles[k]}"></i>`).join('')}</div>
+    <ul class="ras-leyenda">${NIVELES_RESUMEN.map(([k,nombre])=>`<li data-nivel="${k}"${niveles[k]?'':' class="ras-cero"'}><b>${niveles[k]}</b> ${nombre}</li>`).join('')}</ul></section>`;
 }
 function resumenInicioAlumnosHTML(r,{ramo='',orden='urgencia',dia=0,limite=6}={}){
   const plural=pluralResumenPanel,elegido=r.dias[dia],grupos=gruposResumenAlumnosPanel(elegido.evaluaciones);
@@ -49,11 +69,12 @@ function resumenInicioAlumnosHTML(r,{ramo='',orden='urgencia',dia=0,limite=6}={}
     const meta=f.necesita!==null&&f.necesita<=7.05?' · '+nfNecesaria(f.necesita)+' para aprobar':'';
     return `<li><button type="button" class="ras-fila" data-ver-alumno="${esc(f.al.id)}" data-alumno-ramo="${esc(f.r.id)}">
       <span><b>${esc(f.al.nombre_visible)}</b><small>${esc(f.ramo.nombre)}</small></span>
-      <span class="ras-razon"${f.motivo?` title="${esc(f.motivo)}"`:''}><b>${motivo}</b><small>${esc(fecha+meta)}</small></span><span aria-hidden="true">›</span></button></li>`;
+      <span class="ras-razon"${f.motivo?` title="${esc(f.motivo)}"`:''}><b class="ras-estado" data-nivel="${f.necesita>7.05?'bad':f.nivel}">${motivo}</b><small>${esc(fecha+meta)}</small></span><span aria-hidden="true">›</span></button></li>`;
   });
   return `<div class="ras">
     <div class="ras-filtro"><label>Ramo <select data-ras-ramo>${opcion('','Todos los ramos',ramo)}${[...r.ramos].sort((a,b)=>a[1].nombre.localeCompare(b[1].nombre,'es')).map(([k,x])=>opcion(k,x.nombre,ramo)).join('')}</select></label><time datetime="${esc(r.dias[0].fecha)}">${esc(fechaLargaPanel(r.dias[0].fecha))}</time></div>
-    <div class="ras-cifras">${metricaAdminHTML({titulo:'Alumnos conectados',valor:r.alumnos})}${metricaAdminHTML({titulo:'Necesitan atención',valor:r.atencion})}${metricaAdminHTML({titulo:'Evaluaciones en 7 días',valor:r.evaluaciones.length})}</div>
+    <div class="ras-arriba">${comoVanResumenHTML(r.niveles)}
+    <div class="ras-cifras">${metricaAdminHTML({titulo:'Alumnos conectados',valor:r.alumnos})}${metricaAdminHTML({titulo:'Necesitan atención',valor:r.atencion})}${metricaAdminHTML({titulo:'Evaluaciones en 7 días',valor:r.evaluaciones.length})}</div></div>
     <div class="ras-grid">
       <section class="ras-tarjeta" aria-labelledby="ras-atencion"><header class="ras-cabeza"><div><h2 id="ras-atencion">Necesitan atención</h2><small>${plural(r.casos.length,'caso','casos')} · ${plural(r.atencion,'alumno','alumnos')}</small></div>
       <label>Orden <select data-ras-orden>${opcion('urgencia','Por urgencia',orden)}${opcion('fecha','Próxima evaluación',orden)}</select></label></header>
@@ -62,7 +83,7 @@ function resumenInicioAlumnosHTML(r,{ramo='',orden='urgencia',dia=0,limite=6}={}
       <section class="ras-tarjeta" aria-labelledby="ras-semana"><header class="ras-cabeza"><div><h2 id="ras-semana">Esta semana</h2><small>${plural(personasResumenPanel(r.evaluaciones),'alumno','alumnos')} · ${esc(fechaCorta(r.dias[0].fecha))} al ${esc(fechaCorta(r.dias.at(-1).fecha))}</small></div></header>
       ${columnasAdminHTML({titulo:'Evaluaciones por día',puntos,elegido:dia,sinCabeza:true,porDia:true})}
       <label class="ras-selector-dia">Día <select data-ras-dia>${puntos.map((p,i)=>opcion(String(i),p.lectura,String(dia))).join('')}</select></label>
-      <div class="ras-cabeza ras-dia"><h3>${dia===0?'Hoy':esc(fechaLargaPanel(elegido.fecha))}</h3><small>${plural(elegido.evaluaciones.length,'evaluación','evaluaciones')}</small></div>
+      <div class="ras-cabeza ras-dia"><h3>${dia===0?'Hoy':dia===1?'Mañana':esc(fechaLargaPanel(elegido.fecha))}</h3><small>${plural(elegido.evaluaciones.length,'evaluación','evaluaciones')}</small></div>
       ${grupos.length?`<ul class="ras-lista">${grupos.map((g,i)=>`<li><button type="button" class="ras-fila" data-ras-grupo="${i}">
         <span><b>${esc(g[0].nombre)}</b><small>${esc(g[0].ramo.nombre)}</small></span><span>${plural(personasResumenPanel(g),'alumno','alumnos')}</span><span aria-hidden="true">›</span></button></li>`).join('')}</ul>`:'<p class="profesor-hig-vacio">Sin evaluaciones este día.</p>'}</section>
     </div>
