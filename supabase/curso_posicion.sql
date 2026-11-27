@@ -145,7 +145,13 @@ begin
     return;   -- no participa de este ramo: no hay con qué ubicarlo
   end if;
 
-  select count(*) into n from public.curso_notas
+  -- El total y cuántos quedan en su nota o bajo ella salen de una sola pasada
+  -- (2026-11-26): saber si un compañero es cuenta de profesor obliga a
+  -- descomprimir su JSON completo, y con dos consultas se abría dos veces.
+  -- `<=` incluye a quien pregunta: por eso se le resta uno.
+  select count(*), count(*) filter (where promedio <= mi) - 1
+    into n, debajo_o_igual
+    from public.curso_notas
     where tenant = v_tenant and ramo_sigla = v_sigla
       and updated_at > now() - interval '30 days'
       and not exists (select 1 from public.user_ramos ur
@@ -156,14 +162,6 @@ begin
   if n < 5 then
     return;
   end if;
-
-  -- `<=` incluye a quien pregunta: por eso se le resta uno.
-  select count(*) - 1 into debajo_o_igual from public.curso_notas
-    where tenant = v_tenant and ramo_sigla = v_sigla
-      and updated_at > now() - interval '30 days'
-      and not exists (select 1 from public.user_ramos ur
-                      where ur.user_id = curso_notas.user_id and ur.data->>'tipoCuenta' = 'profesor')
-      and promedio <= mi;
 
   total := n;
   mejor_que := round(100.0 * debajo_o_igual / nullif(n - 1, 0));

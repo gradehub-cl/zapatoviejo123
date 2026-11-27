@@ -30,7 +30,7 @@ chk('bajo cinco participantes no se devuelve nada', /if n < 5 then\s*\n\s*return
 // Un 7 entre muchos 7 salía "por sobre el 44%" (2026-09-24): los empates no
 // contaban y se leía como que la mitad le ganaba. Ahora cuentan a favor, y
 // como `<=` incluye a quien pregunta, se le resta a sí mismo.
-chk('los empates cuentan a favor', /count\(\*\) - 1 into debajo_o_igual[\s\S]*?promedio <= mi;/.test(sql));
+chk('los empates cuentan a favor', /count\(\*\) filter \(where promedio <= mi\) - 1\s+into n, debajo_o_igual/.test(sql));
 chk('ya no cuenta solo a los estrictamente menores', !/promedio < mi;/.test(sql));
 // Decir "te faltan 2 para ver la comparación" también informa sobre cuántos
 // hay, y de ahí sobre quiénes son.
