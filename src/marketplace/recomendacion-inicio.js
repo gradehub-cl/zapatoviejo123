@@ -25,6 +25,13 @@ const RECOMENDACIONES_CLASES_ACTIVAS=true;
 // es lo único que compara notas y avance; Apoyo y el catálogo siguen abiertos.
 // Campo opcional de la cuenta: sin él (cuentas existentes) cuenta como prendido.
 function anunciosConNotasActivos(){return !(S&&S.anunciosConNotas===false);}
+// VERSIÓN B, solo si Apple rechaza por la guía 2.5.18 (datos escolares para
+// elegir anuncios): en la app de iPhone Inicio no recomienda clases. Apoyo y
+// el catálogo, que la persona abre y busca, siguen iguales; la web no cambia.
+// No se recomienda «solo por ramo»: cada campaña declara su público por
+// promedio y avance, y mostrarla a todo el ramo la cobraría por vistas que el
+// profesor no eligió. Va en una versión nueva de la app, nunca por interruptor.
+function recomendacionesEnInicio(){return !(typeof enAppNativa==='function'&&enAppNativa());}
 function cambiarAnunciosConNotas(activo){
   S.anunciosConNotas=activo===true;
   save();
@@ -375,7 +382,7 @@ function pintarRecomendacionClase(contenedor){
   contenedor.querySelectorAll('.clase-apoyo').forEach(b=>b.remove());
   contenedor.querySelectorAll('.tiene-clase-apoyo').forEach(f=>{f.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');f.style.removeProperty('--info-mitad');});
   limpiarPosicionesRecomendaciones(contenedor);
-  if(!anunciosConNotasActivos())return;
+  if(!recomendacionesEnInicio()||!anunciosConNotasActivos())return;
   const uid=currentUser.id,cierre=cierreAnunciosCuenta(uid);
   if(!cierre.leido){
     sincronizarCierreAnuncios().then(()=>{if(currentUser?.id===uid&&contenedor.isConnected)pintarRecomendacionClase(contenedor);});
