@@ -2,6 +2,28 @@
 
 Archived on 2026-11-26 from the supplied investigation. The figures are from that snapshot. The capture timestamp is unspecified.
 
+## Nota del 2026-11-27: revisión contra producción
+
+Este informe se contrastó con producción el 26-11 (solo lectura). Lo de abajo se conserva como llegó, pero su conclusión cambia:
+
+- **Las lecturas de disco no son el problema.** La base pesa 80 MB y cabe entera en memoria (`shared_buffers` de 256 MB). Desde julio se han leído 8.881 bloques de disco en total, así que ordenar las consultas por bloques leídos no explica ningún consumo de I/O.
+- **Los archivos temporales no vienen de la app.** Hay 368 GB acumulados, pero el rol `authenticated` escribió 0 bytes. Lo que alcanza a verse en `pg_stat_statements` sale del rol `postgres`: consultas de análisis, el panel y el resumen semanal.
+- **Lo que sí había eran timeouts.** Cuatro funciones descomprimían el JSON completo de las cuentas en cada llamada (leer un solo campo de las 1.887 cuentas cuesta unos 160 ms) y el 26-11 se cortaron 70 veces.
+
+| Función | Media | Timeouts 26-11 | Arreglo |
+|---|---|---|---|
+| `date_consensus` | 1.520 ms | 42 | #1370: pg_cron la precalcula cada 15 minutos (1,3 ms) |
+| `estadisticas_publicas` | 314 ms | 18 | #1370: pg_cron la precalcula cada hora (0,6 ms) |
+| `catalog_consensus_periodo` | 225 ms | 10 | #1373: revisa cada cuenta una vez, no una por reporte (UC: de 102 a 43 ms) |
+| `curso_posicion` | 26 ms | 0 | #1373: una consulta en vez de dos |
+
+Queda pendiente:
+
+- **Ver el gráfico de Disk I/O del panel de Supabase.** No se revisó, así que no se sabe si hubo una alerta real de presupuesto ni a qué hora se consume.
+- **Leer `tenant`, `onboardingDone` y `tipoCuenta` sin abrir el JSON.** Hay 46 lecturas así en `supabase/`. Toca `user_ramos`, así que se acuerda antes de hacerlo.
+
+De las recomendaciones de más abajo, la 1 quedó hecha en #1370. La 2 (paginación del catálogo) y la 3 (escrituras de `user_ramos`) no se midieron como problema: el catálogo suma 68 llamadas y las escrituras de `user_ramos` son 2,8 GB de WAL en cuatro meses.
+
 ## Investigation notes
 
 > I’ll check the project’s PostgreSQL guidance, installed extensions, and schema to confirm how `pg_stat_statements` is available before querying its I/O counters.
