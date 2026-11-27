@@ -160,8 +160,12 @@ function renderHome(){
       else if(nivel==='good'){
         if(ramoCompletamenteEvaluado(r))good++;
         else goodEnCurso++;
-      }else if(nivel==='warn')warn++;
-      else bad++;
+      // Un ramo cerrado entre 4,0 y 4,9 ya aprobó, como dice su ficha («✓
+      // Aprobado»): contarlo «en riesgo» contradecía a la otra pantalla (#1376).
+      }else if(nivel==='warn'){
+        if(ramoCompletamenteEvaluado(r))good++;
+        else warn++;
+      }else bad++;
     });
     const parts=[];
     if(good)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot good"></span>${good} aprobado${good!==1?'s':''}</span>`);
