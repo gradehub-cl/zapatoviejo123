@@ -395,15 +395,24 @@ if(document.documentElement.classList.contains('app-nativa'))document.addEventLi
     <div class="ob-step" data-step="2" style="display:none;">
       <div class="ob-step-num">Paso 2 de 4</div>
       <h1 class="ob-title ob-title-left" tabindex="-1" id="ob-titulo-universidad">¿Cuál es tu universidad?</h1>
-      <div class="ob-sub ob-sub-left">Así te mostramos los ramos de tu universidad.</div>
+      <div class="ob-sub ob-sub-left">Elige dónde estudias. Podrás agregar tus ramos a mano.</div>
+      <div class="modal-input ob-buscar-universidad" hidden>
+        <input type="search" id="ob-tenant-buscar" aria-label="Buscar universidad" placeholder="Nombre o sigla de tu universidad" maxlength="100" autocomplete="off" oninput="renderTenantPick()"/>
+      </div>
+      <p class="settings-help ob-resultados-universidad" id="ob-tenant-estado" role="status"></p>
       <div id="tenant-grid" class="ob-options"></div>
     </div>
 
     <div class="ob-step" data-step="3" style="display:none;">
       <div class="ob-step-num">Paso 3 de 4</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿Qué estudias?</h1>
-      <div class="ob-sub ob-sub-left">Busca tu carrera. Si no aparece, puedes escribirla.</div>
-      <div class="modal-input" style="margin-bottom:10px;"><input type="text" id="ob-carrera-buscar" aria-label="Buscar carrera" placeholder="Busca tu carrera" autocomplete="off" oninput="filtrarCarreras(this.value)"/></div>
+      <div class="ob-sub ob-sub-left" id="ob-carrera-sub">Busca tu carrera. Si no aparece, puedes escribirla.</div>
+      <div class="modal-input" id="ob-carrera-busqueda" style="margin-bottom:10px;"><input type="search" id="ob-carrera-buscar" aria-label="Buscar carrera" placeholder="Busca tu carrera" maxlength="80" autocomplete="off" oninput="filtrarCarreras(this.value)"/></div>
+      <details class="carrera-manual" id="ob-otra-carrera">
+        <summary>Otra carrera</summary>
+        <label class="field-label" for="ob-carrera-manual">Nombre de tu carrera</label>
+        <div class="modal-input"><input type="text" id="ob-carrera-manual" maxlength="80" autocomplete="off" oninput="escribirCarreraOnboarding(this.value)"/></div>
+      </details>
       <div id="carrera-grid" class="ob-options"></div>
     </div>
 

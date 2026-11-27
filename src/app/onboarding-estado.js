@@ -97,6 +97,20 @@ function initCarreraGrid(){
   const g=document.getElementById('carrera-grid');if(!g)return;g.innerHTML='';
   // Lo marcado `soloAjustes` (los majors de Ingeniería UC) se elige después.
   const todas=carrerasDeclarables(selectedTenant).filter(c=>!c.soloAjustes);
+  const busqueda=document.getElementById('ob-carrera-busqueda');
+  if(busqueda)busqueda.hidden=!todas.length;
+  // Universidad sin catálogo: no hay lista que buscar, así que el campo para
+  // escribir la carrera queda a la vista y sin triángulo. Con catálogo, «Otra
+  // carrera» es solo de la app; en la web la salida sigue siendo «Usar «…»».
+  const sola=!todas.length,otra=document.getElementById('ob-otra-carrera');
+  if(otra){
+    otra.hidden=!sola&&!enAppNativa();
+    // Al volver a una universidad con catálogo, se cierra lo que abrió la otra.
+    if(sola)otra.open=true;else if(/ sola$/.test(otra.className))otra.open=false;
+    otra.className='carrera-manual'+(sola?' sola':'');
+  }
+  const sub=document.getElementById('ob-carrera-sub');
+  if(sub)sub.textContent=sola?'Escribe el nombre de tu carrera.':'Busca tu carrera. Si no aparece, puedes escribirla.';
   const q=normName(carreraFiltro||'');
   const vistas=q?todas.filter(c=>coincideBusquedaCarrera(c,q)):todas;
   // Una carrera declarable no puede quedar escondida en un paso obligatorio.
@@ -112,6 +126,7 @@ function initCarreraGrid(){
       // existe. `carreraNombre` es lo declarado, y es lo único que hay cuando
       // no tenemos su malla.
       selectedCarrera=c.malla||null;selectedCarreraNombre=c.n;
+      resetCampoOtraCarrera();
       initCarreraGrid();checkOb();
       if(typeof obStep!=='undefined' && obStep===3 && document.getElementById('screen-onboard').classList.contains('active')){
         setTimeout(()=>{if(obStep===3)obNext();},260);
@@ -127,9 +142,30 @@ function initCarreraGrid(){
     const b=document.createElement('button');
     b.className='carrera-opt'+(!selectedCarrera&&carreraFiltro.trim()===selectedCarreraNombre?' sel':'');
     b.innerHTML='Usar «'+esc(carreraFiltro.trim())+'»';
-    b.onclick=()=>{selectedCarrera=null;selectedCarreraNombre=carreraFiltro.trim();initCarreraGrid();checkOb();};
+    b.onclick=()=>{
+      const campo=document.getElementById('ob-carrera-manual');
+      if(campo)campo.value=carreraFiltro.trim();
+      escribirCarreraOnboarding(carreraFiltro);
+    };
     g.appendChild(b);
   }
+}
+function resetCampoOtraCarrera(){
+  const otra=document.getElementById('ob-otra-carrera');
+  if(otra)otra.open=/ sola$/.test(otra.className);
+  const campo=document.getElementById('ob-carrera-manual');
+  if(campo)campo.value='';
+}
+function resetCarreraOnboarding(){
+  selectedCarrera=null;selectedCarreraNombre=null;carreraFiltro='';
+  const buscar=document.getElementById('ob-carrera-buscar');
+  if(buscar)buscar.value='';
+  resetCampoOtraCarrera();
+}
+function escribirCarreraOnboarding(valor){
+  selectedCarrera=null;
+  selectedCarreraNombre=valor.trim().slice(0,NOMBRE_MAX)||null;
+  initCarreraGrid();checkOb();
 }
 function filtrarCarreras(v){carreraFiltro=v;initCarreraGrid();}
 function filtrarCarrerasAjustes(v){window._sFiltro&&window._sFiltro(v);}
