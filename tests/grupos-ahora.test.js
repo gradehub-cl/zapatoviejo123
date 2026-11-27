@@ -108,6 +108,28 @@ chk('Anotar sala acepta día y horas, y los valida',()=>{
   assert.match(f,/abrirReservaNueva\(id,\{fecha:b\.dataset\.fecha,inicio:b\.dataset\.inicio,fin:b\.dataset\.fin\}\)/);
 });
 
+chk('sin nadie en la u, una sola línea en vez de tres «Nadie ahora»',()=>{
+  const noche=new Date(new Date(lunes).getTime()+11*3600e3).toISOString();
+  const h=run(`ahoraGrupoHTML({id:'g1',filas:__d},new Date('${noche}'))`,filas);
+  assert.match(h,/Nadie del grupo está en la u ahora/);
+  assert.ok(!/Nadie ahora|grupo-ahora-par|de 4 en la u/.test(h));
+});
+chk('Lo próximo: la sala o la prueba compartida contigo, con cuánto falta; lo que ya terminó no',()=>{
+  const ahora=Date.parse(lunes);
+  const hoy=run(`fechaHorarioChile(${ahora})`),manana=run(`sumarDiasAgenda('${hoy}',1)`),en3=run(`sumarDiasAgenda('${hoy}',3)`);
+  const cal=[{tipo:'reserva',id:'r0',username:'beto',nombre:'Beto',fecha:hoy,inicio:'08:00',fin:'09:00',titulo:'Sala vieja'},
+    {tipo:'prueba',username:'carla',nombre:'Carla',fecha:manana,inicio:'10:00',titulo:'Control solo de Carla',detalle:'SYN2'},
+    {tipo:'prueba',username:'ana',nombre:'Ana',yo:true,fecha:en3,inicio:'18:30',titulo:'Prueba 2',detalle:'SYN1'},
+    {tipo:'prueba',username:'beto',nombre:'Beto',fecha:en3,inicio:'18:30',titulo:'Prueba 2',detalle:'SYN1'}];
+  const h=run(`proximoDestacadoHTML({id:'g1',cal:__d},${ahora})`,cal);
+  assert.match(h,/<b>En 3 días<\/b>/);assert.match(h,/Prueba 2/);assert.match(h,/SYN1 · Tú y Beto la tienen/);
+  assert.ok(!/Sala vieja|Control solo de Carla/.test(h),'ni lo que terminó ni una prueba que no es tuya');
+  assert.equal((h.match(/data-amigos="grupo-estudiar"/g)||[]).length,1,'una sola acción principal');
+  const sala=run(`proximoDestacadoHTML({id:'g1',cal:__d},${ahora})`,[...cal,{tipo:'reserva',id:'r1',username:'beto',nombre:'Beto',fecha:manana,inicio:'15:00',fin:'17:00',titulo:'Sala B-12',detalle:'K7Q2'}]);
+  assert.match(sala,/<b>Mañana<\/b> · 15:00–17:00/);assert.match(sala,/Código <b>K7Q2<\/b>/);assert.match(sala,/anotada por Beto/);assert.match(sala,/Después: Prueba 2/);
+  assert.ok(!/grupo-estudiar/.test(sala));
+  assert.equal(run(`proximoDestacadoHTML({id:'g1',cal:[]})`),'','sin plan no hay tarjeta');
+});
 console.log('\n=== Novedades del grupo ===');
 run(`S.ramos=[{id:'r1',nombre:'Curso Uno',sigla:'SYN101',horario:[{dias:['W'],inicio:'10:00',fin:'11:10'}],categorias:[{id:'c1',nombre:'Interrogación 2',peso:25,directNota:true,notas:[]},{id:'c2',nombre:'Controles',peso:20,slots:3,notas:[{id:'n1',slot:0,valor:null}]}],gates:[]}];`);
 chk('encuentra tu evaluación por sigla y nombre (I2 = Interrogación 2)',()=>{
@@ -129,5 +151,15 @@ chk('sin novedades lo dice; «Ponerla» guarda como decisión tuya',()=>{
   assert.match(run(`novedadesGrupoHTML({id:'g1',nov:[]})`),/Todavía no hay novedades/);
   const f=fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8');
   assert.match(f,/marcarFechaUsuario\(actual\.item,f,h\)/);assert.match(f,/rpcAmigos\('grupo_novedades'[^)]*\)\.catch\(\(\)=>null\)/);
+});
+chk('«Nuevo» marca lo que llegó desde tu última visita, no lo tuyo ni la primera vez',()=>{
+  const t=h=>new Date(Date.now()-h*3600e3).toISOString();
+  const nov=[{id:'a',tipo:'union',username:'dani',nombre:'Dani',creado:t(40),datos:{}},
+    {id:'b',tipo:'union',username:'eli',nombre:'Eli',creado:t(2),datos:{}},
+    {id:'c',tipo:'union',username:'ana',nombre:'Ana',yo:true,creado:t(1),datos:{}}];
+  const h=run(`novedadesGrupoHTML({id:'g1',nov:__d,vistoAntes:'${t(10)}'})`,nov);
+  assert.equal((h.match(/grupo-nuevo-raya/g)||[]).length,1);
+  assert.ok(h.indexOf('grupo-nuevo-raya')<h.indexOf('<b>Eli</b>')&&h.indexOf('grupo-nuevo-raya')>h.indexOf('<b>Dani</b>'));
+  assert.ok(!/grupo-nuevo-raya/.test(run(`novedadesGrupoHTML({id:'g1',nov:__d,vistoAntes:null})`,nov)),'la primera visita no marca todo como nuevo');
 });
 console.log(`\nPASS: ${ok}`);
