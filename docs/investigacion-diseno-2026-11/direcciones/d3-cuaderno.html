@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8">
+<title>GradeHub · Dirección 3 «Cuaderno» · Inicio</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+/* Mockup estático. Datos ficticios. Papel cuadriculado, cifras serif, destacador menta, timbres. */
+.t-light{--bg:#FBF8F1;--surface:#FFFDF8;--surface2:#F3EEE2;--grid:rgba(30,58,158,.075);--border:#E6DFCF;--border-strong:#857C69;--fg:#1D1B16;--fg2:#4D483D;--fg3:#696254;--primary:#1E3A9E;--on-primary:#fff;--hl:#BDF0D5;--ok:#1C6B3A;--ok-bg:#E5F3E8;--warn:#8F5200;--warn-bg:#FBEFD7;--bad:#B3261E;--bad-bg:#FBE9E6}
+.t-dark{--bg:#15140F;--surface:#1F1D17;--surface2:#29261E;--grid:rgba(157,178,255,.06);--border:#3A362D;--border-strong:#7F7867;--fg:#F3EEE2;--fg2:#CFC7B5;--fg3:#A59D8B;--primary:#9DB2FF;--on-primary:#0E1A4A;--hl:#1D3A2C;--ok:#6EDC9A;--ok-bg:#142619;--warn:#F5C150;--warn-bg:#2B2209;--bad:#FF8A7A;--bad-bg:#301512}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#d8d2c4;font-family:"Instrument Sans",sans-serif;display:flex;gap:40px;justify-content:center;padding:40px}
+.cap{font:600 13px "Instrument Sans";color:#333;text-align:center;margin-bottom:10px}
+.phone{width:390px;height:844px;border-radius:48px;overflow:hidden;color:var(--fg);position:relative;box-shadow:0 0 0 10px #111,0 30px 60px rgba(0,0,0,.25);
+  background:var(--bg) linear-gradient(var(--grid) 1px,transparent 1px) 0 0/16px 16px,linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/16px 16px;background-color:var(--bg)}
+.margin{position:absolute;left:34px;top:0;bottom:0;width:1px;background:rgba(214,64,64,.28)}
+.status{height:47px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 30px 8px;font:600 15px "Instrument Sans";position:relative}
+.wrap{padding:10px 22px 110px 48px;position:relative}
+.kicker{font:500 13px "Instrument Sans";color:var(--fg3)}
+h1{font:600 34px/1.05 Fraunces;font-variation-settings:"opsz" 96;letter-spacing:-.02em;margin:2px 0 18px}
+h1 em{font-style:italic;font-weight:500;color:var(--primary)}
+.avg{display:flex;align-items:flex-end;gap:14px}
+.num{font:600 96px/.8 Newsreader;font-variation-settings:"opsz" 72;letter-spacing:-.03em;position:relative;z-index:0}
+.num::after{content:"";position:absolute;left:-6px;right:-8px;bottom:6px;height:26px;background:var(--hl);z-index:-1;border-radius:3px 12px 4px 10px;transform:rotate(-1.5deg)}
+.avg p{font-size:13.5px;color:var(--fg2);line-height:1.45;padding-bottom:6px}
+.avg p b{color:var(--ok)}
+.note{margin:22px 0 6px;background:var(--surface);border:1px solid var(--border);border-radius:4px 14px 14px 14px;padding:14px 16px;position:relative;box-shadow:0 1px 0 var(--border)}
+.note::before{content:"";position:absolute;top:-8px;left:22px;width:46px;height:16px;background:rgba(255,225,120,.55);transform:rotate(-4deg)}
+.note .k{font:600 12px "Instrument Sans";color:var(--warn);display:flex;align-items:center;gap:5px}
+.note h3{font:600 18px Fraunces;margin:4px 0 2px}
+.note p{font-size:13px;color:var(--fg2)}
+.note .need{position:absolute;right:16px;top:14px;text-align:center}
+.note .need b{display:block;font:600 40px/1 Newsreader}
+.note .need span{font-size:11px;color:var(--fg3)}
+h2{font:600 19px Fraunces;margin:24px 0 6px;display:flex;justify-content:space-between;align-items:baseline}
+h2 a{font:600 13px "Instrument Sans";color:var(--primary);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px}
+.line{display:grid;grid-template-columns:1fr auto;align-items:center;padding:11px 0;border-bottom:1.5px dashed var(--border);gap:10px}
+.line .nm{font:600 15px "Instrument Sans";display:flex;align-items:center;gap:8px}
+.line .nm i{width:9px;height:9px;border-radius:50%;flex:none}
+.line .sub{font-size:12px;color:var(--fg3);margin:2px 0 0 17px}
+.right{display:flex;align-items:center;gap:10px}
+.g{font:600 30px/1 Newsreader;min-width:44px;text-align:right}
+.stamp{font:700 10px/1 "Instrument Sans";letter-spacing:.08em;text-transform:uppercase;border:1.5px solid currentColor;border-radius:4px;padding:4px 5px;display:flex;align-items:center;gap:3px;transform:rotate(-3deg)}
+.stamp svg{width:11px;height:11px}
+.ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:82px;background:var(--surface);border-top:1.5px solid var(--border);display:flex;justify-content:space-around;padding-top:10px}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;font:600 10.5px "Instrument Sans";color:var(--fg3)}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--primary)}
+.doodle{position:absolute;right:22px;top:70px;opacity:.9}
+</style>
+</head>
+<body>
+<template id="s">
+  <div class="margin"></div>
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <svg class="doodle" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 40 L32 50 L54 40"/><path d="M10 30 L32 40 L54 30 L32 20 Z"/><path d="M10 20 L32 30"/></svg>
+  <div class="wrap">
+    <div class="kicker">Semestre 2 · 2026 · semana 11</div>
+    <h1>Así va tu <em>semestre</em></h1>
+    <div class="avg"><div class="num">5,2</div><p>promedio general<br><b>sube 0,3</b> vs. el semestre 1<br>40 % ya tiene nota</p></div>
+    <div class="note"><div class="k"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M6 1.3l5 9.2H1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 5v2.4M6 8.8v.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Lo de hoy</div><h3>Física Clásica</h3><p>Vas 3,6 · Control 2 el jueves</p><div class="need"><b>5,9</b><span>necesitas</span></div></div>
+    <h2>Mis ramos <a href="#">Simular</a></h2>
+    <div class="line"><div><div class="nm"><i style="background:var(--c1)"></i>Microeconomía</div><div class="sub">MIC1505 · 40 % evaluado</div></div><div class="right"><span class="stamp ok"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.6 6.1l1.6 1.6 3.2-3.3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Vas bien</span><span class="g">4,9</span></div></div>
+    <div class="line"><div><div class="nm"><i style="background:var(--c3)"></i>Física Clásica</div><div class="sub">FIS1514 · 35 % evaluado</div></div><div class="right"><span class="stamp warn"><svg viewBox="0 0 12 12"><path d="M6 1.3l5 9.2H1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 5v2.4M6 8.8v.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>En riesgo</span><span class="g">3,6</span></div></div>
+    <div class="line"><div><div class="nm"><i style="background:var(--c2)"></i>Química General</div><div class="sub">QIM100 · 75 % evaluado</div></div><div class="right"><span class="stamp bad"><svg viewBox="0 0 12 12"><path d="M4 1h4l3 3v4l-3 3H4L1 8V4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4.4 4.4l3.2 3.2M7.6 4.4L4.4 7.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>No alcanza</span><span class="g">2,9</span></div></div>
+    <div class="line"><div><div class="nm"><i style="background:var(--c4)"></i>Programación Avanzada</div><div class="sub">IIC2233 · 70 % evaluado</div></div><div class="right"><span class="stamp ok"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.6 6.1l1.6 1.6 3.2-3.3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Aprobado</span><span class="g">6,1</span></div></div>
+  </div>
+  <nav class="tabbar">
+    <div class="tab on"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>Inicio</div>
+    <div class="tab"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Agenda</div>
+    <div class="tab"><svg viewBox="0 0 24 24"><path d="M4 19c4-1 5-9 8-9s4 6 8 5"/></svg>Estadísticas</div>
+    <div class="tab"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5"/></svg>Amigos</div>
+  </nav>
+</template>
+<div><div class="cap">Claro</div><div class="phone t-light" style="--c1:#B45244;--c2:#007EB5;--c3:#A46400;--c4:#6769BF"></div></div>
+<div><div class="cap">Oscuro</div><div class="phone t-dark" style="--c1:#FB9989;--c2:#61C3F9;--c3:#E8A95C;--c4:#A8AFFF"></div></div>
+<script>document.querySelectorAll('.phone').forEach(p=>p.append(document.getElementById('s').content.cloneNode(true)))</script>
+</body></html>

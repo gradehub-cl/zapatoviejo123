@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8">
+<title>GradeHub · Dirección 2 «Pulso» · Inicio</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+/* Mockup estático. Datos ficticios. Bento + anillos de avance (inspiración Apple Fitness). */
+.t-light{--bg:#F3F2F8;--surface:#FFFFFF;--surface2:#ECEAF4;--border:#E0DDEA;--fg:#16131F;--fg2:#4A4559;--fg3:#69637A;--primary:#6941E0;--on-primary:#fff;--accent:#EEE8FF;--ok:#0F7A4A;--ok-bg:#E4F5EC;--warn:#945700;--warn-bg:#FDF0DA;--bad:#C0262D;--bad-bg:#FDEBEC;--track:#E6E3EF;--shadow:0 1px 2px rgba(22,19,31,.05),0 8px 24px -10px rgba(22,19,31,.12)}
+.t-dark{--bg:#0E0C14;--surface:#1A1724;--surface2:#242032;--border:#363048;--fg:#F4F2FA;--fg2:#C3BED3;--fg3:#9C96AF;--primary:#A78BFA;--on-primary:#160D2E;--accent:#2A2147;--ok:#4ADE9A;--ok-bg:#0D2519;--warn:#FFC54D;--warn-bg:#2B2108;--bad:#FF7A85;--bad-bg:#2E1216;--track:#2C2740;--shadow:none}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#cfcdd8;font-family:Geist,system-ui,sans-serif;display:flex;gap:40px;justify-content:center;padding:40px}
+.cap{font:600 13px Geist;color:#333;text-align:center;margin-bottom:10px}
+.phone{width:390px;height:844px;border-radius:48px;overflow:hidden;background:var(--bg);color:var(--fg);position:relative;box-shadow:0 0 0 10px #111,0 30px 60px rgba(0,0,0,.25);font-variant-numeric:tabular-nums}
+.status{height:47px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 30px 8px;font:600 15px Geist}
+.wrap{padding:6px 16px 110px}
+.top{display:flex;justify-content:space-between;align-items:center;margin:4px 4px 14px}
+.top h1{font:700 28px/1 Geist;letter-spacing:-.03em}
+.top span{font:500 13px Geist;color:var(--fg3)}
+.pill{background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:6px 12px;font:600 12px Geist;color:var(--fg2)}
+.bento{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:14px;box-shadow:var(--shadow);position:relative}
+.hero{grid-column:1/-1;display:grid;grid-template-columns:150px 1fr;gap:14px;align-items:center}
+.lbl{font:600 11px Geist;letter-spacing:.06em;text-transform:uppercase;color:var(--fg3)}
+.avg{font:700 64px/0.9 Geist;letter-spacing:-.05em;margin:6px 0 4px}
+.small{font-size:12.5px;color:var(--fg2);line-height:1.45}
+.small b{color:var(--ok)}
+.ring-legend{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.ring-legend div{display:flex;align-items:center;gap:6px;font:500 12px Geist;color:var(--fg2)}
+.ring-legend i{width:10px;height:10px;border-radius:3px}
+.need{background:var(--warn-bg);border-color:transparent}
+.need .lbl{color:var(--warn)}
+.need .n{font:700 44px/1 Geist;letter-spacing:-.04em;color:var(--fg);margin:8px 0 2px}
+.need p{font-size:12px;color:var(--fg2)}
+.next .day{font:700 30px/1 Geist;letter-spacing:-.03em;margin:8px 0 2px}
+.next p{font-size:12px;color:var(--fg2)}
+.next .cd{margin-top:10px;display:flex;gap:4px}
+.next .cd i{flex:1;height:6px;border-radius:3px;background:var(--track)}
+.next .cd i.f{background:var(--primary)}
+.ramos{grid-column:1/-1;padding:12px 14px}
+.ramos .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.ramos .head a{font:600 12.5px Geist;color:var(--primary);text-decoration:none}
+.rgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.r{display:flex;gap:8px;align-items:center;background:var(--surface2);border-radius:16px;padding:10px 8px;min-width:0}
+.r .nm{font:600 12.5px/1.2 Geist;hyphens:manual}
+.r .st{display:flex;align-items:center;gap:4px;font:600 11px Geist;margin-top:3px}
+.r .st svg{width:12px;height:12px}
+.ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+.ring{position:relative;flex:none}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font:700 14px Geist;letter-spacing:-.02em}
+.tabbar{position:absolute;left:16px;right:16px;bottom:22px;height:64px;background:var(--surface);border:1px solid var(--border);border-radius:24px;display:flex;justify-content:space-around;align-items:center;box-shadow:var(--shadow)}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;font:600 10px Geist;color:var(--fg3)}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--primary)}
+.fab{position:absolute;right:26px;bottom:100px;width:56px;height:56px;border-radius:18px;background:var(--primary);color:var(--on-primary);display:grid;place-items:center;font:500 30px Geist;box-shadow:0 10px 24px -8px rgba(105,65,224,.6)}
+</style>
+</head>
+<body>
+<template id="s">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="wrap">
+    <div class="top"><div><span>Semestre 2 · 2026</span><h1>Tu semestre</h1></div><div class="pill">Semana 11 de 16</div></div>
+    <div class="bento">
+      <div class="tile hero">
+        <svg width="150" height="150" viewBox="0 0 150 150" role="img" aria-label="Anillos: 40% evaluado, 62% del objetivo, 3 de 4 ramos sobre 4,0">
+          <g fill="none" stroke-linecap="round" transform="rotate(-90 75 75)">
+            <circle cx="75" cy="75" r="64" stroke="var(--track)" stroke-width="13"/><circle cx="75" cy="75" r="64" stroke="var(--primary)" stroke-width="13" stroke-dasharray="402" stroke-dashoffset="241"/>
+            <circle cx="75" cy="75" r="47" stroke="var(--track)" stroke-width="13"/><circle cx="75" cy="75" r="47" stroke="var(--ok)" stroke-width="13" stroke-dasharray="295" stroke-dashoffset="74"/>
+            <circle cx="75" cy="75" r="30" stroke="var(--track)" stroke-width="13"/><circle cx="75" cy="75" r="30" stroke="var(--warn)" stroke-width="13" stroke-dasharray="188" stroke-dashoffset="47" stroke-opacity=".95"/>
+          </g>
+        </svg>
+        <div>
+          <div class="lbl">Promedio general</div>
+          <div class="avg">5,2</div>
+          <div class="small"><b>▲ 0,3</b> vs. semestre 1</div>
+          <div class="ring-legend">
+            <div><i style="background:var(--primary)"></i>40 % evaluado</div>
+            <div><i style="background:var(--ok)"></i>3 de 4 ramos sobre 4,0</div>
+            <div><i style="background:var(--warn)"></i>Meta 5,5: vas al 75 %</div>
+          </div>
+        </div>
+      </div>
+      <div class="tile need"><div class="lbl">▲ Necesitas</div><div class="n">5,9</div><p>en lo pendiente de <b>Física Clásica</b> para aprobar</p></div>
+      <div class="tile next"><div class="lbl">Próxima prueba</div><div class="day">Jue 3</div><p>Control 2 · Cálculo II · 10&nbsp;%</p><div class="cd"><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i></div></div>
+      <div class="tile ramos">
+        <div class="head"><div class="lbl">Mis ramos</div><a href="#">Simular ›</a></div>
+        <div class="rgrid">
+          <div class="r"><div class="ring"><svg width="44" height="44" viewBox="0 0 44 44"><g transform="rotate(-90 22 22)" fill="none" stroke-width="5" stroke-linecap="round"><circle cx="22" cy="22" r="18" stroke="var(--track)"/><circle cx="22" cy="22" r="18" stroke="var(--c1)" stroke-dasharray="113" stroke-dashoffset="68"/></g></svg><b>4,9</b></div><div><div class="nm">Micro&shy;economía</div><div class="st ok"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.6 6.1l1.6 1.6 3.2-3.3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Vas bien</div></div></div>
+          <div class="r"><div class="ring"><svg width="44" height="44" viewBox="0 0 44 44"><g transform="rotate(-90 22 22)" fill="none" stroke-width="5" stroke-linecap="round"><circle cx="22" cy="22" r="18" stroke="var(--track)"/><circle cx="22" cy="22" r="18" stroke="var(--c3)" stroke-dasharray="113" stroke-dashoffset="73"/></g></svg><b>3,6</b></div><div><div class="nm">Física Clásica</div><div class="st warn"><svg viewBox="0 0 12 12"><path d="M6 1.3l5 9.2H1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 5v2.4M6 8.8v.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>En riesgo</div></div></div>
+          <div class="r"><div class="ring"><svg width="44" height="44" viewBox="0 0 44 44"><g transform="rotate(-90 22 22)" fill="none" stroke-width="5" stroke-linecap="round"><circle cx="22" cy="22" r="18" stroke="var(--track)"/><circle cx="22" cy="22" r="18" stroke="var(--c2)" stroke-dasharray="113" stroke-dashoffset="28"/></g></svg><b>2,9</b></div><div><div class="nm">Química General</div><div class="st bad"><svg viewBox="0 0 12 12"><path d="M4 1h4l3 3v4l-3 3H4L1 8V4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4.4 4.4l3.2 3.2M7.6 4.4L4.4 7.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>No alcanza</div></div></div>
+          <div class="r"><div class="ring"><svg width="44" height="44" viewBox="0 0 44 44"><g transform="rotate(-90 22 22)" fill="none" stroke-width="5" stroke-linecap="round"><circle cx="22" cy="22" r="18" stroke="var(--track)"/><circle cx="22" cy="22" r="18" stroke="var(--c4)" stroke-dasharray="113" stroke-dashoffset="34"/></g></svg><b>6,1</b></div><div><div class="nm">Programación</div><div class="st ok"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.6 6.1l1.6 1.6 3.2-3.3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Aprobado</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="fab">+</div>
+  <nav class="tabbar">
+    <div class="tab on"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="10" rx="2"/><rect x="13" y="3" width="8" height="6" rx="2"/><rect x="13" y="11" width="8" height="10" rx="2"/><rect x="3" y="15" width="8" height="6" rx="2"/></svg>Inicio</div>
+    <div class="tab"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Agenda</div>
+    <div class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 8 8h-8z"/></svg>Stats</div>
+    <div class="tab"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5"/></svg>Amigos</div>
+  </nav>
+</template>
+<div><div class="cap">Claro</div><div class="phone t-light" style="--c1:#B45244;--c2:#007EB5;--c3:#A46400;--c4:#6769BF"></div></div>
+<div><div class="cap">Oscuro</div><div class="phone t-dark" style="--c1:#FB9989;--c2:#61C3F9;--c3:#E8A95C;--c4:#A8AFFF"></div></div>
+<script>document.querySelectorAll('.phone').forEach(p=>p.append(document.getElementById('s').content.cloneNode(true)))</script>
+</body></html>

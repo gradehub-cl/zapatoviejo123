@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GradeHub · Dirección 1 «Acta» · Inicio (claro y oscuro)</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+/* Mockup estático. Datos ficticios. */
+:root{--font-ui:"Inter",system-ui,sans-serif;--font-display:"Inter Tight","Inter",sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace}
+.t-light{--bg:#F7F7F5;--surface:#FFFFFF;--surface2:#EFEFEB;--border:#E3E3DF;--border-strong:#7E7E79;--fg:#121212;--fg2:#46464A;--fg3:#66666B;--primary:#0B6E62;--on-primary:#fff;--accent:#DDF3EE;--ok:#146C43;--ok-bg:#E6F4EA;--warn:#8A5300;--warn-bg:#FCF0DB;--bad:#B42318;--bad-bg:#FDECEA}
+.t-dark{--bg:#0A0B0D;--surface:#16181C;--surface2:#1F2227;--border:#2C3036;--border-strong:#737980;--fg:#F2F2F0;--fg2:#BABDC2;--fg3:#9297A0;--primary:#3DD9C1;--on-primary:#03201B;--accent:#0F2E2A;--ok:#4ADE80;--ok-bg:#0E2416;--warn:#FBBF24;--warn-bg:#2A1F06;--bad:#FF7A6B;--bad-bg:#2D1311}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#d9d9d4;font-family:var(--font-ui);display:flex;gap:40px;justify-content:center;align-items:flex-start;padding:40px;min-height:100vh}
+.cap{font:600 13px var(--font-ui);color:#333;text-align:center;margin-bottom:10px;letter-spacing:.02em}
+.phone{width:390px;height:844px;border-radius:48px;overflow:hidden;background:var(--bg);color:var(--fg);position:relative;box-shadow:0 0 0 10px #111,0 30px 60px rgba(0,0,0,.25);font-variant-numeric:tabular-nums}
+.status{height:47px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 30px 8px;font:600 15px var(--font-ui)}
+.scroll{padding:8px 20px 120px}
+.eyebrow{font:600 11px/1 var(--font-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--fg3)}
+.top{display:flex;justify-content:space-between;align-items:center;margin:6px 0 22px}
+.top h1{font:650 22px/1.1 var(--font-display);letter-spacing:-.01em}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:grid;place-items:center;font:600 13px var(--font-ui);color:var(--fg2)}
+.hero{border-top:2px solid var(--fg);padding-top:14px;display:grid;grid-template-columns:1fr auto;gap:8px 16px;align-items:end}
+.big{font:700 104px/0.86 var(--font-display);letter-spacing:-.045em}
+.big small{font-size:40px;letter-spacing:-.02em}
+.meta{text-align:right;font-size:13px;color:var(--fg2);line-height:1.5}
+.meta b{color:var(--ok);font-weight:600}
+.progress{grid-column:1/-1;margin-top:14px}
+.bar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;position:relative}
+.bar i{position:absolute;inset:0 60% 0 0;background:var(--fg)}
+.bar-legend{display:flex;justify-content:space-between;font-size:12px;color:var(--fg3);margin-top:6px}
+.prio{margin:26px 0 8px;background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--warn);border-radius:8px;padding:14px 16px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 12px}
+.prio .eyebrow{grid-column:1/-1;color:var(--warn)}
+.prio h3{font:600 16px var(--font-ui)}
+.prio p{font-size:13px;color:var(--fg2)}
+.need{text-align:right}
+.need b{display:block;font:700 34px/1 var(--font-display);letter-spacing:-.02em}
+.need span{font-size:11px;color:var(--fg3)}
+.sec{display:flex;justify-content:space-between;align-items:baseline;margin:26px 0 8px}
+.sec h2{font:650 15px var(--font-ui)}
+.sec a{font-size:13px;color:var(--primary);font-weight:600;text-decoration:none}
+.list{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.row{display:grid;grid-template-columns:4px 1fr auto;gap:0 12px;padding:12px 14px 12px 0;border-top:1px solid var(--border);align-items:center}
+.row:first-child{border-top:0}
+.tick{height:36px;border-radius:0 3px 3px 0}
+.name{font:600 15px/1.25 var(--font-ui)}
+.sub{font:500 11.5px var(--font-mono);color:var(--fg3);margin-top:3px;display:flex;gap:8px;align-items:center}
+.minibar{width:54px;height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;display:inline-block}
+.minibar i{display:block;height:100%;background:var(--fg2)}
+.grade{text-align:right}
+.grade b{font:700 24px/1 var(--font-display);letter-spacing:-.02em}
+.chip{display:inline-flex;align-items:center;gap:4px;font:600 11px var(--font-ui);padding:3px 7px 3px 5px;border-radius:5px;margin-top:4px}
+.chip svg{width:12px;height:12px}
+.ok{color:var(--ok);background:var(--ok-bg)} .warn{color:var(--warn);background:var(--warn-bg)} .bad{color:var(--bad);background:var(--bad-bg)}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:84px;background:var(--surface);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding-top:10px}
+.tab{display:flex;flex-direction:column;align-items:center;gap:4px;font:600 10.5px var(--font-ui);color:var(--fg3)}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.75}
+.tab.on{color:var(--fg)}
+.tab.on::before{content:"";width:18px;height:2px;background:var(--fg);border-radius:1px;position:relative;top:-10px;margin-bottom:-2px}
+</style>
+</head>
+<body>
+<template id="screen">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="scroll">
+    <div class="top"><div><div class="eyebrow">Semestre 2 · 2026</div><h1>Hola</h1></div><div class="avatar">GH</div></div>
+    <div class="hero">
+      <div><div class="eyebrow" style="margin-bottom:10px">Promedio general</div><div class="big">5,<small>2</small></div></div>
+      <div class="meta"><b>▲ 0,3</b> vs. semestre 1<br>Rango 3,1 – 6,4</div>
+      <div class="progress"><div class="bar"><i></i></div><div class="bar-legend"><span>40 % del peso evaluable con nota</span><span>6 notas</span></div></div>
+    </div>
+    <div class="prio"><div class="eyebrow">▲ Tu prioridad hoy</div><div><h3>Física Clásica</h3><p>Vas 3,6 en lo evaluado · Control 2 el jueves</p></div><div class="need"><b>5,9</b><span>necesitas</span></div></div>
+    <div class="sec"><h2>Mis ramos</h2><a href="#">Simular semestre</a></div>
+    <div class="list">
+      <div class="row"><div class="tick" style="background:var(--c1)"></div><div><div class="name">Introducción a la Microeconomía</div><div class="sub">MIC1505 <span class="minibar"><i style="width:40%"></i></span>40 %</div></div><div class="grade"><b>4,9</b><br><span class="chip ok"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.6 6.1l1.6 1.6 3.2-3.3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Vas bien</span></div></div>
+      <div class="row"><div class="tick" style="background:var(--c3)"></div><div><div class="name">Física Clásica</div><div class="sub">FIS1514 <span class="minibar"><i style="width:35%"></i></span>35 %</div></div><div class="grade"><b>3,6</b><br><span class="chip warn"><svg viewBox="0 0 12 12"><path d="M6 1.3l5 9.2H1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 5v2.4M6 8.8v.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>En riesgo</span></div></div>
+      <div class="row"><div class="tick" style="background:var(--c2)"></div><div><div class="name">Química General</div><div class="sub">QIM100 <span class="minibar"><i style="width:75%"></i></span>75 %</div></div><div class="grade"><b>2,9</b><br><span class="chip bad"><svg viewBox="0 0 12 12"><path d="M4 1h4l3 3v4l-3 3H4L1 8V4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4.4 4.4l3.2 3.2M7.6 4.4L4.4 7.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>No alcanza</span></div></div>
+      <div class="row"><div class="tick" style="background:var(--c4)"></div><div><div class="name">Programación Avanzada</div><div class="sub">IIC2233 <span class="minibar"><i style="width:70%"></i></span>70 %</div></div><div class="grade"><b>6,1</b><br><span class="chip ok"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.6 6.1l1.6 1.6 3.2-3.3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Aprobado</span></div></div>
+    </div>
+  </div>
+  <nav class="tabbar">
+    <div class="tab on"><svg viewBox="0 0 24 24"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>Inicio</div>
+    <div class="tab"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Agenda</div>
+    <div class="tab"><svg viewBox="0 0 24 24"><path d="M5 19V9M12 19V5M19 19v-7"/></svg>Estadísticas</div>
+    <div class="tab"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5M15 15c3 0 6 1.5 6 4"/></svg>Amigos</div>
+  </nav>
+</template>
+<div><div class="cap">Claro</div><div class="phone t-light" style="--c1:#B45244;--c2:#007EB5;--c3:#A46400;--c4:#6769BF"></div></div>
+<div><div class="cap">Oscuro</div><div class="phone t-dark" style="--c1:#FB9989;--c2:#61C3F9;--c3:#E8A95C;--c4:#A8AFFF"></div></div>
+<script>document.querySelectorAll('.phone').forEach(p=>p.append(document.getElementById('screen').content.cloneNode(true)))</script>
+</body>
+</html>

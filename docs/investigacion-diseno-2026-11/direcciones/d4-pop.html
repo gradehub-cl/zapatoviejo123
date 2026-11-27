@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8">
+<title>GradeHub · Dirección 4 «Pop» · Inicio</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+/* Mockup estático. Datos ficticios. Neo-brutalismo suave + M3 Expressive + mascota «Capi». */
+.t-light{--bg:#FFF7EC;--surface:#FFFFFF;--surface2:#FFEFD9;--ink:#14121A;--line:#14121A;--fg:#14121A;--fg2:#3F3B47;--fg3:#5E5966;--primary:#2DD4BF;--on-primary:#14121A;--lilac:#C4B5FD;--lemon:#FFE15A;--ok:#0B6B3A;--ok-bg:#B6F5CF;--warn:#7A4800;--warn-bg:#FFE15A;--bad:#B8111F;--bad-bg:#FFC9CC;--shadow:4px 4px 0 var(--line)}
+.t-dark{--bg:#121019;--surface:#1C1926;--surface2:#262234;--ink:#0B0A10;--line:#6A6385;--fg:#FBF8FF;--fg2:#D1CADF;--fg3:#A9A1BC;--primary:#2DD4BF;--on-primary:#0B1F1C;--lilac:#C4B5FD;--lemon:#FFE15A;--ok:#5BE39A;--ok-bg:#11301F;--warn:#FFE15A;--warn-bg:#2E2808;--bad:#FF7A85;--bad-bg:#3A151B;--shadow:4px 4px 0 #000}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e9dcc6;font-family:"Plus Jakarta Sans",sans-serif;display:flex;gap:40px;justify-content:center;padding:40px}
+.cap{font:700 13px "Plus Jakarta Sans";color:#333;text-align:center;margin-bottom:10px}
+.phone{width:390px;height:844px;border-radius:48px;overflow:hidden;background:var(--bg);color:var(--fg);position:relative;box-shadow:0 0 0 10px #111,0 30px 60px rgba(0,0,0,.25);font-variant-numeric:tabular-nums}
+.status{height:47px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 30px 8px;font:700 15px "Plus Jakarta Sans"}
+.wrap{padding:8px 18px 110px}
+.hi{display:flex;gap:12px;align-items:center;margin:4px 0 14px}
+.bubble{flex:1;background:var(--surface);border:2px solid var(--line);border-radius:18px 18px 18px 4px;padding:10px 12px;font:600 13px/1.35 "Plus Jakarta Sans";box-shadow:var(--shadow)}
+.bubble b{font-weight:800}
+.card{border:2px solid var(--line);border-radius:22px;box-shadow:var(--shadow);background:var(--surface)}
+.hero{background:var(--primary);color:#14121A;padding:16px 18px;display:grid;grid-template-columns:1fr auto;align-items:end;position:relative;overflow:hidden;border-color:var(--ink)}
+.hero .lbl{font:800 12px "Plus Jakarta Sans";letter-spacing:.04em;text-transform:uppercase}
+.hero .avg{font:800 92px/.85 "Bricolage Grotesque";font-variation-settings:"opsz" 96;letter-spacing:-.04em;margin-top:6px}
+.hero .side{text-align:right;font:700 13px/1.4 "Plus Jakarta Sans"}
+.hero .side span{display:inline-block;background:#14121A;color:#2DD4BF;border-radius:999px;padding:3px 9px;margin-bottom:6px}
+.hero .blob{position:absolute;right:-46px;top:-62px;width:120px;height:120px;background:var(--lemon);border-radius:42% 58% 63% 37%/45% 40% 60% 55%;border:2px solid #14121A;z-index:0}
+.hero > *{position:relative;z-index:1}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+.need{background:var(--lemon);color:#14121A;padding:12px 14px;border-color:var(--ink)}
+.need .lbl{font:800 11px "Plus Jakarta Sans";text-transform:uppercase;display:flex;gap:4px;align-items:center}
+.need b{display:block;font:800 46px/1 "Bricolage Grotesque";margin:6px 0 2px;letter-spacing:-.03em}
+.need p{font:600 12px/1.3 "Plus Jakarta Sans"}
+.streak{background:var(--lilac);color:#14121A;padding:12px 14px;border-color:var(--ink)}
+.streak .lbl{font:800 11px "Plus Jakarta Sans";text-transform:uppercase}
+.streak b{display:block;font:800 40px/1 "Bricolage Grotesque";margin:6px 0 2px;white-space:nowrap;letter-spacing:-.03em}
+.streak p{font:600 12px/1.3 "Plus Jakarta Sans"}
+h2{font:800 20px "Bricolage Grotesque";margin:6px 2px 8px;display:flex;justify-content:space-between;align-items:center}
+h2 a{font:800 12px "Plus Jakarta Sans";color:var(--fg);background:var(--surface);border:2px solid var(--line);border-radius:999px;padding:5px 10px;text-decoration:none;box-shadow:2px 2px 0 var(--line)}
+.ramo{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px 12px;margin-bottom:10px}
+.ramo .ic{width:38px;height:38px;border-radius:12px;border:2px solid var(--line);display:grid;place-items:center;font:800 13px "Plus Jakarta Sans";color:#14121A}
+.ramo .nm{font:800 14.5px/1.2 "Plus Jakarta Sans"}
+.badge{display:inline-flex;gap:4px;align-items:center;font:800 11px "Plus Jakarta Sans";padding:2px 7px;border-radius:999px;border:1.5px solid currentColor;margin-top:4px}
+.badge svg{width:11px;height:11px}
+.ok{color:var(--ok);background:var(--ok-bg)} .warn{color:var(--warn);background:var(--warn-bg)} .bad{color:var(--bad);background:var(--bad-bg)}
+.g{font:800 30px "Bricolage Grotesque";letter-spacing:-.03em}
+.tabbar{position:absolute;left:16px;right:16px;bottom:20px;height:66px;background:var(--surface);border:2px solid var(--line);border-radius:22px;box-shadow:var(--shadow);display:flex;justify-content:space-around;align-items:center}
+.tab{display:flex;flex-direction:column;align-items:center;gap:2px;font:800 10px "Plus Jakarta Sans";color:var(--fg3);padding:6px 10px;border-radius:14px}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{background:var(--primary);color:#14121A;border:2px solid var(--ink)}
+</style>
+</head>
+<body>
+<template id="s">
+  <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+  <div class="wrap">
+    <div class="hi">
+      <svg width="62" height="62" viewBox="0 0 64 64" aria-label="Capi, la mascota de GradeHub">
+        <g stroke="#14121A" stroke-width="2.5" stroke-linejoin="round">
+          <path d="M8 44 L32 56 L56 44 L32 32 Z" fill="#C4B5FD"/>
+          <path d="M8 34 L32 46 L56 34 L32 22 Z" fill="#2DD4BF"/>
+          <path d="M8 24 L32 36 L56 24 L32 12 Z" fill="#E9E9EE"/>
+        </g>
+        <circle cx="26" cy="24" r="2.6" fill="#14121A"/><circle cx="38" cy="24" r="2.6" fill="#14121A"/>
+        <path d="M28 29 q4 3 8 0" stroke="#14121A" stroke-width="2" fill="none" stroke-linecap="round"/>
+      </svg>
+      <div class="bubble">¡Buena semana! Subiste <b>0,3</b>. Ojo con <b>Física</b>: el jueves hay control.</div>
+    </div>
+    <div class="card hero"><div class="blob"></div><div><div class="lbl">Promedio · Sem. 2</div><div class="avg">5,2</div></div><div class="side"><span>▲ 0,3</span><br>40 % evaluado<br>6 notas</div></div>
+    <div class="row2">
+      <div class="card need"><div class="lbl"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M6 1.3l5 9.2H1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Necesitas</div><b>5,9</b><p>en Física Clásica para aprobar</p></div>
+      <div class="card streak"><div class="lbl">Racha</div><b>9&nbsp;días</b><p>anotando tus notas al día</p></div>
+    </div>
+    <h2>Mis ramos <a href="#">Simular →</a></h2>
+    <div class="card ramo"><div class="ic" style="background:#FFB4A8">MIC</div><div><div class="nm">Microeconomía</div><span class="badge ok"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.6 6.1l1.6 1.6 3.2-3.3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Vas bien</span></div><div class="g">4,9</div></div>
+    <div class="card ramo"><div class="ic" style="background:#FFD08A">FIS</div><div><div class="nm">Física Clásica</div><span class="badge warn"><svg viewBox="0 0 12 12"><path d="M6 1.3l5 9.2H1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>En riesgo</span></div><div class="g">3,6</div></div>
+    <div class="card ramo"><div class="ic" style="background:#9ED8FF">QIM</div><div><div class="nm">Química General</div><span class="badge bad"><svg viewBox="0 0 12 12"><path d="M4 1h4l3 3v4l-3 3H4L1 8V4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4.4 4.4l3.2 3.2M7.6 4.4L4.4 7.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>No alcanza</span></div><div class="g">2,9</div></div>
+  </div>
+  <nav class="tabbar">
+    <div class="tab on"><svg viewBox="0 0 24 24"><path d="M4 11l8-6 8 6v9H4z"/></svg>Inicio</div>
+    <div class="tab"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16"/></svg>Agenda</div>
+    <div class="tab"><svg viewBox="0 0 24 24"><path d="M5 19V10M12 19V5M19 19v-6"/></svg>Stats</div>
+    <div class="tab"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="3"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5"/><circle cx="17" cy="10" r="2.5"/></svg>Amigos</div>
+  </nav>
+</template>
+<div><div class="cap">Claro</div><div class="phone t-light"></div></div>
+<div><div class="cap">Oscuro</div><div class="phone t-dark"></div></div>
+<script>document.querySelectorAll('.phone').forEach(p=>p.append(document.getElementById('s').content.cloneNode(true)))</script>
+</body></html>
