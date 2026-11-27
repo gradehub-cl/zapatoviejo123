@@ -64,4 +64,21 @@ armar(`${cat('a','Prueba 1',60)},${cat('b','Examen',50)}`,`${fila('a','Prueba 1'
 val('guardarPautaManual')();
 chk('alejarla más sí pregunta',pesos()==='Prueba 1:60|Examen:50'&&/Te pasas por 20%/.test(pregunta()?.d||''));
 
+// Cancelar o Escape cerraban el editor y botaban lo escrito sin preguntar
+// (auditoría #1376). Con cambios se pregunta; sin cambios se cierra directo.
+console.log('\n=== Cancelar con cambios pregunta antes de descartar ===');
+vm.runInContext("__cierres=0;closeModal=()=>{__cierres++;};openModal=()=>{};",ctx);
+const abrir=()=>vm.runInContext(`__pregunta=null;__cierres=0;S={ramos:[{id:'s',nombre:'Ramo sintético',categorias:[${cat('a','Prueba 1',50)},${cat('b','Examen',50)}],gates:[]}]};currentRamoId='s';openPautaManualModal();`,ctx);
+abrir();val('cancelarPautaManual')();
+chk('sin cambios, Cancelar cierra sin preguntar',val('__cierres')===1&&pregunta()===null);
+abrir();vm.runInContext("actualizarPautaNombre(0,'Prueba uno')",ctx);val('cancelarPautaManual')();
+chk('con un nombre cambiado pregunta y no cierra todavía',val('__cierres')===0&&pregunta()?.t==='¿Descartar los cambios?'&&pregunta().o.label==='Descartar'&&pregunta().o.focusCancel===true);
+pregunta().fn();
+chk('al confirmar se cierra y el ramo queda como estaba',val('__cierres')===1&&pesos()==='Prueba 1:50|Examen:50');
+abrir();vm.runInContext("actualizarPautaPeso(1,'40')",ctx);val('cancelarPautaManual')();
+chk('un porcentaje cambiado también cuenta',val('__cierres')===0&&pregunta()!==null);
+abrir();vm.runInContext("agregarPautaFila()",ctx);val('cancelarPautaManual')();
+chk('y una evaluación agregada',val('__cierres')===0&&pregunta()!==null);
+chk('Escape pasa por el mismo camino que Cancelar',/pautaManualAbierta\(\)\)cancelarPautaManual\(\);/.test(src)&&/onclick="cancelarPautaManual\(\)">Cancelar/.test(src));
+
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);process.exit(fail?1:0);

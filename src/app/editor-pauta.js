@@ -313,7 +313,20 @@ function openPautaManualModal(){
   pautaArmando=!r.categorias.some(c=>String(c.nombre||'').trim());
   if(!pautaDraft.length)pautaDraft.push({id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null});
   renderPautaManualModal();openModal();
+  pautaDraftInicial=firmaPautaDraft();
   setTimeout(()=>{const i=document.getElementById('m-pauta-nombre-0');if(i)i.focus();},100);
+}
+// Cancelar y Escape cerraban el editor y botaban todo lo escrito sin preguntar
+// (#1376): una pauta de seis evaluaciones se perdía por una tecla. Si el
+// borrador cambió desde que se abrió, se pregunta antes de descartarlo.
+let pautaDraftInicial='';
+function firmaPautaDraft(){return JSON.stringify([pautaDraft,pautaRequisitosDraft,pautaEximicionDraft,pautaQuitadas]);}
+function pautaManualAbierta(){
+  return document.getElementById('modal').classList.contains('open')&&!!document.querySelector('#modal-content .pauta-lista');
+}
+function cancelarPautaManual(){
+  if(firmaPautaDraft()===pautaDraftInicial){closeModal();return;}
+  showConfirm('¿Descartar los cambios?','Lo que cambiaste en estas evaluaciones no se ha guardado.',closeModal,{label:'Descartar',focusCancel:true});
 }
 function pautaResumen(){
   const e=estadoPauta(pautaDraft);
@@ -499,7 +512,7 @@ function renderPautaManualModal(){
     ${requisitosGrupoHTML()}
     ${eximicionEditorHTML()}
     <div class="modal-btns" style="margin-top:14px;">
-      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-cancel" onclick="cancelarPautaManual()">Cancelar</button>
       <button class="btn-confirm" onclick="guardarPautaManual()">Guardar</button>
     </div>`;
 }

@@ -239,5 +239,9 @@ document.addEventListener('keydown',e=>{
   }
   if(e.key!=='Escape')return;
   if(conf.classList.contains('open'))closeConfirm();
-  else if(document.getElementById('modal').classList.contains('open'))closeModal();
+  else if(document.getElementById('modal').classList.contains('open')){
+    // En el editor de ponderaciones Escape es Cancelar: pregunta si hay cambios.
+    if(typeof pautaManualAbierta==='function'&&pautaManualAbierta())cancelarPautaManual();
+    else closeModal();
+  }
 });
