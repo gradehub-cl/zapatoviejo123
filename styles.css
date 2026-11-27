@@ -506,7 +506,7 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .tenant-badge.lg{width:46px;height:46px;border-radius:8px;}
 .tenant-badge.lg .tenant-mono{font-size:1.0625rem;}
 .tenant-badge.lg .tenant-mono[data-len="3"]{font-size:0.875rem;}
-.tenant-badge.lg .tenant-mono[data-len="4"]{font-size:0.8125rem;}
+.tenant-badge.lg .tenant-mono[data-len="4"]{font-size:0.75rem;}
 .tenant-badge.lg .tenant-mono[data-len="5"]{font-size:0.625rem;}
 .tenant-badge.lg .tenant-mono[data-len="6"]{font-size:0.5625rem;}
 /* Marca de universidad junto al wordmark de GradeHub */
