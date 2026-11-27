@@ -45,8 +45,8 @@ console.log('\n=== Identidad del ramo antes de subir ===');
 // subía nada y la sección no aparecía nunca.
 chk('la sigla se deriva, no se asume guardada en el ramo',
   /function siglaParaCurso[\s\S]{0,200}siglaDeRamo\(r,tenant\)/.test(app));
-chk('UC/FEN sin sigla se omiten; UAI/UAndes/UDD/UDP usan nombre normalizado',
-  /if\(!\['uai','uandes','udd','udp'\]\.includes\(tenant\)\)return null/.test(app)&&
+chk('UC/FEN sin sigla se omiten; UAI/UAndes/UDD/UDP/UNAB usan nombre normalizado',
+  /if\(!\['uai','uandes','udd','udp','unab'\]\.includes\(tenant\)\)return null/.test(app)&&
   /const sigla=claveRamoCurso\(r,S\.tenant\);\s*\n\s*if\(!sigla\)continue;/.test(app));
 chk('y el servidor descarta la fila sin clave de ramo', /v_sigla is null or v_tenant is null/.test(sqlCodigo));
 // Las variables se llamaban `tenant` y `sigla`, igual que las columnas, y
