@@ -179,6 +179,10 @@ function pintarEstadisticasPanel(raiz,estado,opciones){
   const atributo=dentro&&typeof activo.getAttributeNames==='function'?activo.getAttributeNames().find(a=>a.startsWith('data-est-')):null;
   const selector=atributo?`[${atributo}="${(activo.getAttribute(atributo)||'').replace(/["\\]/g,'\\$&')}"]`:null;
   raiz.innerHTML=estadisticasAlumnosHTML(estado.datos,estado,opciones);
+  // En celular las pestañas son una fila que se desliza y al repintar vuelve al
+  // inicio: la elegida queda a la vista aunque se llegue por «Por completar».
+  const tab=typeof raiz.querySelector==='function'?raiz.querySelector('.est-tabs [aria-pressed="true"]'):null,caja=tab&&tab.parentElement;
+  if(caja&&typeof tab.getBoundingClientRect==='function'){const d=tab.getBoundingClientRect().right-caja.getBoundingClientRect().right;if(d>0)caja.scrollLeft+=d;}
   if(selector&&typeof raiz.querySelector==='function')raiz.querySelector(selector)?.focus();
 }
 // Devuelve qué hacer: 'pintar', una acción para la pantalla o null si no era suyo.
