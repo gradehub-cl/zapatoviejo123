@@ -137,8 +137,9 @@ function initCarreraGrid(){
   // La lista oficial envejece: una carrera nueva no puede dejar a alguien sin
   // poder declararse en un paso obligatorio. Que la búsqueda haya encontrado
   // algo parecido no prueba que sea SU carrera, así que la salida no depende de
-  // que la lista quede vacía.
-  if(q){
+  // que la lista quede vacía. La excepción es escribir el nombre exacto de una
+  // carrera de la lista: ahí «Usar» sería la misma carrera, pero sin su malla.
+  if(q&&!vistas.some(c=>normName(c.n)===q)){
     const b=document.createElement('button');
     b.className='carrera-opt'+(!selectedCarrera&&carreraFiltro.trim()===selectedCarreraNombre?' sel':'');
     b.innerHTML='Usar «'+esc(carreraFiltro.trim())+'»';
