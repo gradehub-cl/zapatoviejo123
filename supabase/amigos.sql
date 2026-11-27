@@ -126,7 +126,7 @@ returns boolean language sql immutable set search_path = '' as $$
   select p = any (array['admin','administrador','administracion','soporte','support','ayuda','help',
                         'gradehub','oficial','official','staff','equipo','moderador','mod','root','sistema',
                         'system','null','undefined','api','www','app','ios','android','profesor','profe',
-                        'uc','fen','uai','udd','uandes','uchile','puc','amigos','perfil','inicio','agenda'])
+                        'uc','fen','uai','udd','udp','unab','uandes','uchile','puc','amigos','perfil','inicio','agenda'])
       or p like '%gradehub%' or p like 'admin%' or p like '%soporte%'
 $$;
 revoke all on function public.amigos_username_reservado(text) from public, anon, authenticated;
