@@ -23,9 +23,16 @@ async function afterSignup(){
       ? '✓ Cuenta creada — tus datos están en la nube'
       : 'Tu cuenta se creó y tus notas siguen en este dispositivo, pero no pudimos respaldarlas. No cierres sesión.',!respaldado);
     enterApp();
+    if(typeof cargasDeCuenta==='function')cargasDeCuenta();
     return;
   }
   enterOnboarding();
+  // Una cuenta recién creada con correo no pasa por afterLogin(): sin esto, en
+  // su primera sesión nadie preguntaba por su ficha de profesor y Ajustes ›
+  // Apoyo quedaba en «Revisando tu acceso…» hasta recargar (#1376); tampoco
+  // aparecían Amigos ni los avisos. El typeof es por los tests que cargan solo
+  // este bloque.
+  if(typeof cargasDeCuenta==='function')cargasDeCuenta();
   if(aislamiento.importable){
     showConfirm('¿Traer datos de este dispositivo?',
       'Hay datos guardados sin una cuenta asociada. Solo se copiarán a esta cuenta si eliges traerlos.',
@@ -246,6 +253,10 @@ function tareasConEstadoAlEntrar(){
 function cargasAlEntrar(origen){
   if(typeof registrarEntradaAnalitica==='function')registrarEntradaAnalitica('login',origen);
   else if(typeof track==='function')track('login',origen);
+  cargasDeCuenta();
+}
+// Lo mismo, sin contar un inicio de sesión: también lo usa afterSignup().
+function cargasDeCuenta(){
   if(typeof cargarAvisosFeedback==='function')cargarAvisosFeedback().catch(()=>{});
   // Si esta persona está aprobada como profesor particular, le aparece una
   // cuarta pestaña. Se pregunta una vez al entrar y no bloquea nada: si el SQL
