@@ -2333,8 +2333,11 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
    teléfono salta y el estudiante pierde el contexto. */
 .course-picker-search{display:flex;align-items:center;gap:8px;padding:11px 13px;
   border:1.5px solid var(--border);background:var(--bg2);border-radius:8px;
-  transition:border-color var(--motion-fast);}
-.course-picker-search:focus-within{border-color:var(--primary);}
+  transition:border-color var(--motion-fast),box-shadow var(--motion-fast);}
+.course-picker-search:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 85%);}
+/* El halo lo pone la caja. Sin esto, la regla general input:focus le dibujaba
+   otro al campo de adentro y se veían dos marcos. */
+.course-picker-search input:focus{box-shadow:none;}
 .course-picker-search input{flex:1;min-width:0;border:none;background:none;outline:none;
   font-family:var(--font-ui);font-size:1rem;color:var(--fg);letter-spacing:-.01em;}
 .course-picker-search input::placeholder{color:var(--fg3);}

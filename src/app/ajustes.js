@@ -135,7 +135,7 @@ function openSettings(){
       <div id="s-tenant-grid" class="s-tenant-grid"></div>
       <p class="settings-help">Cambia tu catálogo disponible. Tus ramos y notas no se tocan.</p>
       <label class="modal-label" for="s-carrera-buscar">Carrera</label>
-      <div class="modal-input" style="margin-bottom:10px;"><input type="text" id="s-carrera-buscar" placeholder="Busca tu carrera" autocomplete="off" oninput="filtrarCarrerasAjustes(this.value)"/></div>
+      <div class="modal-input" style="margin-bottom:10px;"><input type="text" id="s-carrera-buscar" placeholder="Busca tu carrera" autocomplete="off" spellcheck="false" oninput="filtrarCarrerasAjustes(this.value)"/></div>
       <div id="s-carrera-grid" class="settings-carrera-grid"></div>
       <label class="modal-label">Semestre de carrera</label>
       <div class="sem-grid" id="s-sem-grid"></div>
