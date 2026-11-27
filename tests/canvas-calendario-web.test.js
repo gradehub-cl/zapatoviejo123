@@ -1,4 +1,4 @@
-// Fechas desde la fuente de calendario de Canvas UC, en la web (#647).
+// Fechas desde la fuente de calendario de Canvas (UC y FEN): web, Android y FEN en iPhone (#647).
 // 1. La función de Cloudflare no es un proxy abierto: solo esa URL, con sesión,
 //    sin redirecciones, con tope de tamaño y sin caché.
 // 2. La app empareja por la sigla entre corchetes, convierte la hora UTC al día
@@ -64,6 +64,21 @@ const ICS=(eventos)=>['BEGIN:VCALENDAR','VERSION:2.0',...eventos.flatMap(([t,ini
   chk('una URL que Canvas no reconoce lo dice sin repetirla',r.status===502&&!(await r.text()).includes('user_'));
   r=await traer(pedido({url:URL_OK}),pedir({canvas:()=>{throw new Error('abort');}}));
   chk('si Canvas no responde a tiempo: 504',r.status===504);
+  // La app de iPhone llama desde capacitor://localhost; nadie más recibe CORS.
+  const desde=(origen,metodo='POST')=>new Request('https://gradehub.cl/canvas-calendario',{method:metodo,
+    headers:{Origin:origen,Authorization:'Bearer eyJhbGciOiJIUzI1NiJ9.sintetico.firma'},body:metodo==='POST'?JSON.stringify({url:URL_FEN}):undefined});
+  r=await traer(desde('capacitor://localhost','OPTIONS'),pedir({canvas:calendario}));
+  chk('el preflight de la app de iPhone: 204 con CORS para Authorization',r.status===204&&r.headers.get('Access-Control-Allow-Origin')==='capacitor://localhost'
+    &&/Authorization/.test(r.headers.get('Access-Control-Allow-Headers')||'')&&/POST/.test(r.headers.get('Access-Control-Allow-Methods')||''));
+  f=pedir({canvas:calendario});r=await traer(desde('capacitor://localhost'),f);
+  chk('la app de iPhone recibe el calendario y puede leerlo',r.status===200&&r.headers.get('Access-Control-Allow-Origin')==='capacitor://localhost'&&f.llamadas.some(x=>x.url===URL_FEN));
+  r=await traer(desde('capacitor://localhost'),pedir({sesion:false,canvas:calendario}));
+  chk('y también lee el error, sin sesión válida no pasa',r.status===401&&r.headers.get('Access-Control-Allow-Origin')==='capacitor://localhost');
+  const ajenas=await Promise.all(['https://ejemplo.com','null','capacitor://localhost.ejemplo.com'].map(o=>traer(desde(o,'OPTIONS'),pedir({canvas:calendario}))));
+  chk('otro origen no recibe CORS',ajenas.every(x=>!x.headers.get('Access-Control-Allow-Origin')));
+  r=await traer(new Request('https://gradehub.cl/canvas-calendario'),pedir({canvas:calendario}));
+  chk('un GET: 405',r.status===405);
+  chk('la función atiende el preflight',/export async function onRequest\(/.test(leer('functions/canvas-calendario.js')));
   const dato=vm.runInContext(leer('data.js')+';CANVAS_ICS_POR_TENANT',vm.createContext({console}));
   chk('la función acepta justo los Canvas de CANVAS_ICS_POR_TENANT',Object.keys(dato).join()==='uc,fen'
     &&Object.values(dato).every(c=>valida(URL_OK.replace('cursos.canvas.uc.cl',c.host)))
@@ -168,6 +183,19 @@ const ICS=(eventos)=>['BEGIN:VCALENDAR','VERSION:2.0',...eventos.flatMap(([t,ini
   chk('conectar un calendario vacío lo guarda y explica que no hay fechas próximas',run('urlCanvasIcsGuardada()')===URL_OK&&/no tiene fechas próximas/.test(estadoVisible.textContent));
   await run('actualizarDesdeCanvasIcs()');
   chk('actualizar un calendario vacío mantiene el aviso',/no tiene fechas próximas/.test(estadoVisible.textContent));
+
+  console.log('\n=== En el iPhone: la FEN con calendario, la UC con su token ===');
+  let pidioA=null;ctx.fetch=async u=>{pidioA=u;return new Response(ICS([]));};
+  await run('actualizarDesdeCanvasIcs()');
+  chk('en la web pide a /canvas-calendario, el mismo origen',pidioA==='/canvas-calendario');
+  // La app de la App Store: capacitor://localhost y el plugin de Canvas UC.
+  ctx.location.protocol='capacitor:';run(`__pc=pluginCanvas;pluginCanvas=()=>({});S.tenant='fen'`);
+  chk('una cuenta FEN en el iPhone ve el calendario',run('canvasIcsDisponible()')===true);
+  pidioA=null;await run('actualizarDesdeCanvasIcs()');
+  chk('y lo pide a gradehub.cl',pidioA==='https://gradehub.cl/canvas-calendario');
+  run(`S.tenant='uc'`);
+  chk('una cuenta UC en el iPhone sigue con su token, sin calendario',run('canvasIcsDisponible()')===false&&run('canvasDisponible()')===true);
+  delete ctx.location.protocol;run(`pluginCanvas=__pc`);
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
   process.exit(fail?1:0);
 })().catch(e=>{console.error(e);process.exit(1);});

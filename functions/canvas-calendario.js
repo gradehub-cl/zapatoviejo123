@@ -28,7 +28,18 @@ async function leerAcotado(r,limite,signal){
     return new TextDecoder().decode(bytes);
   }finally{signal.removeEventListener('abort',cancelar);reader.releaseLock();}
 }
+// La app de iPhone vive en capacitor://localhost y llama a gradehub.cl: se le
+// contesta con CORS. La web y Android llaman desde gradehub.cl, el mismo origen.
+// Lo que protege es la sesión, no el origen.
+const ORIGEN_APP='capacitor://localhost';
+const CORS={'Access-Control-Allow-Origin':ORIGEN_APP,'Vary':'Origin','Access-Control-Allow-Methods':'POST, OPTIONS',
+  'Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Max-Age':'600'};
 export async function traerCalendarioCanvas(request,pedir=fetch){
+  const r=request.method==='OPTIONS'?new Response(null,{status:204,headers:{'Cache-Control':'no-store'}}):await leerCalendario(request,pedir);
+  if(request.headers.get('Origin')===ORIGEN_APP)for(const k in CORS)r.headers.set(k,CORS[k]);
+  return r;
+}
+async function leerCalendario(request,pedir){
   if(request.method!=='POST')return error('Método no permitido.',405);
   const auth=/^Bearer ([A-Za-z0-9._-]{20,4096})$/.exec(request.headers.get('Authorization')||'');
   if(!auth)return error('Inicia sesión en GradeHub.',401);
@@ -50,4 +61,4 @@ export async function traerCalendarioCanvas(request,pedir=fetch){
   }catch{return error('No pudimos leer Canvas a tiempo. Intenta de nuevo.',504);}
   finally{clearTimeout(reloj);}
 }
-export async function onRequestPost({request}){return traerCalendarioCanvas(request);}
+export async function onRequest({request}){return traerCalendarioCanvas(request);}
