@@ -379,14 +379,24 @@ $$;
 create or replace function public.catalog_consensus_periodo(p_tenant text,p_periodo text,p_seccion integer default null)
 returns table(ramo text,ramo_key text,estructura jsonb,huella text,respaldos integer,periodo text,seccion integer)
 language sql stable security definer set search_path=public as $$
- with vigentes as (
+ -- Mismo resultado que antes, con menos trabajo (2026-11-26). Saber si una
+ -- cuenta terminó el onboarding y de qué universidad es obliga a descomprimir
+ -- su JSON completo: se hace una vez por cuenta que reportó, no una por
+ -- reporte. El registro de pautas del período se lee una vez, no por reporte.
+ -- La subconsulta escalar es a propósito: con un join el planificador prefiere
+ -- recorrer user_ramos entero y abre el JSON de todas las cuentas.
+ with usuarios as materialized (
+ select r.user_id from (select distinct cr.user_id from public.catalog_reports cr where cr.tenant=p_tenant and cr.periodo=p_periodo) r
+ where (select u.data->>'onboardingDone'='true' and u.data->>'tenant'=p_tenant from public.user_ramos u where u.user_id=r.user_id)
+ ), registro as materialized (
+ select p.clave,p.nombre_norm from public.pautas_catalogo_registro p where p.tenant=p_tenant and p.periodo in ('',p_periodo)
+ ), vigentes as (
  select distinct on(cr.user_id,coalesce(nullif(cr.ramo_sigla,''),cr.ramo_norm)) cr.*,
  coalesce(nullif(cr.ramo_sigla,''),cr.ramo_norm) as clave
- from public.catalog_reports cr join public.user_ramos u on u.user_id=cr.user_id
+ from public.catalog_reports cr join usuarios u on u.user_id=cr.user_id
  where cr.tenant=p_tenant and cr.periodo=p_periodo
- and u.data->>'onboardingDone'='true' and u.data->>'tenant'=cr.tenant
  and (cr.origen='explicito' or (jsonb_array_length(cr.estructura)>=2 and not exists(select 1 from jsonb_array_elements(cr.estructura) e where nullif(trim(e->>'nombre'),'') is null or coalesce((e->>'peso')::numeric,0)<=0)))
- and (cr.origen='explicito' or not exists(select 1 from public.pautas_catalogo_registro p where p.tenant=cr.tenant and (p.clave=cr.ramo_sigla or p.nombre_norm=cr.ramo_norm) and p.periodo in ('',cr.periodo)))
+ and (cr.origen='explicito' or not exists(select 1 from registro p where p.clave=cr.ramo_sigla or p.nombre_norm=cr.ramo_norm))
  and (p_seccion is null or cr.seccion is null or cr.seccion=p_seccion)
  order by cr.user_id,coalesce(nullif(cr.ramo_sigla,''),cr.ramo_norm),cr.updated_at desc,cr.id desc
  ), ambiguos as (
