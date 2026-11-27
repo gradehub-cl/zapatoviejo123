@@ -35,6 +35,30 @@ function definicionPreset(nombre,tenant,carrera,sigla){
   const clave=claveUc(nombre);
   return clave?PRESETS_UC[clave]:null;
 }
+// Pautas por sección (#1004). Solo para un ramo no coordinado con `porSeccion`:
+// devuelve la definición de ESA sección o, si la sección no tiene programa,
+// los datos generales sin evaluaciones. Nunca hereda las de otra sección. Todo
+// lo demás vuelve idéntico, sin copiar: también un ramo coordinado que trae
+// `porSeccion` (Introducción a la Economía), cuya pauta general sigue mandando.
+function definicionDeSeccion(def,seccion){
+  if(!def||Array.isArray(def)||def.coordinado!==false||!def.porSeccion)return def;
+  const {porSeccion,...datos}=def;
+  const numero=Number.isInteger(seccion)&&seccion>=1&&seccion<=999?seccion:null;
+  const propia=numero!=null&&Object.prototype.hasOwnProperty.call(porSeccion,numero)?porSeccion[numero]:null;
+  if(propia&&typeof propia==='object'&&!Array.isArray(propia))return {...datos,...propia};
+  delete datos.evals;return datos;
+}
+// `definicionPreset` no cambia: es el contrato de siempre. Esta puerta es la
+// que pregunta por una sección. En un ramo no coordinado mira el programa del
+// ramo sin filtrar por carrera, igual que las sugerencias (opcionesReferencia),
+// y con sigla solo el de esa sigla: nunca el de un homónimo.
+function definicionPresetDeSeccion(nombre,tenant,carrera,sigla,seccion){
+  const general=definicionPreset(nombre,tenant,carrera,sigla);
+  const oficial=general||pautaOficialDelRamo(nombre,tenant);
+  if(!oficial||Array.isArray(oficial)||oficial.coordinado!==false)return general;
+  if(sigla&&oficial.sigla&&normName(sigla)!==normName(oficial.sigla))return general;
+  return definicionDeSeccion(oficial,seccion);
+}
 // Una pauta que deja la mitad o más del ramo en grupos sin decir cuántas
 // evaluaciones llevan ("Evaluaciones sumativas 60%", sin casillas) no sirve para
 // saber qué nota necesitas: no dice qué viene ni cuánto pesa cada prueba.
@@ -52,7 +76,7 @@ function evalsDePreset(def){return Array.isArray(def)?def:(def&&def.evals||[]);}
 function periodoDePreset(def){return !Array.isArray(def)&&def&&typeof def.periodo==='string'?def.periodo:null;}
 function infoPeriodoPauta(r){
   if(!r||!r.origen||!r.origen.tenant)return null;
-  const def=definicionPreset(r.nombre,r.origen.tenant,r.origen.carrera,siglaParaPrograma(r));
+  const def=definicionPresetDeSeccion(r.nombre,r.origen.tenant,r.origen.carrera,siglaParaPrograma(r),r.seccion);
   const evals=Array.isArray(def)?def:(def&&def.evals||[]);
   if(!evals.length||!pautaPresetSuficiente(evals))return null;
   const periodo=periodoDePreset(def);
@@ -85,14 +109,15 @@ function pautaCalzaParaFechas(r,evals){
 function origenParaFechasOficiales(r,contexto){
   if(r&&r.origen&&r.origen.tenant)return r.origen;
   if(!r||!contexto||!contexto.tenant||!Array.isArray(r.categorias))return null;
-  const def=definicionPreset(r.nombre,contexto.tenant,contexto.carrera,siglaParaPrograma(r));
+  const def=definicionPresetDeSeccion(r.nombre,contexto.tenant,contexto.carrera,siglaParaPrograma(r),r.seccion);
   const evals=Array.isArray(def)?def:(def&&def.evals||[]);
   return def&&pautaCalzaParaFechas(r,evals)?contexto:null;
 }
 function completarFechasOficiales(r,contexto){
+  cargarPautaSeccionVacia(r,contexto);
   const origen=origenParaFechasOficiales(r,contexto);
   if(!origen)return;
-  const def=definicionPreset(r.nombre,origen.tenant,origen.carrera,siglaParaPrograma(r));
+  const def=definicionPresetDeSeccion(r.nombre,origen.tenant,origen.carrera,siglaParaPrograma(r),r.seccion);
   if(!def||estadoPeriodoPauta(periodoDePreset(def))!=='vigente')return;
   const evals=Array.isArray(def)?def:(def.evals||[]);
   const porNombre=new Map();
@@ -164,7 +189,7 @@ function horaAportaRespaldo(item){return !!item&&item.horaOrigen==='usuario';}
 
 function fechasOficialesRamo(r){
   if(!r||!r.origen||!r.origen.tenant)return new Map();
-  const def=definicionPreset(r.nombre,r.origen.tenant,r.origen.carrera,siglaParaPrograma(r));
+  const def=definicionPresetDeSeccion(r.nombre,r.origen.tenant,r.origen.carrera,siglaParaPrograma(r),r.seccion);
   const evals=Array.isArray(def)?def:(def&&def.evals||[]);
   const fechas=new Map();
   evals.forEach(([nombre,,extra])=>{if(extra&&extra.fecha)fechas.set(normName(nombre),extra.fecha);});
@@ -508,7 +533,9 @@ function normalize(data) {
       return;
     }
     repararEvaluacionesRepetidas(r);
-    const p = pautaPendiente(r);
+    // Una cuenta ya vinculada al catálogo puede recibir la pauta de SU sección
+    // si sigue vacía. Un ramo manual (sin origen) conserva exactamente su pauta.
+    const p = pautaPendiente(r)||(ramoAdmiteCargaDeSeccion(r)?datosPautaSeccion(r):null);
     if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.promedioParcial = p.promedioParcial || null; r.recuperativo = p.recuperativo || null; r.reemplazosOptativos=p.reemplazosOptativos||null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
     // Un cambio de pauta se ofrece y la persona decide. `corrigePautas` es la
     // excepción para una pauta que NOSOTROS publicamos mal: esperar el botón
@@ -600,7 +627,7 @@ function normalize(data) {
     // Solo se rellena si está vacío y si el ramo vino del catálogo: un crédito
     // escrito a mano por el estudiante manda sobre la tabla.
     sellarDatosCatalogo(r, r.origen && r.origen.tenant);
-    completarFechasOficiales(r,{tenant:data.tenant,carrera:data.carrera});
+    completarFechasOficiales(r,{tenant:data.tenant,carrera:data.carrera,soloFechas:true});
   });
   data.onboardingDone = Boolean(data.onboardingDone);
   data.careerSemestre = Number(data.careerSemestre) || 1;

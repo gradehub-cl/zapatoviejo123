@@ -276,7 +276,7 @@ function aplicarHorarioBuscacursos(){
   let puestos=0,actualizados=0,horarios=0;
   marcados.forEach(r=>{
     if(ramoPropuestoYaEsta(r))return;
-    const creado=crearRamoDesdeCatalogo(r.nombre,r.sigla);
+    const creado=crearRamoDesdeCatalogo(r.nombre,r.sigla,r.seccion??null);
     if(!creado)return;
     if(r.seccion!=null)creado.seccion=r.seccion;
     if(r.horario&&r.horario.length)creado.horario=copiarHorario(r.horario);
@@ -288,7 +288,11 @@ function aplicarHorarioBuscacursos(){
     const ramo=(S.ramos||[]).find(x=>x.id===r.id);
     if(!ramo||ramoConSigla(r.sigla)!==ramo)return;
     const seccion=r.seccion==null?null:seccionValida(r.seccion);
-    if(seccion!==null&&ramo.seccion!==seccion){ramo.seccion=seccion;actualizados++;}
+    if(seccion!==null&&ramo.seccion!==seccion){
+      ramo.seccion=seccion;
+      cargarPautaSeccionVacia(ramo,{tenant:S.tenant,carrera:S.carrera});
+      actualizados++;
+    }
     if(r.horario&&!copiarHorario(ramo.horario).length){ramo.horario=copiarHorario(r.horario);horarios++;}
   });
   // Después de crear los nuevos: el horario de un ramo que no se agregó no
