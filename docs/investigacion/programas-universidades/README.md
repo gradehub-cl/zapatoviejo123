@@ -197,9 +197,12 @@ Lo que hay que saber antes de usar esto:
 - **USACH, FAE** — carpetas por carrera: `/cice/programas/` (Ingeniería
   Comercial), `/cca/programas-2024/` (Contador Auditor) y `/cap/programas_2014/`
   (Administración Pública).
-- **PUCV** — la Escuela de Ingeniería Civil numera sus programas
-  (`eic.pucv.cl/wp-content/uploads/2023/01/<n>-<SIGLA>-…pdf`); otras unidades los
-  cuelgan en `www.pucv.cl/uuaa/site/docs/…`, host que respondió 403.
+- **PUCV, Ingeniería Civil** — la página
+  [Plan de estudios](https://eic.pucv.cl/estudia-con-nosotros/plan-de-estudios/)
+  lista los 11 semestres y enlaza 41 programas con sigla, créditos y requisitos.
+  **Ya se leyó:** el plan está completo, pero solo 11 programas traen pesos.
+  Detalle en [`pucv/`](pucv/README.md). Otras unidades cuelgan sus programas en
+  `www.pucv.cl/uuaa/site/docs/…`, host que respondió 403.
 - **USM** — por departamento, sin patrón común: `dima.usm.cl` (numerados 01 a 33,
   2021), `matematica.usm.cl`, `telematica.usm.cl`, `obrasciviles.usm.cl`.
 - **UTEM** — no publica programas, pero tiene un
@@ -284,8 +287,9 @@ Santo Tomás (`www.ust.cl/web/wp-content/uploads/sites/6/`) y Silva Henríquez
    lo recorra una persona; no con un agente de IA.
 3. **UCSC:** confirmar que el catálogo por sigla responde y si tiene índice.
 4. **UCN Coquimbo ya está leída** ([detalle](ucn/README.md)): es la primera con la
-   que se podrían armar carreras completas. Quedan con carpeta ordenada UACh
-   Derecho, USACH FAE y PUCV Ingeniería Civil.
+   que se podrían armar carreras completas. PUCV Ingeniería Civil también
+   ([detalle](pucv/README.md)): plan completo, pocas pautas. Quedan con carpeta
+   ordenada UACh Derecho y USACH FAE.
 5. **Reglamentos:** leer el artículo de aproximación y de aprobación de cada
    universidad antes de tocar `GH_REGLAS_NOTA_POR_TENANT`. Parte por la USS.
 6. **Para el resto**, la vía es la que ya usa la UAI: que cada estudiante le pase
@@ -300,5 +304,6 @@ Santo Tomás (`www.ust.cl/web/wp-content/uploads/sites/6/`) y Silva Henríquez
   vio el recorrido.
 - [`udla/`](udla/README.md): lo que se alcanzó a leer del catálogo de la UDLA.
 - [`ucn/`](ucn/README.md): los 154 programas de Ingeniería UCN en Coquimbo.
+- [`pucv/`](pucv/README.md): el plan y los 41 programas de Ingeniería Civil PUCV.
 - [`herramientas/`](herramientas/): el lector, el verificador, el extractor de
   texto y las herramientas de la UDLA. No se bajó ni se guardó en el repo ningún PDF de terceros.
