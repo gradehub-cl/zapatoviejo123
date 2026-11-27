@@ -55,7 +55,7 @@ function openSettings(){
     ['Tu cuenta','profesor','Apoyo','Ofrece clases, material o tu app','profesor particular clases particulares apoyo material app plataforma ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
     ['Tu semestre','academico','Información académica','Universidad, carrera y semestre','cambiar carrera universidad agregar semestre anterior historial ramos malla cursos obligatorios'],
     ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion'],
-    ...(canvasSeccionDisponible()?[['Tu semestre','canvas','Canvas','Ramos, fechas y notas de Canvas UC','canvas uc token ramos tareas fechas notas programa pesos']]:[]),
+    ...(canvasSeccionDisponible()?[['Tu semestre','canvas','Canvas',canvasDisponible()?'Ramos, fechas y notas de Canvas UC':'Fechas de '+canvasIcsTenant().nombre,'canvas uc fen token ramos tareas fechas notas programa pesos calendario']]:[]),
     ['La app','apariencia','Apariencia','Modo, acento y fondo','tema claro oscuro sistema color cambiar fondo'],
     // Lucas, 2026-11-22: los avisos de Amigos salen de su Privacidad y se juntan
     // acá con los de evaluaciones. Solo en la app: en la web no hay avisos.
@@ -157,7 +157,7 @@ function openSettings(){
     if(section==='canvas')return canvasDisponible()?`
       <p class="settings-help settings-help-top">Nada se agrega sin que lo revises antes.</p>
       <div id="s-canvas"><p class="settings-help">Revisando…</p></div>`
-      :canvasIcsDisponible()?'<div id="s-canvas-ics"></div>':'<p class="settings-help settings-help-top">Canvas está disponible para la UC.</p>';
+      :canvasIcsDisponible()?'<div id="s-canvas-ics"></div>':'<p class="settings-help settings-help-top">Canvas está disponible para '+new Intl.ListFormat('es',{type:'conjunction'}).format(Object.values(CANVAS_ICS_POR_TENANT).map(c=>c.universidad))+'.</p>';
     if(section==='calendario')return `
       <p class="settings-help settings-help-top">Tus evaluaciones en Google Calendar, Apple Calendar u Outlook. Se agrega una vez y se actualiza sola cada algunas horas.</p>
       ${currentUser?`

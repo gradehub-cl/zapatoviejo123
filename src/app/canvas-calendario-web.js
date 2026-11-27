@@ -1,12 +1,16 @@
 // Calendario Canvas web: URL secreta local y revisión compartida de #806.
 const CANVAS_ICS_KEY='gradehub_canvas_ics';
-const URL_CANVAS_ICS_RE=/^https:\/\/cursos\.canvas\.uc\.cl\/feeds\/calendars\/user_[A-Za-z0-9]{20,80}\.ics$/;
+// Cualquiera de los Canvas de CANVAS_ICS_POR_TENANT: una URL guardada no se
+// borra porque la universidad todavía no esté cargada.
+const URL_CANVAS_ICS_RE=new RegExp('^https://(?:'+Object.values(CANVAS_ICS_POR_TENANT).map(c=>c.host.replace(/\./g,'\\.')).join('|')+')/feeds/calendars/user_[A-Za-z0-9]{20,80}\\.ics$');
+function canvasIcsTenant(){return CANVAS_ICS_POR_TENANT[S.tenant]||null;}
 const CANVAS_ICS_SIN_FECHAS='Tu calendario de Canvas no tiene fechas próximas para tus ramos.';
 // Si la app trae Canvas nativo (el token en el llavero del iPhone), manda ese.
 // Sin él —Android, que carga gradehub.cl— el calendario .ics funciona igual que
 // en la web. Desde capacitor:// no hay /canvas-calendario que consultar.
+// Con el plugin pero sin conector para su universidad, sigue el calendario.
 function canvasIcsDisponible(){
-  return !esCuentaProfesor()&&!!currentUser&&S.tenant==='uc'&&!pluginCanvas()
+  return !esCuentaProfesor()&&!!currentUser&&!!canvasIcsTenant()&&!canvasDisponible()
     &&!(typeof location!=='undefined'&&location.protocol==='capacitor:');
 }
 // Canvas también la ofrece como webcal://; es la misma.
@@ -35,7 +39,8 @@ function fechaChileIcs(inicio){
   return fechaChileCanvas(d);
 }
 // Canvas pone el curso entre corchetes: "Tarea 2 [MAT1620-2]" o
-// "[2026-2 MAT1620-2 Cálculo II]". Con la sigla se sabe el ramo, y la
+// "[2026-2 MAT1620-2 Cálculo II]". Si trae el prefijo del horario oficial
+// ("ENMEM1505" en la FEN), se lee sin él, como la sigla guardada. Con la sigla se sabe el ramo, y la
 // evaluación se empareja como en "Traer fechas" de la app iOS (fechasCanvas).
 // Lo que no es de tus ramos y no calza con nada se deja fuera: el calendario de
 // Canvas trae también cursos que no llevas acá.
@@ -43,11 +48,12 @@ function propuestasCanvasIcs(eventos,ahora){
   ahora=ahora||new Date();
   const hoy=fechaChileCanvas(ahora);
   const porRamo=new Map(),sueltos=[];
+  const siglaRe=new RegExp('\\b(?:'+(PREFIJO_SIGLA_HORARIO[S.tenant]||'')+')?([A-Z]{3,4}[0-9]{3,4}[A-Z]?)(?:-\\d{1,3})?\\b');
   (eventos||[]).forEach(ev=>{
     const fecha=fechaChileIcs(ev.inicio)||ev.fecha;
     if(!fecha||fecha<hoy)return;
     const corchetes=(String(ev.titulo).match(/\[[^\]]*\]/g)||[]).join(' ').toUpperCase();
-    const sigla=(/\b([A-Z]{3,4}[0-9]{3,4}[A-Z]?)(?:-\d{1,3})?\b/.exec(corchetes)||[])[1];
+    const sigla=(siglaRe.exec(corchetes)||[])[1];
     const ramo=sigla&&(S.ramos||[]).find(r=>siglaRamoCanvas(r)===sigla);
     const nombre=String(ev.titulo).replace(/\s*\[[^\]]*\]\s{0,}/g,' ').trim();
     if(ramo){
@@ -91,6 +97,7 @@ function avisoCanvasIcs(texto,error){
 function pintarCanvasIcsAjustes(){
   const caja=document.getElementById('s-canvas-ics');
   if(!caja||!canvasIcsDisponible())return;
+  const {nombre,host}=canvasIcsTenant();
   caja.innerHTML=urlCanvasIcsGuardada()?`
     <p class="settings-help" style="margin-top:0;"><b>Calendario de Canvas conectado.</b> Su URL está guardada solo en este dispositivo.</p>
     <div class="settings-data-actions" style="margin-bottom:0;"><button type="button" id="s-canvas-ics-actualizar" onclick="actualizarDesdeCanvasIcs()">Actualizar desde Canvas</button></div>
@@ -98,11 +105,11 @@ function pintarCanvasIcsAjustes(){
     <p class="settings-help" id="s-canvas-ics-estado" role="status" aria-live="polite"></p>`
   :`
     <ol class="canvas-pasos">
-      <li>En Canvas UC abre <b>Calendario</b> y toca <b>Fuente de calendario</b>, abajo a la derecha.</li>
+      <li>En ${nombre} abre <b>Calendario</b> y toca <b>Fuente de calendario</b>, abajo a la derecha.</li>
       <li>Copia la URL y pégala acá.</li>
     </ol>
     <label class="modal-label" for="s-canvas-ics-url">URL de la fuente de calendario</label>
-    <div class="modal-input"><input type="url" class="campo-url" id="s-canvas-ics-url" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="url" placeholder="https://cursos.canvas.uc.cl/feeds/calendars/user_…"/></div>
+    <div class="modal-input"><input type="url" class="campo-url" id="s-canvas-ics-url" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="url" placeholder="https://${host}/feeds/calendars/user_…"/></div>
     <button type="button" class="btn-confirm" id="s-canvas-ics-conectar" onclick="conectarCanvasIcs()">Conectar calendario de Canvas</button>
     <p class="settings-help" id="s-canvas-ics-estado" role="status" aria-live="polite">Quien tenga esa URL ve tu calendario: la guardamos solo en este dispositivo y no la sincronizamos.</p>`;
 }
@@ -125,8 +132,8 @@ async function conectarCanvasIcs(){
   const cuenta=currentUser.id,estado=S;
   const vigente=()=>currentUser?.id===cuenta&&S===estado&&canvasIcsDisponible();
   const campo=document.getElementById('s-canvas-ics-url'),boton=document.getElementById('s-canvas-ics-conectar');
-  const url=normalizarUrlCanvasIcs(campo&&campo.value);
-  if(!url){avisoCanvasIcs('Esa no es la URL de la fuente de calendario de Canvas UC. Debe empezar con https://cursos.canvas.uc.cl/feeds/calendars/',true);return;}
+  const {nombre,host}=canvasIcsTenant(),url=normalizarUrlCanvasIcs(campo&&campo.value);
+  if(!url||!url.startsWith('https://'+host+'/')){avisoCanvasIcs(`Esa no es la URL de la fuente de calendario de ${nombre}. Debe empezar con https://${host}/feeds/calendars/`,true);return;}
   if(boton)boton.disabled=true;
   avisoCanvasIcs('Leyendo tu calendario de Canvas…');
   try{
