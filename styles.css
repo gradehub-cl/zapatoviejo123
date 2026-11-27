@@ -3319,13 +3319,37 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 .home-wrapped-k{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#4A4740;}
 .home-wrapped strong{font-size:20px;line-height:1.2;font-weight:800;letter-spacing:-.02em;}
 .home-wrapped small{font-size:15px;line-height:1.35;color:#4A4740;}
-.home-wrapped button{justify-self:start;align-self:flex-start;margin-top:6px;min-height:44px;padding:0 20px;border:0;border-radius:22px;background:#1D1D1F;color:#F3EFE4;font:inherit;font-size:16px;font-weight:600;cursor:pointer;}
-.home-wrapped button:focus-visible{outline:3px solid #1D1D1F;outline-offset:2px;}
-.home-wrapped-pila{display:flex;flex-direction:column;gap:6px;}
-.home-wrapped-pila span{width:22px;height:22px;border-radius:50%;border:1.5px solid #1D1D1F;}
-.home-wrapped-pila span:nth-child(2){background:#1D1D1F;}
-.home-wrapped-pila span:nth-child(3){width:auto;height:auto;border:0;border-radius:0;}
+/* El botón es la única acción de la tarjeta y tiene que verse (Martín,
+   2026-11-27): resaltador amarillo con borde de grafito y sombra dura, como un
+   sticker pegado en la hoja. Un brillo lo cruza cada tanto, la flecha empuja y
+   al apretarlo se hunde en el papel. Sin movimiento reducido, quieto. */
+.home-wrapped{animation:homeWrappedEntra var(--motion-screen) var(--ease-out) backwards;}
+.home-wrapped button{position:relative;isolation:isolate;overflow:hidden;justify-self:start;align-self:flex-start;display:inline-flex;align-items:center;gap:8px;margin:8px 3px 3px 0;min-height:48px;padding:0 20px 0 22px;border:2px solid #1D1D1F;border-radius:24px;background:#F2F23A;color:#1D1D1F;box-shadow:3px 3px 0 #1D1D1F;font:inherit;font-size:17px;font-weight:800;letter-spacing:-.01em;white-space:nowrap;cursor:pointer;transition:transform var(--motion-press) var(--ease-out),box-shadow var(--motion-press) var(--ease-out);}
+.home-wrapped button::after{content:"";position:absolute;top:-4px;bottom:-4px;left:0;width:34%;z-index:-1;background:rgba(255,255,255,.7);transform:translateX(-140%) skewX(-20deg);animation:homeWrappedBrillo 3.6s var(--ease-standard) 900ms infinite;}
+.home-wrapped button svg{flex:none;animation:homeWrappedFlecha 1.8s var(--ease-standard) 900ms infinite;}
+.home-wrapped button:active{transform:translate(3px,3px);box-shadow:0 0 0 #1D1D1F;}
+.home-wrapped button:disabled{cursor:default;}
+.home-wrapped button:disabled::after,.home-wrapped button:disabled svg{animation:none;}
+.home-wrapped button:focus-visible{outline:3px solid #2F45C4;outline-offset:3px;}
+@media(hover:hover) and (pointer:fine){.home-wrapped button:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 #1D1D1F;}}
+/* Tres burbujas de hoja de respuestas que se rellenan solas, una tras otra. */
+.home-wrapped-pila{display:flex;flex-direction:column;align-items:center;gap:6px;}
+.home-wrapped-pila i{width:22px;height:22px;border-radius:50%;border:1.5px solid #1D1D1F;box-sizing:border-box;animation:homeWrappedBurbuja 3.6s var(--ease-standard) infinite;}
+.home-wrapped-pila i:nth-child(2){animation-delay:.3s;}
+.home-wrapped-pila i:nth-child(3){animation-name:homeWrappedBurbujaAcento;animation-delay:.6s;}
 .home-wrapped-pila b{font-size:13px;font-variant-numeric:tabular-nums;}
+/* En pantallas angostas el botón necesita todo el ancho: las burbujas se van. */
+@media(max-width:359px){.home-wrapped{grid-template-columns:1fr;}.home-wrapped-pila{display:none;}}
+@keyframes homeWrappedEntra{from{opacity:0;transform:translateY(10px) scale(.98);}}
+@keyframes homeWrappedBrillo{0%{transform:translateX(-140%) skewX(-20deg);}45%,100%{transform:translateX(340%) skewX(-20deg);}}
+@keyframes homeWrappedFlecha{0%,60%,100%{transform:none;}30%{transform:translateX(3px);}}
+@keyframes homeWrappedBurbuja{0%,8%{background:transparent;transform:scale(1);}16%{background:#1D1D1F;transform:scale(1.18);}24%,78%{background:#1D1D1F;transform:scale(1);}90%,100%{background:transparent;}}
+@keyframes homeWrappedBurbujaAcento{0%,8%{background:transparent;transform:scale(1);}16%{background:#F2F23A;transform:scale(1.18);}24%,78%{background:#F2F23A;transform:scale(1);}90%,100%{background:transparent;}}
+@media(prefers-reduced-motion:reduce){
+  .home-wrapped,.home-wrapped button,.home-wrapped button::after,.home-wrapped button svg,.home-wrapped-pila i:nth-child(n){animation:none;transition:none;}
+  .home-wrapped-pila i:nth-child(2){background:#1D1D1F;}
+  .home-wrapped-pila i:nth-child(3){background:#F2F23A;}
+}
 /* La preparación: una frase grande que anuncia de qué se va a hablar. */
 .wrapped-slide[data-fase="prep"]{justify-content:center;gap:18px;}
 .wrapped-slide[data-fase="prep"]>*{animation-name:wrappedPrep;animation-duration:560ms;}
@@ -3339,7 +3363,7 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 @keyframes wrappedResalta{from{background-size:0 100%;}}
 /* El útil de cada historia: cae sobre la hoja con un rebote corto y después
    hace lo suyo (el lápiz raya, el timbre marca, la goma deja migas). */
-.hoja-objeto{display:block;width:min(176px,46vw);height:auto;margin:0 0 -4px -8px;overflow:visible;animation:hojaObjeto 640ms var(--ease-out) backwards;}
+.hoja-objeto{display:block;width:min(176px,46vw);height:auto;margin:0 0 -4px -8px;overflow:visible;}
 .hoja-objeto path,.hoja-objeto rect,.hoja-objeto circle,.hoja-objeto ellipse{fill:none;stroke:var(--tinta);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;}
 .hoja-objeto .a{fill:var(--acento);}
 .hoja-objeto .p{fill:var(--sup);}
@@ -3351,12 +3375,41 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 .hoja-objeto text.llena{fill:var(--sup);}
 .hoja-objeto .estela{stroke-dasharray:4 7;animation:wrappedAparece var(--motion-base) var(--ease-out) 520ms backwards;}
 .hoja-objeto .migas{animation:wrappedAparece 300ms var(--ease-out) 640ms backwards;}
-.hoja-objeto .sello{animation:hojaSello 420ms var(--ease-out) 380ms backwards;}
-.hoja-objeto .huella{stroke:var(--acento);stroke-width:5;stroke-dasharray:6 5;animation:wrappedAparece var(--motion-fast) var(--ease-out) 700ms backwards;}
+.hoja-objeto .huella{stroke:var(--acento);stroke-width:5;stroke-dasharray:6 5;}
 @keyframes hojaObjeto{0%{opacity:0;transform:translateY(-26px) rotate(-7deg) scale(.94);}60%{opacity:1;transform:translateY(3px) rotate(1.5deg) scale(1);}100%{transform:none;}}
 @keyframes hojaBarre{from{transform:scaleX(0);}}
 @keyframes hojaSello{0%{transform:translateY(-22px);}70%{transform:translateY(4px);}100%{transform:none;}}
 @keyframes wrappedAparece{from{opacity:0;}}
+/* Una vez sobre la mesa, cada útil hace lo suyo mientras se lee la frase: el
+   lápiz escribe, la goma borra, el avión planea, el timbre vuelve a timbrar.
+   Movimientos chicos y lentos; con movimiento reducido no hay ninguno. */
+/* `.wrapped .wrapped-slide>` para ganarle a la entrada general de la historia,
+   que antes dejaba a los útiles sin su caída propia. Cada útil cambia solo
+   el segundo movimiento. */
+.wrapped .wrapped-slide>.hoja-objeto{animation:hojaObjeto 640ms var(--ease-out) backwards,objLatido 2.4s ease-in-out 760ms infinite;}
+.wrapped .wrapped-slide>.hoja-objeto:is([data-obj="lapiz"],[data-obj="gastado"]){animation-name:hojaObjeto,objEscribe;animation-duration:640ms,1.6s;}
+.wrapped .wrapped-slide>.hoja-objeto[data-obj="goma"]{animation-name:hojaObjeto,objBorra;animation-duration:640ms,1s;}
+.wrapped .wrapped-slide>.hoja-objeto[data-obj="regla"]{animation-name:hojaObjeto,objDesliza;}
+.wrapped .wrapped-slide>.hoja-objeto[data-obj="escuadra"]{animation-name:hojaObjeto,objMece;animation-duration:640ms,2.8s;}
+.wrapped .wrapped-slide>.hoja-objeto[data-obj="avion"]{animation-name:hojaObjeto,objPlanea;animation-duration:640ms,2.6s;}
+.wrapped .wrapped-slide>.hoja-objeto[data-obj="timbre"]{animation-name:hojaObjeto,none;}
+.hoja-objeto .sello{animation:hojaSello 420ms var(--ease-out) 380ms backwards,hojaTimbra 2.2s var(--ease-standard) 1.2s infinite;}
+.hoja-objeto .huella{animation:wrappedAparece var(--motion-fast) var(--ease-out) 700ms backwards,hojaHuella 2.2s var(--ease-standard) 1.2s infinite;}
+@keyframes objLatido{50%{transform:translateY(-3px) scale(1.02);}}
+@keyframes objEscribe{25%{transform:translate(5px,-2px) rotate(1.5deg);}50%{transform:translate(9px,1px);}75%{transform:translate(4px,-1px) rotate(-1deg);}}
+@keyframes objBorra{25%{transform:translateX(-6px) rotate(-2deg);}75%{transform:translateX(6px) rotate(2deg);}}
+@keyframes objDesliza{50%{transform:translateX(8px);}}
+@keyframes objMece{25%{transform:rotate(-3deg);}75%{transform:rotate(3deg);}}
+@keyframes objPlanea{50%{transform:translate(7px,-7px) rotate(-3deg);}}
+@keyframes hojaTimbra{0%,40%,100%{transform:none;}15%{transform:translateY(-16px);}30%{transform:translateY(3px);}}
+@keyframes hojaHuella{0%,27%{opacity:.55;}32%{opacity:1;stroke-width:6;}60%,100%{opacity:1;}}
+/* En el pizarrón, la tinta clara se perdía sobre el amarillo de la regla: las
+   marcas que caen sobre el resaltador van en grafito. */
+.wrapped[data-sup="pizarron"] .hoja-objeto[data-obj="regla"]{--tinta:var(--grafito);}
+.wrapped[data-sup="pizarron"] .wrapped-regla line{mix-blend-mode:difference;}
+/* Calificar al profe desde el Wrapped: la hoja y sus avisos suben encima. */
+html.wrapped-encima #modal{z-index:410;}
+html.wrapped-encima #confirm-overlay{z-index:420;}
 /* El promedio en la casilla «Nota» de la prueba. Cuenta hasta su valor y, si
    el semestre salió bien, cae el timbre y la hoja acusa el golpe. */
 .hoja-casilla{position:relative;margin:40px 6px 14px;padding:30px 14px 20px;border:3px solid var(--tinta);border-radius:6px 12px 8px 14px;transform:rotate(-1deg);}

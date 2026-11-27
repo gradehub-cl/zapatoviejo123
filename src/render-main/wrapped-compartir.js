@@ -170,9 +170,9 @@ function renderWrappedHome(){
       <span class="home-wrapped-k">Cierre del semestre</span>
       <strong>¿Ya tienes todas tus notas?</strong>
       <small>Revisa tu semestre antes de seguir. Tus ramos y notas se conservan.</small>
-      <button id="home-wrapped-btn" type="button"><span>Semestre terminado</span></button>
+      <button id="home-wrapped-btn" type="button"><span>Semestre terminado</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
     </div>
-    <div class="home-wrapped-pila" aria-hidden="true"><span></span><span></span><span><b>${esc(base.label)}</b></span></div>`;
+    <div class="home-wrapped-pila" aria-hidden="true"><i></i><i></i><i></i><b>${esc(base.label)}</b></div>`;
   document.getElementById('home-wrapped-btn').addEventListener('click',abrirWrapped);
 }
 
