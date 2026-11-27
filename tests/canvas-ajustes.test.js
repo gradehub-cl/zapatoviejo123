@@ -100,7 +100,8 @@ const igual=(a,b,m)=>assert.equal(JSON.stringify(a),JSON.stringify(b),m);
   assert.deepEqual(eventos,[]);
   campo.isConnected=true;plugin.conectar=conectarAntes;
   await run('traerFechasCanvas()');
-  assert.deepEqual(rutas,['courses','courses/42/assignments','calendar_events','courses/42/discussion_topics'],'solo GET a rutas esperadas');
+  assert.deepEqual(rutas,['courses','courses/42/users','courses/42/assignments','calendar_events','courses/42/discussion_topics'],'solo GET a rutas esperadas');
+  run('cerrarRevisionDocenciaCanvas()'); // sigue a fechas sin aceptar la sección opcional
   const evPedido=pedidos.find(x=>x.path==='calendar_events').params;
   igual(evPedido['context_codes[]'],['course_42'],'eventos solo del curso, nunca el calendario personal');
   assert.equal(evPedido.type,'event');chk(/^\d{4}-\d{2}-\d{2}$/.test(evPedido.start_date)&&evPedido.end_date>evPedido.start_date,'con rango de fechas');

@@ -193,6 +193,7 @@ function renderRamo(){
     ?'Agrega evaluaciones para comenzar':Math.abs(tp-100)>0.001?`${r2(tp)}% ponderado`:'';
   const opinionRamo=consultarCalificacionRamoFicha(r);
   renderDocenteRamo(r,opinionRamo);
+  if(enAppNativa()&&typeof pintarDocenciaCanvasRamo==='function')pintarDocenciaCanvasRamo(r);
   if(typeof pintarResumenRamoFicha==='function')pintarResumenRamoFicha(r,opinionRamo);
 
   // Notas que un agente propuso para ESTE ramo. Van acá y no en una bandeja

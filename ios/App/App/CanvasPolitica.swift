@@ -12,9 +12,16 @@ enum CanvasPolitica {
     static let contextosMax = 10
     // El programa llega como texto plano y con tope: nunca HTML a la web.
     static let programaMax = 60_000
+    static let docentesPaginasMax = 3
     static let anuncioMax = 8_000
     static let anunciosPaginasMax = 3
-    static func limitePaginas(_ ruta: String) -> Int { tipo(ruta) == .anuncios ? anunciosPaginasMax : paginasMax }
+    static func limitePaginas(_ ruta: String) -> Int {
+        switch tipo(ruta) {
+        case .docentes: return docentesPaginasMax
+        case .anuncios: return anunciosPaginasMax
+        default: return paginasMax
+        }
+    }
 
     private static func calza(_ texto: String, _ patron: String) -> Bool {
         let match = texto.range(of: patron, options: .regularExpression)
@@ -22,16 +29,17 @@ enum CanvasPolitica {
     }
 
     static func rutaValida(_ ruta: String) -> Bool {
-        calza(ruta, "^(users/self|courses|calendar_events|courses/[0-9]{1,12}|courses/[0-9]{1,12}/(assignments|assignment_groups|discussion_topics))$")
+        calza(ruta, "^(users/self|courses|calendar_events|courses/[0-9]{1,12}|courses/[0-9]{1,12}/(assignments|assignment_groups|users|discussion_topics))$")
     }
 
-    enum Tipo { case yo, cursos, tareas, grupos, eventos, programa, anuncios }
+    enum Tipo { case yo, cursos, tareas, grupos, eventos, programa, docentes, anuncios }
     static func tipo(_ ruta: String) -> Tipo? {
         guard rutaValida(ruta) else { return nil }
         if ruta == "users/self" { return .yo }
         if ruta == "courses" { return .cursos }
         if ruta == "calendar_events" { return .eventos }
         if calza(ruta, "^courses/[0-9]{1,12}$") { return .programa }
+        if ruta.hasSuffix("/users") { return .docentes }
         if ruta.hasSuffix("/discussion_topics") { return .anuncios }
         return ruta.hasSuffix("/assignments") ? .tareas : .grupos
     }
@@ -41,6 +49,8 @@ enum CanvasPolitica {
     static func parametrosValidos(_ ruta: String, _ items: [URLQueryItem]) -> Bool {
         guard let tipo = tipo(ruta) else { return false }
         var contextos = 0
+        var roles: [String] = []
+        var matriculas = 0
         var soloAnuncios = 0
         for item in items {
             let v = item.value ?? ""
@@ -49,6 +59,8 @@ enum CanvasPolitica {
             case (_, "per_page"): ok = calza(v, "^[0-9]{1,3}$") && (1...100).contains(Int(v) ?? 0)
             case (.cursos, "enrollment_state"): ok = v == "active"
             case (.cursos, "include[]"): ok = v == "term"
+            case (.docentes, "enrollment_type[]"): roles.append(v); ok = ["teacher", "ta"].contains(v)
+            case (.docentes, "include[]"): matriculas += 1; ok = v == "enrollments"
             case (.anuncios, "only_announcements"): soloAnuncios += 1; ok = v == "true"
             case (.tareas, "include[]"): ok = v == "submission"
             case (.tareas, "bucket"): ok = ["future", "past", "upcoming", "undated"].contains(v)
@@ -63,8 +75,18 @@ enum CanvasPolitica {
         }
         // Sin contexto, Canvas devolvería el calendario personal de la cuenta.
         if tipo == .eventos && (contextos == 0 || contextos > contextosMax) { return false }
+        if tipo == .docentes && (roles.sorted() != ["ta", "teacher"] || matriculas != 1) { return false }
         if tipo == .anuncios && soloAnuncios != 1 { return false }
         return true
+    }
+
+    // Cada página conserva filtros cerrados: no se puede abrir una lista de alumnos.
+    static func paginaDocentesValida(_ url: URL, ruta: String) -> Bool {
+        guard tipo(ruta) == .docentes else { return true }
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        let paginas = items.filter { $0.name == "page" }
+        guard paginas.count <= 1, paginas.allSatisfy({ Int($0.value ?? "").map { (1...docentesPaginasMax).contains($0) } ?? false }) else { return false }
+        return parametrosValidos(ruta, items.filter { $0.name != "page" })
     }
 
     // Las páginas siguientes conservan el filtro obligatorio: nunca leen foros.
@@ -103,6 +125,27 @@ enum CanvasPolitica {
     static func proyectarEventos(_ eventos: [[String: Any]]) -> [[String: Any]] {
         eventos.filter { ($0["type"] as? String ?? "event") == "event" && (($0["context_code"] as? String)?.hasPrefix("course_") ?? false) }
             .map { solo($0, ["id", "title", "start_at", "end_at", "all_day", "context_code"]) }
+    }
+
+    // Las matrículas se usan solo para saber el rol en ESTE curso. A JS nunca
+    // pasan IDs, correo, avatar, biografía ni los propios objetos Enrollment.
+    static func proyectarDocentes(_ usuarios: [[String: Any]], curso: Int) -> [[String: String]] {
+        var salida: [[String: String]] = []
+        var vistos: Set<String> = []
+        for u in usuarios {
+            guard let raw = u["name"] as? String else { continue }
+            let limpio = textoPrograma(raw).replacingOccurrences(of: "[\\p{Cc}\\p{Cf}]", with: " ", options: .regularExpression)
+            let nombre = String(limpio.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ").prefix(100))
+            guard nombre.count >= 3, !nombre.contains("@"), !nombre.contains("://") else { continue }
+            for e in u["enrollments"] as? [[String: Any]] ?? [] {
+                guard e["course_id"] as? Int == curso, e["enrollment_state"] as? String == "active" else { continue }
+                let rol: String
+                switch e["type"] as? String { case "TeacherEnrollment": rol = "profesor"; case "TaEnrollment": rol = "ayudante"; default: continue }
+                let clave = rol + "|" + nombre.lowercased()
+                if vistos.insert(clave).inserted { salida.append(["nombre": nombre, "rol": rol]) }
+            }
+        }
+        return salida
     }
 
     // Solo anuncios publicados: título, publicación y texto plano. No pasan IDs,

@@ -24,7 +24,7 @@ assert(swift.includes('CanvasPolitica.descargaValida(url)')&&swift.includes('Can
  assert(lectura.length>100&&!lectura.includes('borrarToken'),'un 401 de archivos (curso que los esconde) nunca borra el token');}
 assert(swift.includes('static func borrarSiVencio')&&!/codigo == 401 && Self\.leerToken\(cuenta\) == token \{ Self\.borrarToken/.test(swift),'el token se borra solo si Canvas tampoco lo acepta para users/self');
 assert(/case "pdf": contenido = Self\.textoPdf/.test(swift)&&swift.includes('CanvasPolitica.recortarTexto(contenido)'),'a la web llega solo texto recortado');
-for(const f of ['proyectarCursos','proyectarGrupos','proyectarEventos','proyectarPrograma','proyectarAnuncios'])assert(swift.includes('CanvasPolitica.'+f),'cada respuesta se recorta: '+f);
+for(const f of ['proyectarCursos','proyectarGrupos','proyectarEventos','proyectarPrograma','proyectarDocentes','proyectarAnuncios'])assert(swift.includes('CanvasPolitica.'+f),'cada respuesta se recorta: '+f);
 assert(!/call\.resolve\([^\n]*"token"/.test(swift),'el puente no devuelve credenciales');
 for(const f of ['CanvasPlugin.swift','CanvasPolitica.swift'])assert(read('ios/App/App.xcodeproj/project.pbxproj').includes(f+' in Sources'));
 assert(read('ios/App/App/MainViewController.swift').includes('registerPluginInstance(GradeHubCanvasPlugin())'));
@@ -48,7 +48,7 @@ assert(!CanvasPolitica.rutaValida("courses/123/grades"))
 assert(!CanvasPolitica.rutaValida("courses/../users/self"))
 assert(!CanvasPolitica.rutaValida("courses\\n"))
 assert(CanvasPolitica.rutaValida("calendar_events"))
-for mala in ["courses/123/submissions", "courses/123/students/submissions", "conversations", "courses/123/files", "courses/123/users", "users/self/files", "calendar_events/9"] { assert(!CanvasPolitica.rutaValida(mala), mala) }
+for mala in ["courses/123/submissions", "courses/123/students/submissions", "conversations", "courses/123/files", "courses/123/users/7", "users/self/files", "calendar_events/9"] { assert(!CanvasPolitica.rutaValida(mala), mala) }
 func q(_ p: [(String, String)]) -> [URLQueryItem] { p.map { URLQueryItem(name: $0.0, value: $0.1) } }
 assert(CanvasPolitica.parametrosValidos("calendar_events", q([("context_codes[]","course_42"),("type","event"),("start_date","2026-11-16"),("end_date","2027-06-01"),("per_page","100")])))
 assert(!CanvasPolitica.parametrosValidos("calendar_events", q([("type","event")])), "sin curso sería el calendario personal")
@@ -76,6 +76,30 @@ assert(CanvasPolitica.urlValida(URL(string:buenas)!,ruta:"courses/123/assignment
 for mala in ["http://cursos.canvas.uc.cl/api/v1/courses", "https://otro.cl/api/v1/courses", "https://cursos.canvas.uc.cl:444/api/v1/courses", "https://x@cursos.canvas.uc.cl/api/v1/courses", "https://cursos.canvas.uc.cl/api/v1/courses#x", "https://cursos.canvas.uc.cl/api/v1/users/self"] {
  assert(!CanvasPolitica.urlValida(URL(string:mala)!,ruta:"courses"))
 }
+assert(CanvasPolitica.rutaValida("courses/42/users"))
+assert(CanvasPolitica.tipo("courses/42/users") == .docentes)
+let filtrosDocentes = q([("enrollment_type[]","teacher"),("enrollment_type[]","ta"),("include[]","enrollments"),("per_page","50")])
+assert(CanvasPolitica.parametrosValidos("courses/42/users",filtrosDocentes))
+for malos in [q([]),q([("enrollment_type[]","student")]),q([("enrollment_type[]","teacher")]),filtrosDocentes + q([("include[]","avatar_url")]),filtrosDocentes + q([("enrollment_role","StudentEnrollment")]),filtrosDocentes + q([("enrollment_type[]","teacher")]),filtrosDocentes + q([("search_term","persona")])] { assert(!CanvasPolitica.parametrosValidos("courses/42/users",malos)) }
+for ruta in ["users","users/42","courses/42/search_users","courses/42/students","courses/42/users/7","groups/42/users"] { assert(!CanvasPolitica.rutaValida(ruta)) }
+assert(CanvasPolitica.limitePaginas("courses/42/users") == 3 && CanvasPolitica.limitePaginas("courses/42/assignments") == 10)
+let paginaDocentes = URL(string:"https://cursos.canvas.uc.cl/api/v1/courses/42/users?enrollment_type%5B%5D=teacher&enrollment_type%5B%5D=ta&include%5B%5D=enrollments&per_page=50&page=2")!
+assert(CanvasPolitica.paginaDocentesValida(paginaDocentes,ruta:"courses/42/users"))
+for query in ["page=2","enrollment_type%5B%5D=student&page=2","enrollment_type%5B%5D=teacher&enrollment_type%5B%5D=ta&include%5B%5D=enrollments&page=4"] { assert(!CanvasPolitica.paginaDocentesValida(URL(string:"https://cursos.canvas.uc.cl/api/v1/courses/42/users?"+query)!,ruta:"courses/42/users")) }
+let docentes = CanvasPolitica.proyectarDocentes([
+ ["id":7,"name":"Docente Sintético Uno","email":"privado@ejemplo.invalid","avatar_url":"https://privado","enrollments":[["id":1,"course_id":42,"type":"TeacherEnrollment","role":"Rol personalizado","enrollment_state":"active"]]],
+ ["id":8,"name":"Ayudante Sintética Uno","enrollments":[["course_id":42,"type":"TaEnrollment","enrollment_state":"active"]]],
+ ["id":9,"name":"Estudiante Sintético","enrollments":[["course_id":42,"type":"StudentEnrollment","enrollment_state":"active"]]],
+ ["name":"Docente de otro curso","enrollments":[["course_id":43,"type":"TeacherEnrollment","enrollment_state":"active"]]],
+ ["name":"Invitación pendiente","enrollments":[["course_id":42,"type":"TeacherEnrollment","enrollment_state":"invited"]]],
+ ["name":"correo@ejemplo.invalid","enrollments":[["course_id":42,"type":"TeacherEnrollment","enrollment_state":"active"]]]
+],curso:42)
+assert(docentes.count == 2)
+assert(docentes[0] == ["nombre":"Docente Sintético Uno","rol":"profesor"])
+assert(docentes[1] == ["nombre":"Ayudante Sintética Uno","rol":"ayudante"])
+assert(docentes.allSatisfy { Set($0.keys) == ["nombre","rol"] })
+assert(CanvasPolitica.proyectarDocentes([],curso:42).isEmpty)
+assert(CanvasPolitica.proyectarDocentes([["name":"Sin matrícula visible"]],curso:42).isEmpty)
 assert(CanvasPolitica.rutaValida("courses/42/discussion_topics"))
 assert(CanvasPolitica.tipo("courses/42/discussion_topics") == .anuncios)
 assert(CanvasPolitica.parametrosValidos("courses/42/discussion_topics", q([("only_announcements","true"),("per_page","50")])))

@@ -23,6 +23,9 @@ async function olvidarCanvasCuenta(){
   if(typeof lecturaCanvasInicio!=='undefined')lecturaCanvasInicio=null;
   if(typeof entradaNotaInicio!=='undefined')entradaNotaInicio=null;
   if(typeof canvasPesosRamo!=='undefined')canvasPesosRamo.clear();
+  if(typeof propuestasDocenciaCanvas!=='undefined')propuestasDocenciaCanvas.clear();
+  if(typeof equipoDocenciaCanvas!=='undefined')equipoDocenciaCanvas.clear();
+  if(typeof revisionDocenciaCanvas!=='undefined')revisionDocenciaCanvas=null;
   if(typeof canvasProgramaRamo!=='undefined')canvasProgramaRamo.clear();
 }
 function canvasDisponible(){return !esCuentaProfesor()&&S.tenant==='uc'&&!!pluginCanvas();}
@@ -203,6 +206,7 @@ function desconectarCanvas(){
       if(!vigente())return;
       if(typeof lecturaCanvasInicio!=='undefined')lecturaCanvasInicio=null;
       if(typeof entradaNotaInicio!=='undefined')entradaNotaInicio=null;
+      propuestasDocenciaCanvas.clear();equipoDocenciaCanvas.clear();revisionDocenciaCanvas=null;
       canvasPesosRamo.clear();canvasProgramaRamo.clear();
       track('canvas_desconectado');
       await pintarCanvasAjustes({enfocar:true});
@@ -220,15 +224,17 @@ async function cursosCanvas(){
 async function traerRamosCanvas(vistaVigente=()=>true){
   if(!canvasDisponible())return;
   avisoCanvas('Buscando tus ramos en Canvas…');
+  const ctx={estado:S,cuenta:currentUser?.id,periodo:semester(),tenant:S.tenant};
   let cursos;
   try{cursos=await cursosCanvas();}
   catch(e){if(vistaVigente())await avisarErrorLecturaCanvas(e,'No pudimos leer tus ramos. Revisa la conexión e inténtalo de nuevo.');return;}
   if(!vistaVigente())return;
+  if(!await leerDocenciaCanvas(cursos,ctx)||!vistaVigente())return;
   const tienes=new Set((S.ramos||[]).map(siglaRamoCanvas).filter(Boolean));
   const faltan=cursos.filter(c=>!tienes.has(c.sigla));
   track('canvas_ramos',{encontrados:cursos.length,faltan:faltan.length});
   if(!cursos.length){avisoCanvas('No encontramos ramos de este semestre en Canvas.');return;}
-  if(!faltan.length){avisoCanvas('Ya tienes todos esos ramos.');return;}
+  if(!faltan.length){avisoCanvas('Ya tienes todos esos ramos.');abrirRevisionDocenciaCanvas();return;}
   _horarioTextoPegado=faltan.map(c=>`${c.sigla}-${c.seccion}`).join(', ');
   abrirImportarHorarioBuscacursos(true);
   await reconocerHorarioBuscacursos();
@@ -252,14 +258,20 @@ async function traerFechasCanvas(vistaVigente=()=>true){
   avisoCanvas('Buscando fechas en Canvas…');
   let propuestas=[],ramos=0,anunciosSinLeer=0,eventosSinLeer=0;
   const estado=S,cuenta=currentUser?.id||null;
-  const vigente=()=>vistaVigente()&&S===estado&&(currentUser?.id||null)===cuenta;
+  const ctx={estado,cuenta:currentUser?.id,periodo:semester(),tenant:S.tenant};
+  // La revisión de sección y equipo reemplaza la vista de Ajustes: después de
+  // ella solo se exige la misma cuenta, estado, período y universidad.
+  const sigueCuenta=()=>S===estado&&(currentUser?.id||null)===cuenta&&semester()===ctx.periodo&&S.tenant===ctx.tenant;
+  const vigente=()=>vistaVigente()&&sigueCuenta();
+  const lecturas=[];
   contextoFechasCanvas=null;avisoAnunciosCanvas='';
   const conteos={total:0,tareas:0,eventos:0,sinFecha:0,pasadas:0,duplicadas:0,sinDestino:0,noEvaluacion:0};
   try{
     const cursos=await cursosCanvas(),ahora=new Date();
+    if(!await leerDocenciaCanvas(cursos,ctx))return;
     for(const c of cursos){
       if(!vigente())return;
-      const ramo=(estado.ramos||[]).find(r=>siglaRamoCanvas(r)===c.sigla&&(r.seccion?Number(r.seccion)===c.seccion:cursos.filter(x=>x.sigla===c.sigla).length===1));
+      const ramo=(estado.ramos||[]).find(r=>cursoCanvasParaRamo(r,cursos)?.id===c.id);
       if(!ramo)continue;
       ramos++;
       const tareas=await canvasGet(`courses/${c.id}/assignments`,{bucket:'future',per_page:100});
@@ -283,24 +295,39 @@ async function traerFechasCanvas(vistaVigente=()=>true){
         anunciosSinLeer++;
       }
       if(!vigente())return;
-      const desdeAnuncios=propuestasAnunciosCanvas(anuncios,ramo,ahora);
-      const destinos=destinosAnunciosCanvas(ramo);
-      const reemplazada=p=>desdeAnuncios.some(a=>a.target===p.target||a.target.endsWith('|')&&p.target?.startsWith(a.target)
-        ||puntajeCanvas(destinos.find(t=>claveDestinoIcs(t)===a.target)?.nombres||[],p.titulo,'')===3);
-      propuestas=propuestas.concat(r.propuestas.filter(p=>!reemplazada(p)),desdeAnuncios);
+      lecturas.push({curso:c,ramo,tareas,eventos,anuncios});
       for(const k of Object.keys(conteos))conteos[k]+=r.conteos[k]||0;
     }
   }catch(e){if(vigente())await avisarErrorLecturaCanvas(e,'No pudimos leer las fechas. Revisa la conexión e inténtalo de nuevo.');return;}
   if(!vigente())return;
+  // Guardar la sección puede completar fechas oficiales; las propuestas se
+  // vuelven a calcular antes de abrir la revisión, sin reutilizar un destino ya fechado.
+  const proponer=ahora=>{
+    const cursos=lecturas.map(l=>l.curso);
+    return lecturas.filter(l=>S.ramos.includes(l.ramo)&&cursoCanvasParaRamo(l.ramo,cursos)?.id===l.curso.id).flatMap(l=>{
+      const r=resumenFechasCanvas(l.tareas,l.ramo,ahora,[],l.eventos);
+      const desdeAnuncios=propuestasAnunciosCanvas(l.anuncios,l.ramo,ahora);
+      const destinos=destinosAnunciosCanvas(l.ramo);
+      const reemplazada=p=>desdeAnuncios.some(a=>a.target===p.target||a.target.endsWith('|')&&p.target?.startsWith(a.target)
+        ||puntajeCanvas(destinos.find(t=>claveDestinoIcs(t)===a.target)?.nombres||[],p.titulo,'')===3);
+      return r.propuestas.filter(p=>!reemplazada(p)).concat(desdeAnuncios);
+    });
+  };
+  propuestas=proponer(new Date());
   avisoAnunciosCanvas=anunciosSinLeer?'No pudimos leer los anuncios de '+anunciosSinLeer+' curso'+(anunciosSinLeer===1?'':'s')+'.':'';
   const avisoEventos=eventosSinLeer?'No pudimos leer los eventos del calendario de '+eventosSinLeer+' curso'+(eventosSinLeer===1?'':'s')+'.':'';
   const avisos=[avisoEventos,avisoAnunciosCanvas].filter(Boolean).join(' ');
   track('canvas_fechas',{propuestas:propuestas.length,sin_fecha:conteos.sinFecha,pasadas:conteos.pasadas,
     duplicadas:conteos.duplicadas,sin_destino:conteos.sinDestino,eventos:conteos.eventos,no_evaluacion:conteos.noEvaluacion,anuncios:propuestas.filter(p=>p.origen==='canvas-anuncio').length,anuncios_sin_leer:anunciosSinLeer});
-  if(!propuestas.length){avisoCanvas(avisos?'No encontramos fechas nuevas en los datos disponibles. '+avisos:'Canvas no tiene fechas próximas para tus ramos. '+explicarConteosCanvas(conteos,ramos));return;}
-  avisoCanvas('');
-  icsImportDraft=propuestas.sort((a,b)=>(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''))).slice(0,ICS_IMPORT_MAX_EVENTS);
-  contextoFechasCanvas={estado,cuenta,avisos};
-  renderRevisionIcs();
-  openModal();
+  const continuar=()=>{
+    if(!sigueCuenta())return;
+    propuestas=proponer(new Date());
+    if(!propuestas.length){avisoCanvas(avisos?'No encontramos fechas nuevas en los datos disponibles. '+avisos:'Canvas no tiene fechas próximas para tus ramos. '+explicarConteosCanvas(conteos,ramos));return;}
+    avisoCanvas('');
+    icsImportDraft=propuestas.sort((a,b)=>(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''))).slice(0,ICS_IMPORT_MAX_EVENTS);
+    contextoFechasCanvas={estado,cuenta,avisos};
+    renderRevisionIcs();
+    openModal();
+  };
+  if(!abrirRevisionDocenciaCanvas(S.ramos,continuar))continuar();
 }

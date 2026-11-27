@@ -177,7 +177,7 @@ async function pintarProfesorEditarRamo(r){
     const d=docenteFichaDeRamo(r)||await consultarDocenteRamo(r);
     if(!d||!boton.isConnected||document.getElementById('editar-profe')!==boton||!currentUser||currentUser.id!==cuenta)return;
     docenteFichaActual=d;
-    const quien=d.nombre||d.mio,mia=Number(d.calif.mi_estrellas)||0;
+    const quien=d.nombre||d.mio||profesorPropuestoRamo(r,d.contexto),mia=Number(d.calif.mi_estrellas)||0;
     boton.innerHTML=`<span>${quien?esc(nombreCorto(quien)):'Sin profesor'}<small>${mia?`Tu calificación: ${mia} de 5`:'Sin calificar'}</small></span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`;
     boton.setAttribute('aria-label',`Profesor ${quien||'sin informar'}. ${mia?`Tu calificación: ${mia} de 5`:'Sin calificar'}`);
     boton.disabled=d.calif.puede_calificar!==true;
