@@ -24,12 +24,12 @@ alter table public.tutor_perfiles add column if not exists instagram text
 alter table public.tutor_perfiles add column if not exists sitio_web text
   check (sitio_web is null or (sitio_web ~ '^https://[^[:space:]/@]+[.][^[:space:]@]+$' and char_length(sitio_web) <= 160));
 alter table public.tutor_perfiles add column if not exists universidades text[]
-  check (universidades is null or (cardinality(universidades) <= 5 and universidades <@ array['fen', 'uc', 'uai', 'uandes', 'udd']));
+  check (universidades is null or (cardinality(universidades) <= 5 and universidades <@ array['fen', 'uc', 'uai', 'uandes', 'udd', 'udp', 'unab']));
 -- `add column if not exists` no toca el check de una columna que ya existe: se
 -- reemplaza por nombre para que una universidad nueva entre al reaplicar.
 alter table public.tutor_perfiles drop constraint if exists tutor_perfiles_universidades_check;
 alter table public.tutor_perfiles add constraint tutor_perfiles_universidades_check
-  check (universidades is null or (cardinality(universidades) <= 5 and universidades <@ array['fen', 'uc', 'uai', 'uandes', 'udd']));
+  check (universidades is null or (cardinality(universidades) <= 5 and universidades <@ array['fen', 'uc', 'uai', 'uandes', 'udd', 'udp', 'unab']));
 alter table public.tutor_perfiles add column if not exists ramos_siglas text[];
 alter table public.tutor_perfiles add column if not exists perfil_publico boolean not null default false;
 
@@ -56,7 +56,7 @@ begin
   if p is null then return true; end if;
   if jsonb_typeof(p)<>'object' then return false; end if;
   for fila in select * from jsonb_each(p) loop
-    if not (fila.key=any(array['uc','fen','uai','uandes','udd']))
+    if not (fila.key=any(array['uc','fen','uai','uandes','udd','udp','unab']))
       or not coalesce(fila.key=any(unis),false) or jsonb_typeof(fila.value)<>'array' then return false; end if;
     total:=total+jsonb_array_length(fila.value);
     if total>20 then return false; end if;

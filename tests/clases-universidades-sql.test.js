@@ -94,7 +94,9 @@ async function probar(db,como_se_aplico){
   const ctx={console};vm.createContext(ctx);vm.runInContext(leer('marketplace.js'),ctx);
   const enJs=vm.runInContext('UNIVERSIDADES_PERFIL.map(([v])=>v)',ctx);
   const enSql=leer('supabase/clases_universidades.sql').match(/tenant in \(([^)]*)\)/)[1].match(/[a-z]+/g);
-  check('las mismas universidades en el JS y en la base',[...enJs].sort().join()===[...enSql].sort().join());
+  // La base se amplía antes que la app (el SQL se aplica antes del merge), así
+  // que puede aceptar más de lo que el editor ofrece; nunca menos.
+  check('todo lo que ofrece el JS lo acepta la base',enJs.length>=5&&enJs.every(t=>enSql.includes(t)));
   check('un borrador para la UDD pasa la validación del editor',vm.runInContext(`validarBorradorClase({tenant:'udd',ramos_siglas:['DDCP13'],
     criterios:{promedioMenorA:5,avanceMinimo:20},modalidad:'individual',ubicacion:'online',precio_clp:12000,titulo:'Clase sintética',
     descripcion:'Descripción sintética de más de veinte caracteres',contacto_tipo:'whatsapp',contacto_valor:'+56 9 0000 0000'})`,ctx).ok);

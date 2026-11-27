@@ -7,7 +7,7 @@ const raiz = __dirname + '/../';
 const src = ['data.js', 'engine.js', 'app.js', 'render-main.js', 'render-agenda.js']
   .map(f => fs.readFileSync(raiz + f, 'utf8')).join('\n');
 
-const stub = { style: { setProperty() {}, removeProperty() {} }, addEventListener() {}, appendChild() {}, classList: { add() {}, remove() {}, contains() { return false } } };
+const stub = { style: { setProperty() {}, removeProperty() {} }, setAttribute() {}, addEventListener() {}, appendChild() {}, classList: { add() {}, remove() {}, contains() { return false } } };
 const ctx = {
   window: { addEventListener() {}, matchMedia: () => ({ matches: true, addEventListener() {}, addListener() {} }) },
   document: { getElementById: () => stub, createElement: () => stub, addEventListener() {}, documentElement: { style: { setProperty() {}, removeProperty() {} }, setAttribute() {}, removeAttribute() {} }, querySelector: () => null, querySelectorAll: () => [] },

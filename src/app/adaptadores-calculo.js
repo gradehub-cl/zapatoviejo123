@@ -13,7 +13,7 @@ function definicionPresetDelRamo(ramo){
     const nombre=Object.keys(presets).find(n=>normName(n)===normName(ramo.nombre));
     return nombre?definicionParaRamo(ramo,presets[nombre]):null;
   }
-  if(origen.tenant!=='uc'||!presetUcDisponible(ramo.nombre,origen.carrera))return null;
+  if(origen.tenant!=='uc'||!presetUcDisponible(ramo.nombre,origen.carrera,siglaParaPrograma(ramo)))return null;
   const nombre=claveUc(ramo.nombre);
   return nombre?definicionParaRamo(ramo,PRESETS_UC[nombre]):null;
 }

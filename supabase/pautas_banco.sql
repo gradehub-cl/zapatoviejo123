@@ -39,7 +39,7 @@ update public.pautas_catalogo_registro p set fuente_catalogo=x.fuente from(value
 ) as x(sigla,fuente) where p.tenant='udd' and p.clave=x.sigla;
 create table if not exists public.pautas_banco(
  id uuid primary key default gen_random_uuid(),
- tenant text not null check(tenant in('uc','fen','uai','uandes','udd')),
+ tenant text not null check(tenant in('uc','fen','uai','uandes','udd','udp','unab')),
  sigla text not null check(length(sigla) between 1 and 160),
  periodo text not null check(periodo ~ '^[0-9]{4}-[12v]$'),
  documento_path text,documento_sha256 text,

@@ -15,12 +15,12 @@ begin;
 
 alter table public.tutor_anuncios drop constraint if exists tutor_anuncios_tenant_check;
 alter table public.tutor_anuncios add constraint tutor_anuncios_tenant_check
-  check (tenant in ('fen', 'uc', 'uai', 'uandes', 'udd'));
+  check (tenant in ('fen', 'uc', 'uai', 'uandes', 'udd', 'udp', 'unab'));
 alter table public.anuncio_metricas drop constraint if exists anuncio_metricas_tenant_check;
 alter table public.anuncio_metricas add constraint anuncio_metricas_tenant_check
-  check (tenant in ('fen', 'uc', 'uai', 'uandes', 'udd'));
+  check (tenant in ('fen', 'uc', 'uai', 'uandes', 'udd', 'udp', 'unab'));
 alter table public.tutor_perfiles drop constraint if exists tutor_perfiles_universidades_check;
 alter table public.tutor_perfiles add constraint tutor_perfiles_universidades_check
-  check (universidades is null or (cardinality(universidades) <= 5 and universidades <@ array['fen', 'uc', 'uai', 'uandes', 'udd']));
+  check (universidades is null or (cardinality(universidades) <= 5 and universidades <@ array['fen', 'uc', 'uai', 'uandes', 'udd', 'udp', 'unab']));
 
 commit;

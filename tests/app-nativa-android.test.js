@@ -45,7 +45,10 @@ chk('avisos de evaluación siguen en el iPhone',ios('avisosPruebasDisponibles()'
 chk('avisos no aparecen en la web',web('avisosPruebasDisponibles()')===false);
 chk('Android sin Canvas nativo usa el calendario .ics',android('canvasIcsDisponible()')===true);
 chk('el iPhone con Canvas nativo no muestra el .ics',contexto('ios',{canvas:true})('canvasIcsDisponible()')===false);
-chk('la app con la web adentro (capacitor://) no muestra el .ics',contexto('ios',{protocolo:'capacitor:'})('canvasIcsDisponible()')===false);
+// La web adentro (capacitor://) llama a gradehub.cl: la FEN ve el .ics y la UC su token.
+const iphone=t=>{const r=contexto('ios',{canvas:true,protocolo:'capacitor:'});r(`S.tenant='${t}'`);return r;};
+chk('el iPhone (capacitor://) muestra el .ics a la FEN, que no tiene Canvas nativo',iphone('fen')('canvasIcsDisponible()')===true);
+chk('y a la UC no: ahí está su token',iphone('uc')('canvasIcsDisponible()')===false);
 chk('la web sigue mostrando el .ics',web('canvasIcsDisponible()')===true);
 const olfato=r=>r(`SECCIONES_STATS.find(x=>x.id==='olfato').disponible()`);
 chk('«Tu olfato» (sale de la Actividad en Vivo) no aparece en Android',olfato(android)===false&&olfato(ios)===true);

@@ -391,6 +391,15 @@ const HORARIO_FOTO_POR_TENANT={
   uc:{donde:'Mi UC o BuscaCursos',ejemplo:'MAT1610-1'},
   fen:{donde:'Docencia Web',url:'https://docenciaweb.fen.uchile.cl/',ejemplo:'ENMEM1505/02',horas:true},
 };
+// Calendario de Canvas fuera de la app (la "Fuente de calendario", .ics): el
+// Canvas de cada universidad y cómo se llama. Sin entrada no se ofrece.
+// functions/canvas-calendario.js repite estos hosts en su lista cerrada; un
+// test comprueba que coincidan. La FEN usa canvas.fen.uchile.cl en pregrado
+// (Martín, 2026-11-26).
+const CANVAS_ICS_POR_TENANT={
+  uc:{host:'cursos.canvas.uc.cl',nombre:'Canvas UC',universidad:'la UC'},
+  fen:{host:'canvas.fen.uchile.cl',nombre:'Canvas FEN',universidad:'la FEN'},
+};
 
 // Siglas de TODOS los ramos UC que hoy se pueden cargar desde una malla.
 //

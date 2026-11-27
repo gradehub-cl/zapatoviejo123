@@ -45,7 +45,8 @@ console.log('OK profesor: cuatro secciones, búsqueda y entrada directa sin opci
 
 for(const tipo of [null,'estudiante']){
   const estudiante=kit(tipo);estudiante.open();
-  assert.deepEqual(estudiante.buttons(),['perfil','agentes','datos','profesor','academico','calendario','apariencia','sugerencias']);
+  // La cuenta de prueba es FEN: con sesión ve el calendario de Canvas FEN.
+  assert.deepEqual(estudiante.buttons(),['perfil','agentes','datos','profesor','academico','calendario','canvas','apariencia','sugerencias']);
   estudiante.open('datos');
   assert.match(estudiante.html(),/settings-compartidos/);
   estudiante.open('academico');
