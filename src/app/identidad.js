@@ -36,10 +36,9 @@ let selectedTenant='fen';
 // Universidades que se ofrecen al elegir. Una oculta sigue apareciendo si el
 // estudiante ya la tiene seleccionada, para no dejarlo sin su opción actual.
 function tenantsVisibles(actual,consulta=''){
-  const nativa=typeof enAppNativa==='function'&&enAppNativa();
   const palabras=normalizarBusquedaUniversidad(consulta).split(' ').filter(Boolean);
   return Object.entries(TENANTS).filter(([code,cfg])=>{
-    if(code!==actual&&(cfg.oculto||(cfg.registroBasico&&!nativa)))return false;
+    if(code!==actual&&cfg.oculto)return false;
     if(!palabras.length)return true;
     const nombres=normalizarBusquedaUniversidad([code,cfg.short,cfg.name,cfg.nombreCompleto,...(cfg.alias||[])].join(' '));
     return palabras.every(p=>nombres.includes(p));
