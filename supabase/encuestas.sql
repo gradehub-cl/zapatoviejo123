@@ -17,7 +17,7 @@ create table if not exists public.encuestas (
   pregunta text not null check(char_length(trim(pregunta)) between 1 and 280),
   tipo text not null check(tipo in ('una','varias','texto')),
   opciones text[] not null default '{}',
-  publico text not null check(publico in ('todos','fen','uc','uai','uandes','udd')),
+  publico text not null check(publico in ('todos','fen','uc','uai','uandes','udd','udp','unab')),
   inicio date not null,
   termino date not null check(termino >= inicio),
   estado text not null default 'activa' check(estado in ('activa','pausada','terminada')),
@@ -28,7 +28,7 @@ create table if not exists public.encuesta_respuestas (
   user_id uuid not null references auth.users(id) on delete cascade,
   opciones integer[] not null default '{}',
   texto text check(char_length(texto) between 1 and 280),
-  universidad text not null check(universidad in ('fen','uc','uai','uandes','udd')),
+  universidad text not null check(universidad in ('fen','uc','uai','uandes','udd','udp','unab')),
   fecha timestamptz not null default now(),
   primary key(encuesta_id,user_id)
 );
@@ -49,10 +49,10 @@ create table if not exists public.encuestas_cuentas (
 -- se reemplazan por nombre, así que correr el archivo de nuevo la agrega.
 alter table public.encuestas drop constraint if exists encuestas_publico_check;
 alter table public.encuestas add constraint encuestas_publico_check
-  check(publico in ('todos','fen','uc','uai','uandes','udd'));
+  check(publico in ('todos','fen','uc','uai','uandes','udd','udp','unab'));
 alter table public.encuesta_respuestas drop constraint if exists encuesta_respuestas_universidad_check;
 alter table public.encuesta_respuestas add constraint encuesta_respuestas_universidad_check
-  check(universidad in ('fen','uc','uai','uandes','udd'));
+  check(universidad in ('fen','uc','uai','uandes','udd','udp','unab'));
 alter table public.encuestas enable row level security;
 alter table public.encuesta_respuestas enable row level security;
 alter table public.encuesta_visitas enable row level security;
@@ -68,6 +68,8 @@ returns text language sql stable security definer set search_path=pg_catalog,pub
     when 'uai' then 'uai'
     when 'uandes' then 'uandes'
     when 'udd' then 'udd'
+    when 'udp' then 'udp'
+    when 'unab' then 'unab'
     else null end
   from public.user_ramos u where u.user_id=auth.uid();
 $$;
@@ -165,7 +167,7 @@ begin
   perform admin.exigir_administrador();
   p_pregunta:=trim(p_pregunta); p_opciones:=coalesce(p_opciones,'{}');
   if p_pregunta is null or char_length(p_pregunta) not between 1 and 280
-    or p_tipo is null or p_tipo not in ('una','varias','texto') or p_publico is null or p_publico not in ('todos','fen','uc','uai','uandes','udd')
+    or p_tipo is null or p_tipo not in ('una','varias','texto') or p_publico is null or p_publico not in ('todos','fen','uc','uai','uandes','udd','udp','unab')
     or p_inicio is null or p_termino is null or p_termino<p_inicio or p_termino<(now() at time zone 'America/Santiago')::date then raise exception 'Revisa la pregunta, el público y las fechas.'; end if;
   if (p_tipo='texto' and cardinality(p_opciones)<>0) or (p_tipo<>'texto' and cardinality(p_opciones) not between 2 and 6)
     or exists(select 1 from unnest(p_opciones) x where x is null or char_length(trim(x)) not between 1 and 160)
@@ -225,4 +227,55 @@ revoke all on function public.mi_encuesta_activa(),public.encuesta_al_entrar(uui
   public.admin_crear_encuesta(text,text,text[],text,date,date),public.admin_estado_encuesta(uuid,text),public.admin_encuestas(),public.admin_resultados_encuesta(uuid) from public,anon;
 grant execute on function public.mi_encuesta_activa(),public.encuesta_al_entrar(uuid),public.responder_encuesta(uuid,integer[],text),
   public.admin_crear_encuesta(text,text,text[],text,date,date),public.admin_estado_encuesta(uuid,text),public.admin_encuestas(),public.admin_resultados_encuesta(uuid) to authenticated;
+-- Comunicado vigente del equipo. Una sola publicación para toda la app.
+-- La imagen JPEG normalizada viaja con su texto y se retira en la misma transacción.
+create table if not exists admin.comunicado_equipo (
+  unico boolean primary key default true check (unico),
+  id uuid not null unique default gen_random_uuid(),
+  creado_por uuid not null references auth.users(id) on delete cascade,
+  titulo text not null check (char_length(btrim(titulo)) between 1 and 100),
+  mensaje text not null check (char_length(btrim(mensaje)) between 1 and 2000),
+  imagen bytea check (octet_length(imagen) between 4 and 262144
+    and substring(imagen from 1 for 3)=decode('ffd8ff','hex')
+    and substring(imagen from octet_length(imagen)-1 for 2)=decode('ffd9','hex'))
+);
+alter table admin.comunicado_equipo enable row level security;
+revoke all on admin.comunicado_equipo from public,anon,authenticated;
+
+create or replace function public.comunicado_equipo_actual(p_omitido uuid default null)
+returns jsonb language sql stable security definer set search_path='' as $$
+  select jsonb_build_object('id',c.id,'titulo',c.titulo,'mensaje',c.mensaje,
+    'imagen',replace(encode(c.imagen,'base64'),chr(10),''))
+  from admin.comunicado_equipo c where auth.uid() is not null and c.id is distinct from p_omitido;
+$$;
+
+create or replace function public.admin_publicar_comunicado(p_titulo text,p_mensaje text,p_imagen text default null)
+returns uuid language plpgsql security definer set search_path='' as $$
+declare nuevo uuid;
+begin
+  perform admin.exigir_administrador();
+  if length(p_imagen)>349528 then raise exception 'La imagen es demasiado grande.'; end if;
+  insert into admin.comunicado_equipo(creado_por,titulo,mensaje,imagen)
+    values(auth.uid(),btrim(p_titulo),btrim(p_mensaje),decode(p_imagen,'base64'))
+    on conflict(unico) do nothing returning id into nuevo;
+  if nuevo is null then raise exception 'Ya hay un anuncio publicado. Actualiza el panel.'; end if;
+  return nuevo;
+end; $$;
+
+create or replace function public.admin_retirar_comunicado(p_id uuid,p_solo_imagen boolean)
+returns boolean language plpgsql security definer set search_path='' as $$
+begin
+  perform admin.exigir_administrador();
+  if p_solo_imagen is true then
+    update admin.comunicado_equipo set imagen=null where id=p_id and imagen is not null;
+  elsif p_solo_imagen is false then
+    delete from admin.comunicado_equipo where id=p_id;
+  else return false;
+  end if;
+  return found;
+end; $$;
+revoke all on function public.comunicado_equipo_actual(uuid),public.admin_publicar_comunicado(text,text,text),
+  public.admin_retirar_comunicado(uuid,boolean) from public,anon;
+grant execute on function public.comunicado_equipo_actual(uuid),public.admin_publicar_comunicado(text,text,text),
+  public.admin_retirar_comunicado(uuid,boolean) to authenticated;
 commit;

@@ -13,3 +13,18 @@
 revoke truncate, references, trigger
   on public.user_ramos, public.profiles, public.catalog_reports
   from public, anon, authenticated;
+
+-- El trigger que mantiene `updated_at` en las tablas base también se creó desde
+-- el Dashboard. Se declara acá, igual que está en producción, solo para fijarle
+-- el search_path (aviso «function_search_path_mutable» de Supabase): usa nada
+-- más que now(), que vive en pg_catalog y se encuentra igual con la ruta vacía.
+create or replace function public.touch_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;

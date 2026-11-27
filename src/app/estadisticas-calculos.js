@@ -49,15 +49,31 @@ function lecturaHistorialPrevio(historial){
 // respeta compuertas, descartes y el ramo que aporta nota a otro — hacer la
 // cuenta aparte daría un número más simple y a veces mentiroso, justo en la
 // pantalla que dice "hasta acá puedes llegar".
+//
+// En una categoría con casillas (`slots`) la nota simulada va EN la casilla
+// pendiente, con su `slot`, igual que la guarda la ficha. Una nota sin `slot`
+// el motor la suma como nota suelta y la casilla sigue pendiente: la categoría
+// pesaba la mitad y el techo de "Controles 50 % + Examen 4,0" daba 5,0 en vez
+// de 5,5. Las casillas salen de `hojasCategoria`, como en `notaNecesaria`.
+// Una evaluación o casilla con ausencia justificada no se rinde: no se rellena.
 function ramoConPendientesEn(ramo,valor){
+  const ausencias=(ramo.ausenciasJustificadas||[]).length?estadoAusenciasJustificadas(ramo):null;
+  const justificadas=new Set([...(ausencias?.activas||[]),...(ausencias?.pendientes||[]).filter(a=>a.tipo!=='rezago')].map(a=>a.desdeId));
   return {...ramo,categorias:(ramo.categorias||[]).map(c=>{
-    if(categoriaEximida(ramo,c))return c;
-    const objetivo=Number.isInteger(c.slots)&&c.slots>1?c.slots:1;
-    const puestas=(c.notas||[]).filter(n=>n.valor!==null&&n.valor!==undefined);
-    if(puestas.length>=objetivo)return c;
-    const faltan=objetivo-puestas.length;
-    const relleno=Array.from({length:faltan},(_,i)=>({id:'sim-'+i,nombre:'sim',valor,peso:1}));
-    return {...c,notas:[...puestas,...relleno]};
+    if(categoriaEximida(ramo,c)||justificadas.has(c.id))return c;
+    if(Number.isInteger(c.slots)&&c.slots>1){
+      const notas=(c.notas||[]).slice();
+      hojasCategoria(c).forEach(h=>{
+        if(Number.isInteger(h.slot)&&justificadas.has(gh_claveAusenciaCasilla(c.id,h.slot)))return;
+        const i=notas.findIndex(n=>n.id===h.id);
+        if(i>=0){if(notas[i].valor===null||notas[i].valor===undefined)notas[i]={...notas[i],valor};}
+        else notas.push({id:h.id,nombre:h.name,valor,peso:1,slot:h.slot});
+      });
+      return {...c,notas};
+    }
+    // Sin casillas no se sabe cuántas faltan: si no hay ninguna nota, va una.
+    if((c.notas||[]).some(n=>n.valor!==null&&n.valor!==undefined))return c;
+    return {...c,notas:[{id:'sim-0',nombre:'sim',valor,peso:1}]};
   })};
 }
 

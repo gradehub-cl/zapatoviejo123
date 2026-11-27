@@ -32,9 +32,31 @@ async function registrarVisitaDiaria(ahora=new Date()){
 }
 
 let _ultimaLecturaNube=0;
+// «Sin fila» solo vale si se preguntó con la sesión de esta cuenta. Cuando el
+// cliente se queda sin sesión (el token venció con el computador suspendido y
+// todavía no se renueva), supabase-js manda igual la consulta, con la llave
+// pública: RLS esconde la fila y la respuesta es la misma que la de una cuenta
+// nueva, sin error. Creerla hacía que subirConVersion borrara la base de
+// sincronización (la fusión siguiente, sin base, deja ganar a la nube sobre lo
+// anotado acá) y que afterLogin tratara como nueva una cuenta con ramos. Se
+// vio en los registros de Supabase el 2026-11-26: lecturas y escrituras de
+// user_ramos con la llave pública, de sesiones abiertas. Por eso, antes de
+// decir «sin fila» se comprueba la sesión y se pregunta de nuevo; sin sesión
+// es un fallo de lectura, que todos los que llaman ya tratan como «sin red».
+async function sesionEsDe(uid){
+  const {data}=await supabaseClient.auth.getSession();
+  return !!(data&&data.session&&data.session.user&&data.session.user.id===uid);
+}
 async function loadFromCloud(){
-  const {data,error}=await supabaseClient.from('user_ramos').select('data').eq('user_id',currentUser.id).maybeSingle();
+  const uid=currentUser.id;
+  const leer=()=>supabaseClient.from('user_ramos').select('data').eq('user_id',uid).maybeSingle();
+  let {data,error}=await leer();
   if(error)throw error;
+  if(!data){
+    if(!await sesionEsDe(uid))throw new Error('sin sesión para leer la nube');
+    ({data,error}=await leer());
+    if(error)throw error;
+  }
   _ultimaLecturaNube=Date.now();
   return data?data.data:null; // null = la cuenta aún no tiene datos
 }
@@ -113,9 +135,14 @@ function syncToCloud(){
 // nota nunca llegó a S ni al disco (Lucas, 2026-11-25: «tenía un 6 cargado y
 // al volver no estaba»). Al esconderse la página se suelta el campo de nota:
 // el blur guarda por el camino de siempre y subirSyncPendiente lo sube.
+// Solo se suelta un campo con algo escrito. Si la persona borró el 5,5 para
+// escribir otro y cambia de app, soltarlo confirmaba el borrado (la casilla se
+// iba o quedaba pendiente) y se subía al tiro. Un campo vacío queda como está:
+// la nota guardada sigue, y vaciarla a propósito se confirma tocando fuera.
 function soltarNotaEnCurso(){
   const el=typeof document!=='undefined'&&document.activeElement;
   if(!el||!el.classList||!el.classList.contains('eval-row-input')||typeof el.blur!=='function')return false;
+  if(!String(el.value||'').trim())return false;
   try{el.blur();}catch(e){return false;}
   return true;
 }

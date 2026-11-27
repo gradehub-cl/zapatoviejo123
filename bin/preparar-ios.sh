@@ -29,7 +29,7 @@ rsync -a ./ ios-web/ \
   --exclude 'node_modules' --exclude 'dist' --exclude 'docs' \
   --exclude 'tests' --exclude 'supabase' --exclude 'bin' --exclude 'src' \
   --exclude '*.md' --exclude 'package.json' --exclude 'package-lock.json' \
-  --exclude '.gitignore' --exclude '.ignore' \
+  --exclude '.gitignore' --exclude '.ignore' --exclude 'LICENSE' \
   --exclude 'ios' --exclude 'ios-web' --exclude 'capacitor.config.*' \
   --exclude 'android' \
   --exclude '/functions' --exclude '/_headers' --exclude '/sitemap.xml' \
