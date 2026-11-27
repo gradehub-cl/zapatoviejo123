@@ -183,11 +183,7 @@ function selectTenant(t){
 }
 function renderTenantPick(){
   const g=document.getElementById('tenant-grid');if(!g)return;g.innerHTML='';
-  const buscar=document.getElementById('ob-tenant-buscar');
-  const nativa=enAppNativa();
-  const contenedor=buscar?.parentElement;
-  if(contenedor)contenedor.hidden=!nativa;
-  const consulta=nativa?buscar?.value||'':'';
+  const consulta=document.getElementById('ob-tenant-buscar')?.value||'';
   const opciones=tenantsVisibles(selectedTenant,consulta);
   const estado=document.getElementById('ob-tenant-estado');
   if(estado)estado.textContent=consulta.trim()?(opciones.length
