@@ -360,7 +360,8 @@ function renderRamo(){
     const info=infoPeriodoPauta(r);
     const def=!sugerida&&!consenso&&r.origen?.tenant?pautaOficialDelRamo(r.nombre,r.origen.tenant):null;
     const publicado=def&&!pautaEditada(r)&&programaQueCalza(r,def);
-    const texto=consenso?`Ponderaciones según ${consenso} estudiantes`
+    // `consenso` es sí o no; el número vive en el ramo (se leía «según true estudiantes»).
+    const texto=consenso?`Ponderaciones según ${Number(r.consensoRespaldos)} estudiantes`
       :sugerida&&intacta?esc(textoProcedenciaSugerida(sugerida).replace('Programa oficial','Programa'))
       :publicado?esc(textoReferenciaSugerida(publicado).replace('Programa oficial','Programa'))
       :info&&info.periodo?`Programa ${esc(info.periodo)}`:'';
