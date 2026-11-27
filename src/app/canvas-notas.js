@@ -253,7 +253,7 @@ function canvasPesosEditorHTML(){
   else if(!d.usaPesos||!d.grupos.some(g=>Number(g.group_weight)>0))cuerpo='<div class="pauta-plantillas-nota" role="status">Este curso no usa pesos por grupo en Canvas.</div>';
   else cuerpo='<ul style="list-style:none;margin:0 0 6px;padding:0;font-size:0.8125rem;line-height:1.6;">'
     +d.grupos.filter(g=>Number(g.group_weight)>0).map(g=>'<li style="display:flex;justify-content:space-between;gap:12px;"><span>'+esc(g.name||'Sin nombre')+'</span><span style="font-variant-numeric:tabular-nums;">'+textoPesoCanvas(g.group_weight)+'</span></li>').join('')
-    +'</ul><div class="pauta-plantillas-nota">Referencia. Manda el programa del curso: tu pauta no cambia.</div>';
+    +'</ul><div class="pauta-plantillas-nota">Referencia. Manda el programa del curso: tus ponderaciones no cambian.</div>';
   return '<div class="pauta-plantillas" id="m-pauta-canvas"><div class="pauta-plantillas-titulo">Pesos según Canvas</div>'+cuerpo+'</div>';
 }
 function repintarPesosCanvas(){

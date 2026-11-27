@@ -45,7 +45,10 @@ chk('avisos de evaluación siguen en el iPhone',ios('avisosPruebasDisponibles()'
 chk('avisos no aparecen en la web',web('avisosPruebasDisponibles()')===false);
 chk('Android sin Canvas nativo usa el calendario .ics',android('canvasIcsDisponible()')===true);
 chk('el iPhone con Canvas nativo no muestra el .ics',contexto('ios',{canvas:true})('canvasIcsDisponible()')===false);
-chk('la app con la web adentro (capacitor://) no muestra el .ics',contexto('ios',{protocolo:'capacitor:'})('canvasIcsDisponible()')===false);
+// La web adentro (capacitor://) llama a gradehub.cl: la FEN ve el .ics y la UC su token.
+const iphone=t=>{const r=contexto('ios',{canvas:true,protocolo:'capacitor:'});r(`S.tenant='${t}'`);return r;};
+chk('el iPhone (capacitor://) muestra el .ics a la FEN, que no tiene Canvas nativo',iphone('fen')('canvasIcsDisponible()')===true);
+chk('y a la UC no: ahí está su token',iphone('uc')('canvasIcsDisponible()')===false);
 chk('la web sigue mostrando el .ics',web('canvasIcsDisponible()')===true);
 const olfato=r=>r(`SECCIONES_STATS.find(x=>x.id==='olfato').disponible()`);
 chk('«Tu olfato» (sale de la Actividad en Vivo) no aparece en Android',olfato(android)===false&&olfato(ios)===true);
@@ -90,6 +93,8 @@ chk('ninguna contraseña ni clave en el repo: jarsigner la pide',!/storepass|key
 chk('la de Play carga gradehub.cl, nunca la versión de prueba',/unset GRADEHUB_SERVIDOR/.test(play)&&/c\.server\.url!=="https:\/\/gradehub\.cl"/.test(play));
 chk('sin firma se detiene (jarsigner -verify no sirve de control)',/if \[ -z "\$HUELLA" \]/.test(play)&&!/jarsigner" -verify/.test(play));
 chk('la firma tiene que ser la clave de subida de assetlinks.json',/grep -qF "\$HUELLA" \.well-known\/assetlinks\.json/.test(play));
+const lectura=play.match(/VERSION="\$\((awk .*)\)"/)[1];
+chk('el script muestra el número de versionCode, no el comentario',/^\d+$/.test(require('child_process').execSync(lectura,{cwd:raiz,encoding:'utf8'}).trim()));
 chk('versionCode mayor que el del TWA (1)',+(gradle.match(/versionCode (\d+)/)||[])[1]>1);
 
 console.log('\n=== Apple y el gesto de volver ===');

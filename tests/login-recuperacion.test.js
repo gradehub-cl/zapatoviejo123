@@ -47,7 +47,7 @@ let ok=0,fail=0;const chk=(n,c)=>{console.log(`  ${c?'OK  ':'FAIL'} ${n}`);if(c)
   console.log('\n=== Cerrar sesión no borra lo que no alcanzó a subir ===');
   let red=true;
   const cliente2={auth:{signOut:async()=>({error:null})},rpc:async()=>({data:null,error:null}),
-    from(){const q={upsert:async()=>red?{error:null}:{error:{message:'sin red'}},update(){return q;},eq(){return q;},is(){return q;},
+    from(){const q={insert:async()=>red?{error:null}:{error:{message:'sin red'}},update(){return q;},eq(){return q;},is(){return q;},
       select:async()=>red?{data:[{user_id:'u-sintetico-1'}],error:null}:{data:null,error:{message:'sin red'}}};return q;}};
   const s=contexto('',cliente2);
   s.run(`currentUser={id:'u-sintetico-1'};S=normalize({...freshState(),onboardingDone:true,ramos:[{id:'r1',nombre:'Ramo sintético',categorias:[]}]});
@@ -66,7 +66,7 @@ let ok=0,fail=0;const chk=(n,c)=>{console.log(`  ${c?'OK  ':'FAIL'} ${n}`);if(c)
   chk('límite de correos no culpa al internet',/varios intentos/.test(tr({status:429,code:'over_email_send_rate_limit',message:'email rate limit exceeded'})));
   chk('esperar entre correos tampoco',/varios intentos/.test(tr({message:'For security purposes, you can only request this after 52 seconds.'})));
   chk('la misma contraseña de antes se explica',/distinta de la anterior/.test(tr({code:'same_password',message:'New password should be different from the old password.'})));
-  chk('credenciales malas siguen igual',tr({message:'Invalid login credentials'})==='Usuario o contraseña incorrectos.');
+  chk('credenciales malas siguen igual',tr({message:'Invalid login credentials'})==='Correo o contraseña incorrectos. Si creaste tu cuenta con Google o Apple, entra con ese botón.');
   chk('un correo ya registrado sigue sin delatarse',tr({message:'User already registered'})===s.run('MSG_VERIFICA'));
 
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);

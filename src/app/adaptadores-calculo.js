@@ -13,7 +13,7 @@ function definicionPresetDelRamo(ramo){
     const nombre=Object.keys(presets).find(n=>normName(n)===normName(ramo.nombre));
     return nombre?definicionParaRamo(ramo,presets[nombre]):null;
   }
-  if(origen.tenant!=='uc'||!presetUcDisponible(ramo.nombre,origen.carrera))return null;
+  if(origen.tenant!=='uc'||!presetUcDisponible(ramo.nombre,origen.carrera,siglaParaPrograma(ramo)))return null;
   const nombre=claveUc(ramo.nombre);
   return nombre?definicionParaRamo(ramo,PRESETS_UC[nombre]):null;
 }
@@ -188,7 +188,7 @@ function textoNotasBorrables(r,cat){
   const d=cat&&cat.dropLowest;
   if(!d||!gh_descarteManual(r,S.tenant))return '';
   if(typeof d.fraction==='number'){
-    const base=`Según la pauta, se puede borrar el ${Math.round(d.fraction*100)}% de las notas`;
+    const base=`Según las reglas del ramo, se puede borrar el ${Math.round(d.fraction*100)}% de las notas`;
     const rendidas=(cat.notas||[]).filter(n=>typeof n.valor==='number').length;
     const redondear=gh_reglasNota(r&&r.origen&&r.origen.tenant||S.tenant).descarte_redondeo==='arriba'?Math.ceil:Math.floor;
     const k=Math.min(redondear(Math.round(d.fraction*rendidas*1e6)/1e6),rendidas-1);
@@ -196,7 +196,7 @@ function textoNotasBorrables(r,cat){
   }
   const n=Math.floor(Number(d.count))||0;
   if(n<1)return '';
-  return `Según la pauta, ${n===1?'se puede borrar 1 nota':`se pueden borrar ${n} notas`}`;
+  return `Según las reglas del ramo, ${n===1?'se puede borrar 1 nota':`se pueden borrar ${n} notas`}`;
 }
 // Los descartes vienen del motor, pero se explican en la evaluación donde
 // ocurren. La nota sigue visible: solo no participa en ese promedio.
@@ -211,7 +211,7 @@ function textoDescarte(cat,descarte){
     const porcentaje=Math.round(regla.fraction*100);
     redondeo=` Con ${descarte.rendidas} evaluaciones rendidas, el ${porcentaje}% equivale a ${cantidad} ${cantidad===1?'nota':'notas'}: se redondea hacia abajo.`;
   }
-  return `${propia?'Tu pauta':'El programa'} descarta ${cantidad===1?'la nota más baja':'las notas más bajas'} de esta evaluación. ${lista} ${cantidad===1?'no cuenta':'no cuentan'} en este promedio.${redondeo}`;
+  return `${propia?'Tus ponderaciones descartan':'El programa descarta'} ${cantidad===1?'la nota más baja':'las notas más bajas'} de esta evaluación. ${lista} ${cantidad===1?'no cuenta':'no cuentan'} en este promedio.${redondeo}`;
 }
 
 // Promedio general. En Chile el PPA se pondera por créditos (SCT), no es simple.
@@ -263,15 +263,20 @@ function gpa(ramos){
   }
   return simple();
 }
-// El promedio del semestre no es la nota final oficial de un ramo. Se muestra
-// a centésimas, desde el valor bruto de gpa, sin un redondeo intermedio.
-// El promedio general va con UN decimal en toda la app, como lo muestran las
-// universidades (Lucas, 2026-11-11: 5,42 se ve 5,4). Tocar el promedio en
-// Inicio muestra el valor exacto. Las diferencias (deltas y aportes) usan
-// fmtDiferenciaPromedio, con dos decimales: con uno, un +0,04 se vería +0,0.
+// El promedio del semestre se calcula desde el valor bruto de gpa, sin
+// redondear cada ramo antes (#1072). Va con UN decimal en toda la app, como lo
+// muestran las universidades (Lucas, 2026-11-11: 5,42 se ve 5,4). Tocar el
+// promedio en Inicio muestra el valor exacto. Las diferencias (deltas y
+// aportes) usan fmtDiferenciaPromedio, con dos decimales: con uno, un +0,04 se
+// vería +0,0.
+// La décima sale de notaFinalOficial, la misma regla de la universidad que
+// pinta el semáforo (colorClass/getColor) y que usa animarPromedio. Con un
+// redondeo propio, en la UAndes (previo a la centésima) un 3,946 se leía «3,9»
+// pintado de aprobado, y al ingresar una nota la animación lo dejaba en «4,0»
+// hasta el siguiente repintado. Con la regla común da lo mismo que antes.
 function fmtPromedioGeneral(valor){
   if(!Number.isFinite(valor))return '—';
-  return gh_excelRound(valor+1e-9,1).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1,useGrouping:false});
+  return notaFinalOficial(valor).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1,useGrouping:false});
 }
 function fmtDiferenciaPromedio(valor){
   if(!Number.isFinite(valor))return '—';

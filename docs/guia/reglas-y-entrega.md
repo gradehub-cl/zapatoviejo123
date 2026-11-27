@@ -135,7 +135,9 @@ visual que no las cumple no se mergea. Lo que más aplica a una PWA:
   **Pendiente aplicarlo en:** el panel de admin (todo amontonado arriba: la barra
   de vistas, el buscador y los filtros compiten; acciones de tarjetas como
   «Marcar resuelta», «Descartar» o «Pausar profesor» con el peso de una acción
-  principal), y revisar Clases, Alumnos y las hojas de Ajustes con el mismo ojo.
+  principal), y revisar Clases, el resto de Alumnos y las hojas de Ajustes con
+  el mismo ojo. En Alumnos › Ramos, «Marcar» y «Ver alumnos» ya lo cumplen
+  (`.ramos-ver`).
 - **La barra es Inicio · Agenda · Estadísticas · Perfil** (2026-11-15), con
   Clases, Alumnos y Admin antes de Perfil para quien las tiene. Perfil es
   siempre la última y reemplaza al avatar con menú: la cuenta, el semestre y

@@ -118,11 +118,21 @@ const ramo=(nombre,sigla,dias,inicio,fin,nota)=>({id:sigla,nombre,sigla,origen:{
   const idAB=(await q('select id from public.mis_amistades() where username=$1',['beto_ej']))[0].id;
   assert.equal(n[0].id,idAB);
   await sesion(E);await pub([{sigla:'SYN101',promedio:5}]);assert.equal((await q('select * from public.amigos_notas()')).length,0,'quien no es amigo no ve');
-  await db.exec('reset role');await q('update public.amigos_notas set ramos=$2 where user_id=$1',[B,JSON.stringify([{sigla:'SYN999',promedio:6,avance:9,nivel:'good'}])]);
   await sesion(B);assert.deepEqual((await q('select * from public.amigos_notas()'))[0].ramos.map(r=>r.sigla),['SYN101'],'B ve SYN101 de A, no SYN202: no lo toma');
+  // «En común» son los ramos que quien pregunta publicó, no los de su user_ramos:
+  // publicar '[]' (o ramos que no toma con su amiga) no abre las notas de nadie.
+  await db.exec('reset role');await q('update public.user_ramos set data=$2 where user_id=$1',[B,JSON.stringify({ramos:[ramo('Curso Uno','SYN101',['L'],'08:20','09:30',6.1),ramo('Curso Dos','SYN202',['M'],'10:00','11:10',4)]})]);
+  await sesion(B);await pub([]);
+  assert.equal((await q('select * from public.amigos_notas()')).length,0,'sin publicar nada propio no ve ramos de su amiga');
+  await pub([{sigla:'SYN999',promedio:6,avance:9,nivel:'good'}]);
+  assert.deepEqual((await q('select * from public.amigos_notas()'))[0].ramos,[],'agregar siglas a user_ramos sin publicarlas no amplía lo que ve');
+  await pub([{sigla:'SYN101',nombre:'Curso Uno',promedio:6.14,avance:40,nivel:'good'},{sigla:'SYN202',nombre:'Curso Dos',promedio:4,avance:30,nivel:'warn'}]);
+  assert.deepEqual((await q('select * from public.amigos_notas()'))[0].ramos.map(r=>r.sigla).sort(),['SYN101','SYN202'],'lo que publica en común, sí');
   await db.exec('reset role');await q("update public.profiles set universidad='uai' where id=$1",[B]);
   await sesion(A);assert.equal((await q('select * from public.amigos_notas()')).length,0,'otra universidad: la misma sigla puede ser otro ramo');
-  await db.exec('reset role');await q("update public.profiles set universidad='uc' where id=$1",[B]);
+  await db.exec('reset role');await q('update public.profiles set universidad=null where id in ($1,$2)',[A,B]);
+  await sesion(A);assert.equal((await q('select * from public.amigos_notas()')).length,0,'dos cuentas sin universidad no cuentan como la misma U');
+  await db.exec('reset role');await q("update public.profiles set universidad='uc' where id in ($1,$2)",[A,B]);
   await sesion(B);assert.equal(await uno('select public.dejar_de_compartir_notas()'),true);
   await sesion(A);assert.equal((await q('select * from public.amigos_notas()')).length,0,'apagar corta al tiro');
   paso('notas: apagadas por defecto, recíprocas, solo ramos en común y validadas');

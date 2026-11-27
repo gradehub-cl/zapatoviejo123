@@ -106,7 +106,7 @@ grant execute on function public.tutor_aprobado(uuid) to anon, authenticated;
 create table if not exists public.tutor_anuncios (
   id              uuid primary key default gen_random_uuid(),
   autor_id        uuid not null references auth.users(id) on delete cascade,
-  tenant          text not null check (tenant in ('fen', 'uc', 'uai', 'uandes', 'udd')),
+  tenant          text not null check (tenant in ('fen', 'uc', 'uai', 'uandes', 'udd', 'udp', 'unab')),
   ramos_siglas    text[] not null check (cardinality(ramos_siglas) between 1 and 12),
   modalidad       text not null check (modalidad in ('individual', 'grupal')),
   ubicacion       text not null check (ubicacion in ('online', 'presencial', 'hibrido')),
@@ -138,7 +138,7 @@ alter table public.tutor_anuncios add constraint tutor_anuncios_estado_check
 -- se reemplaza por nombre, así que correr el archivo de nuevo la agrega.
 alter table public.tutor_anuncios drop constraint if exists tutor_anuncios_tenant_check;
 alter table public.tutor_anuncios add constraint tutor_anuncios_tenant_check
-  check (tenant in ('fen', 'uc', 'uai', 'uandes', 'udd'));
+  check (tenant in ('fen', 'uc', 'uai', 'uandes', 'udd', 'udp', 'unab'));
 
 -- Aditivo: si existía un aviso queda con criterios NULL y sigue siendo general.
 -- No reinterpreta ni rellena campañas anteriores. Sin criterios explícitos el
@@ -218,6 +218,7 @@ create or replace function public.detalles_clase_validos(d jsonb)
 returns boolean
 language sql
 immutable
+set search_path = ''
 as $$
   select case
     when d is null then true
@@ -247,6 +248,7 @@ create or replace function public.linea_datos_clase_valida(l text[])
 returns boolean
 language sql
 immutable
+set search_path = ''
 as $$
   select l is null or (
     cardinality(l) between 1 and 3
@@ -679,12 +681,12 @@ alter table public.tutor_perfiles add column if not exists instagram text
 alter table public.tutor_perfiles add column if not exists sitio_web text
   check (sitio_web is null or (sitio_web ~ '^https://[^[:space:]/@]+[.][^[:space:]@]+$' and char_length(sitio_web) <= 160));
 alter table public.tutor_perfiles add column if not exists universidades text[]
-  check (universidades is null or (cardinality(universidades) <= 5 and universidades <@ array['fen', 'uc', 'uai', 'uandes', 'udd']));
+  check (universidades is null or (cardinality(universidades) <= 5 and universidades <@ array['fen', 'uc', 'uai', 'uandes', 'udd', 'udp', 'unab']));
 -- `add column if not exists` no toca el check de una columna que ya existe: se
 -- reemplaza por nombre para que una universidad nueva entre al reaplicar.
 alter table public.tutor_perfiles drop constraint if exists tutor_perfiles_universidades_check;
 alter table public.tutor_perfiles add constraint tutor_perfiles_universidades_check
-  check (universidades is null or (cardinality(universidades) <= 5 and universidades <@ array['fen', 'uc', 'uai', 'uandes', 'udd']));
+  check (universidades is null or (cardinality(universidades) <= 5 and universidades <@ array['fen', 'uc', 'uai', 'uandes', 'udd', 'udp', 'unab']));
 alter table public.tutor_perfiles add column if not exists ramos_siglas text[];
 alter table public.tutor_perfiles add column if not exists perfil_publico boolean not null default false;
 
@@ -711,7 +713,7 @@ begin
   if p is null then return true; end if;
   if jsonb_typeof(p)<>'object' then return false; end if;
   for fila in select * from jsonb_each(p) loop
-    if not (fila.key=any(array['uc','fen','uai','uandes','udd']))
+    if not (fila.key=any(array['uc','fen','uai','uandes','udd','udp','unab']))
       or not coalesce(fila.key=any(unis),false) or jsonb_typeof(fila.value)<>'array' then return false; end if;
     total:=total+jsonb_array_length(fila.value);
     if total>20 then return false; end if;
@@ -823,7 +825,7 @@ create table if not exists public.anuncio_metricas (
   anuncio_id      uuid not null references public.tutor_anuncios(id) on delete cascade,
   dia             date not null,
   tipo            text not null check (tipo in ('impresion', 'clic', 'contacto')),
-  tenant          text not null check (tenant in ('fen', 'uc', 'uai', 'uandes', 'udd')),
+  tenant          text not null check (tenant in ('fen', 'uc', 'uai', 'uandes', 'udd', 'udp', 'unab')),
   ramo_sigla      text not null check (char_length(btrim(ramo_sigla)) between 2 and 24),
   eventos         integer not null default 0 check (eventos >= 0),
   updated_at      timestamptz not null default now(),
@@ -832,7 +834,7 @@ create table if not exists public.anuncio_metricas (
 -- La métrica copia la universidad del anuncio: los dos checks van juntos.
 alter table public.anuncio_metricas drop constraint if exists anuncio_metricas_tenant_check;
 alter table public.anuncio_metricas add constraint anuncio_metricas_tenant_check
-  check (tenant in ('fen', 'uc', 'uai', 'uandes', 'udd'));
+  check (tenant in ('fen', 'uc', 'uai', 'uandes', 'udd', 'udp', 'unab'));
 
 -- Identidad de la publicación. -infinity conserva el conjunto heredado.
 alter table public.anuncio_metricas add column if not exists publicacion timestamptz not null default '-infinity';
@@ -1125,6 +1127,7 @@ create or replace function public.rango_canal_alcance(p_canal text)
 returns integer
 language sql
 immutable
+set search_path = ''
 as $$
   select case p_canal when 'recomendacion' then 3 when 'busqueda' then 2 when 'lista' then 1 else 0 end;
 $$;
@@ -1399,6 +1402,7 @@ create or replace function public.tarifa_campana_clp(p_concepto text)
 returns integer
 language sql
 immutable
+set search_path = ''
 as $$
   select case p_concepto
     when 'dia' then 100 when 'vista' then 10 when 'apertura' then 50 when 'contacto' then 1000
@@ -1466,6 +1470,10 @@ declare
   hasta_cobro timestamptz;
   segundos_suspendidos numeric := 0;
   configuracion jsonb;
+  inicio_campana timestamptz;
+  anterior timestamptz;
+  segundos_actuales numeric := 0;
+  segundos_anteriores numeric := 0;
 begin
   select * into a from public.tutor_anuncios where id = p_anuncio_id;
   if not found then return; end if;
@@ -1483,13 +1491,50 @@ begin
       (least(hasta_cobro, coalesce(s.hasta, hasta_cobro)) - greatest(a.publicado_at, s.desde))))), 0)
       into segundos_suspendidos from public.tutor_suspensiones s
       where s.user_id = a.autor_id and s.desde < hasta_cobro and (s.hasta is null or s.hasta > a.publicado_at);
-    dias_cobrados := greatest(0, ceil((extract(epoch from (hasta_cobro - a.publicado_at)) - segundos_suspendidos) / 86400)::integer);
-    if dias is not null then dias_cobrados := least(dias_cobrados, dias); end if;
+    segundos_actuales := greatest(0, extract(epoch from (hasta_cobro - a.publicado_at)) - segundos_suspendidos);
+    if dias is not null then segundos_actuales := least(segundos_actuales, dias * 86400); end if;
+    dias_cobrados := ceil(segundos_actuales / 86400)::integer;
   end if;
-  select count(*)::integer into vistas from public.anuncio_alcance where anuncio_id = p_anuncio_id and publicacion = a.medicion_desde;
-  select count(*) filter (where tipo = 'apertura')::integer, count(*) filter (where tipo = 'contacto')::integer
+  -- Subirle el tope y volver a publicar sigue la misma campaña (Lucas,
+  -- 2026-11-24). Una publicación anterior que todavía no vencía cuando empezó
+  -- la siguiente es parte de la misma campaña: sus días y sus personas se
+  -- suman, y el tope se mide contra el total. Cada persona cuenta una vez por
+  -- anuncio: quien ya lo vio, abrió o contactó antes no vuelve a contar.
+  inicio_campana := a.medicion_desde;
+  loop
+    select max(s.publicacion) into anterior from (
+      select publicacion, vence_publicacion from public.anuncio_alcance where anuncio_id = p_anuncio_id
+      union select publicacion, vence_publicacion from public.anuncio_interacciones where anuncio_id = p_anuncio_id
+    ) s where isfinite(s.publicacion) and s.publicacion < inicio_campana and s.vence_publicacion > inicio_campana;
+    exit when anterior is null;
+    inicio_campana := anterior;
+  end loop;
+  -- Tiempo de las publicaciones anteriores de esta campaña: hasta que vence,
+  -- empieza la siguiente o termina el último día con actividad (lo que pase
+  -- antes). Si llegó al tope dejó de mostrarse: los días detenida o pausada
+  -- antes de republicar no se cobran. Todo se suma y se redondea una vez.
+  select coalesce(sum(greatest(0, extract(epoch from (least(t.vence, t.siguiente, t.fin_actividad) - t.publicacion)))), 0)
+    into segundos_anteriores
+    from (select p.publicacion, p.vence,
+                 coalesce(lead(p.publicacion) over (order by p.publicacion), a.medicion_desde) siguiente,
+                 coalesce((p.ultimo_dia + 1)::timestamp at time zone 'America/Santiago', p.vence) fin_actividad
+          from (select publicacion, max(vence_publicacion) vence, max(dia) ultimo_dia from (
+                  select publicacion, vence_publicacion, dia from public.anuncio_alcance where anuncio_id = p_anuncio_id
+                  union all select publicacion, vence_publicacion, dia from public.anuncio_interacciones where anuncio_id = p_anuncio_id
+                ) u where isfinite(publicacion) and vence_publicacion is not null and publicacion >= inicio_campana and publicacion < a.medicion_desde group by publicacion) p) t;
+  if segundos_anteriores > 0 then
+    dias_cobrados := ceil((segundos_actuales + segundos_anteriores) / 86400)::integer;
+  end if;
+  select count(distinct x.user_id)::integer into vistas from public.anuncio_alcance x
+    where x.anuncio_id = p_anuncio_id and x.publicacion >= inicio_campana and x.publicacion <= a.medicion_desde
+      and not exists (select 1 from public.anuncio_alcance y where y.anuncio_id = p_anuncio_id
+                        and y.user_id = x.user_id and y.publicacion < inicio_campana);
+  select count(distinct x.user_id) filter (where x.tipo = 'apertura')::integer, count(distinct x.user_id) filter (where x.tipo = 'contacto')::integer
     into aperturas, contactos
-    from public.anuncio_interacciones where anuncio_id = p_anuncio_id and publicacion = a.medicion_desde;
+    from public.anuncio_interacciones x
+    where x.anuncio_id = p_anuncio_id and x.publicacion >= inicio_campana and x.publicacion <= a.medicion_desde
+      and not exists (select 1 from public.anuncio_interacciones y where y.anuncio_id = p_anuncio_id
+                        and y.user_id = x.user_id and y.tipo = x.tipo and y.publicacion < inicio_campana);
   costo_bruto := dias_cobrados * public.tarifa_campana_clp('dia', a.precio_campana_clp)
                + vistas * public.tarifa_campana_clp('vista', a.precio_campana_clp)
                + aperturas * public.tarifa_campana_clp('apertura', a.precio_campana_clp)

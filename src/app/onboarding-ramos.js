@@ -153,7 +153,7 @@ function obCatalogMeta(r){
   const detalles=[r.sigla?esc(r.sigla):'',lugar];
   if(typeof r.creditos==='number')detalles.push(`${r.creditos} créditos`);
   if(r.escuela)detalles.push(esc(r.escuela));
-  if(r.tienePreset)detalles.push(r.consenso?`pauta de ${r.consenso} estudiantes`:'con pauta');
+  if(r.tienePreset)detalles.push(r.consenso?`ponderaciones según ${r.consenso} estudiantes`:'con programa');
   return detalles.filter(Boolean).join(' · ');
 }
 function renderObCoursePicker(){
@@ -182,7 +182,7 @@ function renderObCoursePicker(){
       ? `<p class="course-picker-nota">De ${esc(variantesSiglaDe(elegido,variantes))} todavía no tenemos la pauta: sus evaluaciones las armas tú.</p>`
       : '';
     return `
-    <label style="display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px solid var(--border);cursor:pointer;">
+    <label style="display:flex;align-items:center;gap:11px;min-height:44px;padding:10px 2px;border-bottom:1px solid var(--border);cursor:pointer;">
       <input type="checkbox" ${obTieneRamo(elegido)?'checked':''} onchange="obToggleRamoCodificado('${obCodificarNombre(elegido)}',this.checked)" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--primary);"/>
       <span class="course-picker-selected-name">${esc(nombre)}</span>
       ${sig}
@@ -191,14 +191,14 @@ function renderObCoursePicker(){
   box.innerHTML=`
     <div class="course-picker">
       <p class="course-picker-intro">${obCoursePickerIntro(sugeridos)}</p>
-      ${sinCatalogoVerificado&&!visibles.length?'':`
+      ${!visibles.length?'':`
       <div class="course-picker-section">
         <label class="modal-label">${sugeridos.length?`Sugeridos para ${selectedSem}°`:'Tu semestre'}</label>
         ${rows}
       </div>`}
       ${sinCatalogoVerificado?'':`<div class="course-picker-section">
         <label class="modal-label" for="ob-course-search">${obCourseSearchLabel()}</label>
-        <div class="course-picker-search"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg><input id="ob-course-search" type="text" placeholder="${obCourseSearchPlaceholder()}" maxlength="${NOMBRE_MAX}" autocomplete="off" autocapitalize="none"/></div>
+        <div class="course-picker-search"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg><input id="ob-course-search" type="text" placeholder="${obCourseSearchPlaceholder()}" maxlength="${NOMBRE_MAX}" autocomplete="off" autocapitalize="none" spellcheck="false"/></div>
         <div id="ob-course-results"></div>
       </div>`}
       <button class="course-picker-manual" type="button" onclick="obToggleManual()">${sinCatalogoVerificado?'Agregar un ramo de mi horario':'¿No aparece? Agregar un ramo a mano'}</button>

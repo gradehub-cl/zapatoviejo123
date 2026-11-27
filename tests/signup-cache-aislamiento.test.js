@@ -10,7 +10,7 @@ function harness(owner,{falloRespaldo=false,falloStorage=false}={}){
   const storage=new Map([['gradehub_v1',JSON.stringify(estado())],...(owner?[
     ['gradehub_cache_owner',owner],['gradehub_v1_base',JSON.stringify({owner,data:estado()})]
   ]:[])]);
-  const uploads=[],avisos=[];let screen='',pregunta=null,salio=false;
+  const uploads=[],avisos=[];let screen='',pregunta=null,salio=false,cargas=0;
   const ctx={S:estado(),currentUser:{id:'cuenta-b'},STORAGE_KEY:'gradehub_v1',CACHE_OWNER_KEY:'gradehub_cache_owner',SYNC_BASE_KEY:'gradehub_v1_base',
     localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>{if(falloStorage||falloRespaldo&&k.startsWith('gradehub_v1_respaldo_'))throw Error('quota');storage.set(k,v);},removeItem:k=>storage.delete(k)},
     getCacheOwner:()=>storage.get('gradehub_cache_owner')||null,setCacheOwner:uid=>storage.set('gradehub_cache_owner',uid),
@@ -19,9 +19,10 @@ function harness(owner,{falloRespaldo=false,falloStorage=false}={}){
     syncNow:async()=>{uploads.push(JSON.parse(JSON.stringify(ctx.S)));return true;},syncProfile:async()=>{},
     enterApp:()=>{screen='app';},enterOnboarding:()=>{screen='onboarding';},
     showToast:(msg,error)=>avisos.push({msg,error}),track(){},console,
+    cargasDeCuenta:()=>{cargas++;},
   };
   vm.createContext(ctx);vm.runInContext(source.slice(start,end),ctx);
-  return {ctx,storage,uploads,avisos,screen:()=>screen,pregunta:()=>pregunta,salio:()=>salio};
+  return {ctx,storage,uploads,avisos,screen:()=>screen,pregunta:()=>pregunta,salio:()=>salio,cargas:()=>cargas};
 }
 let count=0,fail=0;const check=(name,condition)=>{console.log(`  ${condition?'OK  ':'FAIL'} ${name}`);condition?count++:fail++;};
 (async()=>{
@@ -64,6 +65,20 @@ let count=0,fail=0;const check=(name,condition)=>{console.log(`  ${condition?'OK
   privado.ctx.S=privado.ctx.freshState();privado.storage.clear();
   await privado.ctx.afterSignup();
   check('una cuenta vacía puede iniciar sin almacenamiento local',privado.screen()==='onboarding'&&!privado.salio()&&privado.uploads.length===0);
+
+  // Sin esto, en la primera sesión de una cuenta creada con correo nadie pedía
+  // la ficha de profesor y Ajustes › Apoyo quedaba en «Revisando tu acceso…»
+  // hasta recargar; tampoco aparecían Amigos ni los avisos (auditoría #1376).
+  console.log('\n=== La cuenta recién creada pide lo mismo que al iniciar sesión ===');
+  check('al quedar en el onboarding pide las cargas de la cuenta, una vez',h.cargas()===1&&privado.cargas()===1);
+  const propia=harness('cuenta-b');
+  await propia.ctx.afterSignup();
+  check('también si entra directo con sus datos de este dispositivo',propia.screen()==='app'&&propia.cargas()===1);
+  check('si el registro se detiene no pide nada',sinEspacio.cargas()===0);
+  const cargasFuente=source.slice(source.indexOf('function cargasDeCuenta(){'),source.indexOf('\n}\n',source.indexOf('function cargasDeCuenta(){')));
+  check('esas cargas piden la ficha de profesor y no cuentan un inicio de sesión',
+    /cargarPerfilProfesor\(\)/.test(cargasFuente)&&/cargarAmigos\(\)/.test(cargasFuente)&&!/'login'/.test(cargasFuente));
+  check('iniciar sesión las sigue pidiendo',/track\('login',origen\);\s*cargasDeCuenta\(\);/.test(source));
 
   console.log('\n=== Un respaldo corrupto no toca la caché vigente ===');
   const corrupto=harness('cuenta-b');

@@ -118,6 +118,9 @@ async function leerFotoOcr(file,progreso){
     corePath:base+(wasmSimdDisponible()?'tesseract-core-simd-lstm.wasm.js':'tesseract-core-lstm.wasm.js'),
     langPath:base.replace(/\/$/,''),
     workerBlobURL:false,
+    // Sin esto, el lector además de rechazar la promesa lanza el mismo error
+    // suelto en la página: llegaba a errores_app aunque ya se había avisado.
+    errorHandler:()=>{},
     logger:m=>{if(progreso&&m&&m.status==='recognizing text'&&typeof m.progress==='number')progreso((paso+m.progress)/pasos);},
   });
   try{
@@ -575,8 +578,12 @@ async function leerFotoHorario(input,alLeer=reconocerHorarioBuscacursos){
       if(document.getElementById('m-horario-estado')===estado)estado.textContent=`Leyendo tu horario… ${Math.round(p*100)}%`;
     });
   }catch(e){
+    // El lector rechaza con un texto («Error attempting to read image») cuando
+    // no puede abrir el archivo: un HEIC o una imagen dañada. No es la conexión.
     if(document.getElementById('m-horario-estado')===estado)
-      estado.textContent='No pudimos leer la foto. Revisa tu conexión e intenta de nuevo.';
+      estado.textContent=/read image/i.test(String(e&&e.message||e))
+        ?'Esa imagen no se pudo abrir. Prueba con un pantallazo de tu horario.'
+        :'No pudimos leer la foto. Revisa tu conexión e intenta de nuevo.';
     return false;
   }finally{_horarioLeyendoFoto=false;input.disabled=false;input.value='';}
   // Si cerró el modal mientras se leía, lo leído no abre nada.

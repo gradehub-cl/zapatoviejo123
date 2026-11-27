@@ -37,7 +37,7 @@ function openEditRamoModal(){
     ${exigenciaRamoEditorHTML()}
     <span class="modal-label">Profesor</span>
     <button type="button" class="editar-profe" id="editar-profe"><span>Sin profesor<small>Sin calificar</small></span></button>
-    <label class="modal-label" style="display:flex;align-items:center;gap:10px;text-transform:none;font-weight:500;letter-spacing:0;cursor:pointer;margin:2px 0 12px;line-height:1.35;">
+    <label class="modal-label" style="display:flex;min-height:44px;align-items:center;gap:10px;text-transform:none;font-weight:500;letter-spacing:0;cursor:pointer;margin:2px 0 12px;line-height:1.35;">
       <input type="checkbox" id="m-ramo-faltas" ${faltasActivas(r)?'checked':''} onchange="document.getElementById('m-ramo-faltas-limite-box').hidden=!this.checked" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--primary);"/>
       <span>Llevar la cuenta de mis faltas <span style="color:var(--fg3);">(aparece en la ficha del ramo)</span></span>
     </label>

@@ -127,6 +127,15 @@ const PRESETS_FEN={
       ]}],
       ['Examen Integrativo',10],
     ],
+    // La pauta de antes, con la participación en tres filas, era error nuestro:
+    // quien la tenga tal cual pasa sola a una fila (`corrigePautas` en
+    // normalize()), con sus notas y su promedio. Si solo llenó algunas de las
+    // tres, juntarlas movería su promedio, y ahí se le sigue preguntando.
+    corrigePautas:[[
+      ['Casos y ensayos',40],['Trabajo en grupo: Propuesta',3],['Trabajo en grupo: Experiencia de aprendizaje',18],
+      ['Trabajo en grupo: Informe Final',9],['Participación: Asistencia a ayudantías y reuniones',5],
+      ['Participación: Contribuciones en clases',10],['Participación: Asistencia a clases',5],['Examen Integrativo',10],
+    ]],
     // "Si alguno de los requisitos no se cumple, la nota final será la más baja
     //  entre los dos" → dos compuertas de grupo con tope en su propio promedio.
     grupos:[
@@ -506,6 +515,285 @@ const PRESETS_FEN={
       ['Solemne 1',20],
       ['Solemne 2',20],
       ['Solemne 3',20],
+    ],
+  },
+
+  // ─── Programas del catálogo de intercambio (Nexo Internacional FEN) ────────
+  // Los once que siguen salen de los programas que la propia Facultad enlaza
+  // en su catálogo público para estudiantes de intercambio
+  // (nexointernacional.fen.uchile.cl/wp-content/uploads/2026/05/Course-Catalog-Summary-1.pdf,
+  // leído el 2026-11-26). Ese catálogo enlaza 244 programas: 152 se pueden
+  // bajar sin sesión, y de esos solo se transcribieron los que declaran 2026 y
+  // calzan con un ramo de la malla que no tenía pauta. Los demás son de 2011 a
+  // 2024 o no dicen de cuándo son, y un programa viejo no se carga como vigente.
+  //
+  // Todos son de Otoño 2026: llevan `periodo:'2026-1'`, así que la app ofrece
+  // los porcentajes y ninguna fecha, y el registro del servidor solo los
+  // protege del consenso automático en ese período. Por eso quedaron fuera los
+  // dos de Verano 2026 (Ética y Negocios, Toma de Decisiones Bajo
+  // Incertidumbre): sin período declarado bloquearían el consenso de todos los
+  // semestres con la pauta de un curso de verano. También Negocios I, cuyo
+  // único programa público es el de la sección que se dicta en inglés, y
+  // Métodos Cuantitativos I de Ing. Comercial, que tiene un programa por mención.
+  //
+  // Las inasistencias justificadas van como texto y no como
+  // `ausenciasJustificadas`: esa regla se resuelve contra la pauta guardada de
+  // quien ya tiene el ramo, y un programa del semestre pasado no debe escribir
+  // nada ahí.
+  //
+  // Los créditos son los que declara el catálogo junto a cada sigla.
+
+  // Introducción a la Macroeconomía · ENMAC2005 (el programa lo cita ENMAC205)
+  // · Otoño 2026, secciones 01 y 02. Controles y examen (80%) son coordinados
+  // entre todas las secciones; el 20% restante es de este profesor.
+  'Introducción a la Macroeconomía':{
+    periodo:'2026-1',
+    creditos:6,
+    // "Promedio simple entre Controles y Examen Final igual o superior a 3.5":
+    // la compuerta de grupo pondera por peso (50 y 30), que no es un promedio
+    // simple. No se aproxima con la regla equivocada.
+    noCalcula:[
+      'Además del 4,0 final, para aprobar necesitas 3,5 o más en el promedio simple entre tu nota de Controles y el Examen',
+    ],
+    reglasDelCurso:[
+      'Los controles y el examen (80%) son comunes a todas las secciones; el 20% restante lo define cada profesor. Esta pauta es la de las secciones 01 y 02 de Otoño 2026: si en la tuya es distinto, edita la pauta',
+      'Si faltas justificadamente a más de un control, ese porcentaje pasa al Examen',
+      'Si después del examen no cumples los criterios de aprobación puedes dar un recuperativo, que sirve para cumplirlos pero no para subir tu nota más allá de eso',
+      'Cada reporte de Seguimiento Macro pierde un punto por cada 24 horas de atraso',
+    ],
+    evals:[
+      // "Seis (6) controles… se eliminará el control con la peor nota."
+      ['Controles',50,{slots:6,slotLabel:'Control',dropLowest:{count:1}}],
+      ['Examen',30],
+      ['Seguimiento Macro',5],
+      // "Al menos cinco": la cantidad no está fijada, así que es lista abierta.
+      ['Análisis Flash',5,{lista:true,dropLowest:{count:2}}],
+      ['Macro Influencers',10],
+    ],
+    // Macro Influencers es grupal: regla general de la cabecera.
+    grupos:[
+      {nombre:'Evaluaciones individuales',evals:['Controles','Examen','Seguimiento Macro','Análisis Flash'],min:4.0,cap:'self'},
+    ],
+  },
+  // Estadística II · ENMES2505 (el programa lo cita MES-250) · Otoño 2026,
+  // común a las cuatro secciones. No hay examen: la Solemne 2 se rinde en el
+  // período de exámenes.
+  //   NF = 0,25·NSOL1 + 0,25·NSOL2 + 0,5·NC
+  // y para aprobar: NF ≥ 3,95, NC ≥ 3,95, NSOL1 ≥ 3,45 y NSOL2 ≥ 3,45. Los tres
+  // mínimos van con `exacto` porque el programa los da a la centésima.
+  'Estadística II':{
+    periodo:'2026-1',
+    creditos:6,
+    // Quien reprueba queda con "el mínimo entre NF, NC, (NSOL1+NSOL2)/2 y 3,7".
+    // Las compuertas solo ponen el 3,7; lo otro queda avisado.
+    noCalcula:[
+      'Si repruebas, tu nota final es la más baja entre tu promedio ponderado, tu nota de Controles, el promedio de las dos solemnes y 3,7. La app solo aplica el tope de 3,7',
+      'Si cumples tres de las cuatro condiciones para aprobar puedes dar un Examen Recuperativo Oral: con 4,0 o más apruebas el curso con un 4,0, y con menos repruebas',
+    ],
+    reglasDelCurso:[
+      'Si faltas justificadamente a un control, lo recuperas con preguntas de la solemne siguiente; si faltas a una solemne, la recuperas en el Examen Recuperativo Oral',
+    ],
+    evals:[
+      ['Solemne 1',25,{min:3.45,cap:3.7,exacto:true}],
+      ['Solemne 2',25,{min:3.45,cap:3.7,exacto:true}],
+      // "En total habrá 6 notas de controles. No se eliminará ninguna nota."
+      ['Controles',50,{slots:6,slotLabel:'Control',min:3.95,cap:3.7,exacto:true}],
+    ],
+  },
+  // Microeconomía I · ENMIC3005 (el programa lo cita ENMIC305) · Otoño 2026,
+  // profesores Duarte y Rivera. Dos solemnes de 30% y examen de 40%; el programa
+  // no trae mínimos ni eximición.
+  'Microeconomía I':{
+    periodo:'2026-1',
+    creditos:6,
+    evals:[
+      ['Solemne 1',30],
+      ['Solemne 2',30],
+      ['Examen',40],
+    ],
+  },
+  // Macroeconomía I · ENMAC3005 · Otoño 2026, sección del profesor Céspedes.
+  // Controles, solemne y examen son comunes con la otra sección.
+  'Macroeconomía I':{
+    periodo:'2026-1',
+    creditos:6,
+    // El descarte depende de la asistencia, que la app no conoce: no va como
+    // `dropLowest` con una cantidad elegida por nosotros.
+    reglasDelCurso:[
+      'Con más de 80% de asistencia a cátedra se eliminan tus dos peores controles, y entre 70% y 80% se elimina uno. Borra tú esas notas',
+      'Si faltas justificadamente a la solemne, su porcentaje pasa al examen',
+      'Un control al que faltas justificadamente se reemplaza por la nota de la solemne si era anterior a ella, o por la del examen. Sin justificar es un 1,0',
+    ],
+    evals:[
+      ['Solemne',40],
+      ['Examen',40],
+      // "Se realizarán nueve controles."
+      ['Controles',20,{slots:9,slotLabel:'Control'}],
+    ],
+  },
+  // Historia Económica · ENHEC3005 (el programa lo cita ENHEC300/01) · Otoño
+  // 2026, sección 01. Los dos controles traen peso propio (15% cada uno).
+  'Historia Económica':{
+    periodo:'2026-1',
+    creditos:6,
+    noCalcula:[
+      'La presentación oral voluntaria mueve tu nota de presentación al examen entre −2 y +5 décimas, y participar en los foros suma hasta 3 décimas más',
+    ],
+    evals:[
+      ['Control 1',15],
+      ['Control 2',15],
+      ['Solemne',30],
+      ['Examen',40],
+    ],
+  },
+  // Microeconomía II · ENMIC3505 (el programa lo cita ENMIC355) · Otoño 2026.
+  // "Que el promedio de la solemne y el examen supere el 3,5": pesan lo mismo,
+  // así que la compuerta de grupo es exactamente ese promedio. El programa no
+  // dice con qué nota se reprueba: va el 3,9 de cuando no lo dicen.
+  'Microeconomía II':{
+    periodo:'2026-1',
+    creditos:6,
+    reglasDelCurso:[
+      'El programa no dice con qué nota repruebas si la solemne y el examen no promedian 3,5: la app te deja en 3,9',
+      'La nota de Asistencia es proporcional a las sesiones a las que vas, y las faltas a clases no se justifican',
+      'Si faltas justificadamente a la solemne o al examen das una prueba recuperativa acumulativa, más difícil, en el período de exámenes. Si faltas a las dos no puedes aprobar',
+    ],
+    evals:[
+      ['Solemne',35],
+      ['Examen',35],
+      ['Tareas',20],
+      ['Asistencia',10],
+    ],
+    grupos:[
+      {nombre:'Solemne y Examen',evals:['Solemne','Examen'],min:3.5,cap:3.9,exacto:true},
+    ],
+  },
+  // Macroeconomía III · ENMAC4005 · Otoño 2026, profesor Micco. "El promedio
+  // simple entre Solemne y Examen debe ser mayor a 3.45": pesan lo mismo.
+  'Macroeconomía III':{
+    periodo:'2026-1',
+    creditos:6,
+    reglasDelCurso:[
+      'El programa no dice con qué nota repruebas si la solemne y el examen no promedian 3,45: la app te deja en 3,9',
+      'Necesitas 75% de asistencia presencial a cátedra y ayudantía para aprobar',
+      'Faltar sin justificar a una evaluación es un 1,0',
+    ],
+    evals:[
+      // "De los controles de lectura se eliminará uno": no dice cuántos son.
+      ['Controles de Lectura',25,{lista:true,dropLowest:{count:1}}],
+      ['Solemne',30],
+      ['Examen',30],
+      ['Trabajo Grupal',15],
+    ],
+    grupos:[
+      {nombre:'Solemne y Examen',evals:['Solemne','Examen'],min:3.45,cap:3.9,exacto:true},
+      // El trabajo es grupal: regla general de la cabecera.
+      {nombre:'Evaluaciones individuales',evals:['Controles de Lectura','Solemne','Examen'],min:4.0,cap:'self'},
+    ],
+  },
+  // Microeconomía IV · ENMIC4505 (el programa lo cita ENMIC455) · Otoño 2026,
+  // profesor Pino. "El promedio entre controles de lectura, controles sorpresa,
+  // solemne y examen debe ser igual o superior a 3.95", con las mismas
+  // ponderaciones de la nota final: es la compuerta de lo individual, y las
+  // tareas son lo único grupal.
+  'Microeconomía IV':{
+    periodo:'2026-1',
+    creditos:6,
+    reglasDelCurso:[
+      'Si faltas justificadamente a la solemne, su porcentaje pasa al examen',
+      'Si justificas la falta a un control de lectura, se te considera el promedio de los otros dos; si justificas dos, das un control recuperativo al final del semestre',
+      'Los controles sorpresa no se recuperan, y las tareas atrasadas no se reciben',
+    ],
+    evals:[
+      ['Controles de lectura',20,{slots:3,slotLabel:'Control'}],
+      // "6-8 controles sorpresa… se borrará la peor nota."
+      ['Controles sorpresa',10,{lista:true,dropLowest:{count:1}}],
+      ['Solemne',25],
+      ['Examen',25],
+      ['Tareas',20,{slots:2,slotLabel:'Tarea'}],
+    ],
+    grupos:[
+      {nombre:'Evaluaciones individuales',evals:['Controles de lectura','Controles sorpresa','Solemne','Examen'],min:4.0,cap:'self'},
+    ],
+  },
+  // Macroeconomía IV · ENMAC4505 (el programa lo cita ENMAC 455/01) · Otoño
+  // 2026. Los tres controles de lectura traen peso propio (10% cada uno).
+  'Macroeconomía IV':{
+    periodo:'2026-1',
+    creditos:6,
+    // "Aprobación si promedio pruebas ≥ 4,0 & promedio ponderado ≥ 4,0." No
+    // dice qué cuenta como prueba ni si ese promedio es simple o ponderado.
+    reglasDelCurso:[
+      'Para aprobar necesitas, además del 4,0 final, promedio 4,0 o más en las pruebas. El programa no dice cómo se calcula ese promedio: la app usa tus evaluaciones individuales con sus ponderaciones',
+      'Necesitas más de 75% de asistencia para aprobar',
+      'Los controles que no rindas con justificación se acumulan al Examen',
+      'Las presentaciones de las tareas en clases pueden sumar o restar',
+    ],
+    evals:[
+      ['Control de Lectura 1',10],
+      ['Control de Lectura 2',10],
+      ['Control de Lectura 3',10],
+      ['Tareas',20,{slots:2,slotLabel:'Tarea'}],
+      ['Ensayo',10],
+      ['Examen',40],
+    ],
+    // Las tareas se pueden hacer en grupo: regla general de la cabecera.
+    grupos:[
+      {nombre:'Evaluaciones individuales',evals:['Control de Lectura 1','Control de Lectura 2','Control de Lectura 3','Ensayo','Examen'],min:4.0,cap:'self'},
+    ],
+  },
+  // Investigación Operativa · ENGIN3505 (el programa lo cita ENOPE300) · Otoño
+  // 2026, profesores Miranda y Herl. El programa da fórmulas cerradas:
+  //   NC = (C1+C2+C3)/3 · NTC = 0,3·TC1 + 0,7·TC2
+  //   NP = 0,5·S1 + 0,3·NC + 0,2·NTC · NF = 0,4·EX + 0,6·NP
+  // Los pesos de abajo son esos productos ya llevados a la nota final, y suman
+  // 100 exacto. "Si cumple NF ≥ 4,0 pero no NEX ≥ 3,0, su nota final será 3,8".
+  'Investigación Operativa':{
+    periodo:'2026-1',
+    creditos:6,
+    noCalcula:[
+      'Te eximes del examen si tu nota de presentación (solemne 50%, controles 30% y talleres 20%) es 5,5 o más',
+    ],
+    reglasDelCurso:[
+      'Si faltas justificadamente a la solemne, su nota se reemplaza por la del examen',
+      'Un control al que faltas justificadamente se reemplaza por la nota de una pregunta de la solemne, que elige el equipo docente',
+      'Faltar sin certificado médico y bono de la consulta es un 1,0 en esa evaluación',
+    ],
+    evals:[
+      ['Solemne',30],
+      ['Control 1',6],
+      ['Control 2',6],
+      ['Control 3',6],
+      ['Taller Computacional 1',3.6],
+      ['Taller Computacional 2',8.4],
+      ['Examen',40,{min:3.0,cap:3.8}],
+    ],
+  },
+  // Métodos Cuantitativos · ENMEC3015 (el programa lo titula "MEC 310 Métodos
+  // Cuantitativos I") · Otoño 2026, secciones 01 y 02. Es el de Auditoría e
+  // Ing. en Información y Control de Gestión, que en la malla va sin número; el
+  // 'Métodos Cuantitativos I' de Ing. Comercial es otro programa y no recibe
+  // esta pauta. El catálogo le da una sigla distinta de la MEC3005 que anota
+  // CREDITOS_FEN: queda pendiente de revisar con Martín.
+  //
+  // "0,5·NSOL + 0,5·NEX ≥ 3,45", y quien no cumple queda en
+  // min{3,9; promedio ponderado}: es la compuerta de grupo tal cual.
+  'Métodos Cuantitativos':{
+    periodo:'2026-1',
+    creditos:6,
+    reglasDelCurso:[
+      'Si faltas a la solemne o a un control tienes una evaluación recuperativa oral después del examen. Solo se puede recuperar una',
+    ],
+    evals:[
+      ['Solemne',30],
+      ['Examen',30],
+      // "6 controles… promedio simple de los 4 mejores."
+      ['Controles',30,{slots:6,slotLabel:'Control',dropLowest:{count:2}}],
+      // "Tendremos tareas semanales": no dice cuántas.
+      ['Tareas',10,{lista:true}],
+    ],
+    grupos:[
+      {nombre:'Solemne y Examen',evals:['Solemne','Examen'],min:3.45,cap:3.9,exacto:true},
     ],
   },
 };

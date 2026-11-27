@@ -23,9 +23,16 @@ async function afterSignup(){
       ? '✓ Cuenta creada — tus datos están en la nube'
       : 'Tu cuenta se creó y tus notas siguen en este dispositivo, pero no pudimos respaldarlas. No cierres sesión.',!respaldado);
     enterApp();
+    if(typeof cargasDeCuenta==='function')cargasDeCuenta();
     return;
   }
   enterOnboarding();
+  // Una cuenta recién creada con correo no pasa por afterLogin(): sin esto, en
+  // su primera sesión nadie preguntaba por su ficha de profesor y Ajustes ›
+  // Apoyo quedaba en «Revisando tu acceso…» hasta recargar (#1376); tampoco
+  // aparecían Amigos ni los avisos. El typeof es por los tests que cargan solo
+  // este bloque.
+  if(typeof cargasDeCuenta==='function')cargasDeCuenta();
   if(aislamiento.importable){
     showConfirm('¿Traer datos de este dispositivo?',
       'Hay datos guardados sin una cuenta asociada. Solo se copiarán a esta cuenta si eliges traerlos.',
@@ -67,12 +74,12 @@ async function afterLogin(){
       .catch(e=>registrarErrorArranque(e,'reconciliar'));
     return;
   }
-  let cloud,ok=true;
+  let cloud,ok=true,errorNube=null;
   // Solo la lectura remota es recuperable: si falla, la copia local ya fue
   // normalizada al cargar y además está protegida por el dueño de la caché.
   // normalize() y enterApp() quedan fuera a propósito. Si una de ellas falla,
   // continuar con estado o DOM a medias sería peor que detenerse con un aviso.
-  try{cloud=await loadFromCloud();}catch(e){ok=false;}
+  try{cloud=await loadFromCloud();}catch(e){ok=false;errorNube=e;}
   if(!vigente())return;
   const mismaCache=getCacheOwner()===uid;
   // La copia previa a importar es de quien importó. Si la caché es de otra
@@ -91,16 +98,24 @@ async function afterLogin(){
     S=freshState();
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S));}catch(e){}
     setCacheOwner(uid);
+  }else if(mismaCache&&S.onboardingDone){
+    // Sin red con una copia armada de esta misma cuenta: se entra con ella y
+    // la nube se reconcilia después (Sincronización sin pérdidas).
+    showToast('Sin conexión · usando tu copia local');
   }else{
-    // Sin red: la caché local sirve, pero SOLO si es de este mismo usuario.
-    // Si es de otro (navegador compartido), se descarta para no filtrar sus datos.
-    if(mismaCache){
-      showToast('Sin conexión · usando tu copia local');
-    }else{
-      S=freshState();
-      try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
-      showToast('No pudimos cargar tus datos. Revisa tu conexión.',true);
-    }
+    // Sin red y sin una copia propia con qué entrar: caché de otra cuenta o
+    // sin dueño (dispositivo nuevo, después de entrar con Google o correo), o
+    // la caché vacía que deja el aislamiento de Apple. No se sabe si esta
+    // cuenta ya tiene ramos en la nube. Hasta el 2026-11-26 se la mandaba al
+    // onboarding como si fuera nueva: lo armado ahí chocaba después con la
+    // nube (ramos duplicados) o se perdía al reabrir con red (la nube, o un
+    // estado vacío, lo pisaba). Ahora se detiene con «Sin conexión» y
+    // «Reintentar». S queda vacía en memoria para no mostrar ni subir datos de
+    // otra persona, y el disco no se toca: se resuelve al entrar con red.
+    S=freshState();
+    if(typeof registrarErrorArranque==='function')registrarErrorArranque(errorNube,'leer_nube');
+    if(typeof showAppErrorScreen==='function')showAppErrorScreen('leer_nube');
+    return;
   }
   if(!vigente())return;
   if(S.onboardingDone)enterApp();else enterOnboarding();
@@ -145,7 +160,19 @@ function subirTrasEntrar(motivo){
 // `null` significa que la consulta no encontró una fila; NO demuestra que
 // esta persona no tenga datos. Si la caché ya tiene el mismo dueño, es la
 // única copia conocida: se conserva y se intenta crear el respaldo.
+//
+// Excepción: una cuenta nueva no tiene fila hasta terminar el onboarding. Si
+// cerró la app a mitad de camino y vuelve, su copia local es un onboarding sin
+// terminar, sin ramos ni historial: no hay nada que recuperar. No se sube
+// (sería una fila vacía con onboardingDone:false) ni se avisa nada; la persona
+// sigue en el onboarding y la fila nace al terminarlo, como siempre.
+function onboardingSinDatos(estado){
+  return !!estado&&!estado.onboardingDone
+    &&!(Array.isArray(estado.ramos)&&estado.ramos.length)
+    &&!(Array.isArray(estado.historial)&&estado.historial.length);
+}
 async function respaldarCopiaSinFila(){
+  if(onboardingSinDatos(S))return;
   const respaldado=await syncNow();
   showToast(respaldado
     ? 'Recuperamos tu copia local y la respaldamos en la nube'
@@ -199,7 +226,7 @@ function tareasConEstadoAlEntrar(){
   aplicarConsensoAuto().then(n=>{
     if(!n)return;
     renderHome();
-    showToast(n===1?'Agregamos una pauta reportada por otros estudiantes':`Agregamos ${n} pautas reportadas por otros estudiantes`);
+    showToast(n===1?'Agregamos ponderaciones reportadas por otros estudiantes en 1 ramo':`Agregamos ponderaciones reportadas por otros estudiantes en ${n} ramos`);
   }).catch(()=>{});
   // La otra dirección: las pautas que esta persona armó para ramos que el
   // catálogo trae vacíos. No avisa ni pregunta —viaja la pauta, nunca las
@@ -208,7 +235,11 @@ function tareasConEstadoAlEntrar(){
   if(typeof aportarPautasAlCatalogo==='function')aportarPautasAlCatalogo().catch(()=>{});
   // Cuentas por correo que ya tienen nombre y apellido pero entraron antes de
   // esto: llegan a Auth en su próxima entrada, con el estado de esta cuenta.
-  if(S.onboardingDone&&typeof copiarNombreAAuth==='function')copiarNombreAAuth();
+  // El perfil (profiles) que no alcanzó a llegar al terminar el onboarding o
+  // al guardar Ajustes se reintenta acá. syncProfile() ya incluye
+  // copiarNombreAAuth(); sin perfil pendiente, solo va lo del nombre.
+  const perfilReintentado=S.onboardingDone&&typeof reintentarPerfilPendiente==='function'&&reintentarPerfilPendiente();
+  if(S.onboardingDone&&!perfilReintentado&&typeof copiarNombreAAuth==='function')copiarNombreAAuth();
   // Los promedios de la comparación con el curso se renuevan al entrar, no solo
   // al abrir Estadísticas: curso_posicion y universidad_posicion ignoran filas
   // sin actualizar en 30 días (para que no cuenten los ramos borrados o
@@ -222,6 +253,10 @@ function tareasConEstadoAlEntrar(){
 function cargasAlEntrar(origen){
   if(typeof registrarEntradaAnalitica==='function')registrarEntradaAnalitica('login',origen);
   else if(typeof track==='function')track('login',origen);
+  cargasDeCuenta();
+}
+// Lo mismo, sin contar un inicio de sesión: también lo usa afterSignup().
+function cargasDeCuenta(){
   if(typeof cargarAvisosFeedback==='function')cargarAvisosFeedback().catch(()=>{});
   // Si esta persona está aprobada como profesor particular, le aparece una
   // cuarta pestaña. Se pregunta una vez al entrar y no bloquea nada: si el SQL

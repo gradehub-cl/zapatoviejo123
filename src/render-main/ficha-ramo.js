@@ -96,7 +96,10 @@ function seriesNumeradasFicha(categorias){
 function botonNotaEnFilaHTML(catId,slot,nombre,sombras=null){
   const pendiente=sombrasActivadas()&&sombras?.pendientes.find(p=>p.catId===catId&&p.slot===slot);
   if(pendiente)return botonNotaSombraHTML(sombras,pendiente);
-  return `<button type="button" class="nota-en-fila" data-cat-id="${esc(catId)}"${slot===null?'':` data-slot="${slot}"`} aria-label="Anotar nota de ${esc(nombre)}" onclick="event.stopPropagation();abrirNotaEnFila(this)">+ Nota</button>`;
+  // Con puntaje total se anotan puntos: el botón lo dice.
+  const ramo=S.ramos.find(x=>x.id===currentRamoId),cat=ramo&&(ramo.categorias||[]).find(c=>c.id===catId);
+  const enPuntos=!!(cat&&puntajeDeCategoria(ramo,cat));
+  return `<button type="button" class="nota-en-fila" data-cat-id="${esc(catId)}"${slot===null?'':` data-slot="${slot}"`} aria-label="Anotar ${enPuntos?'puntos':'nota'} de ${esc(nombre)}" onclick="event.stopPropagation();abrirNotaEnFila(this)">${enPuntos?'+ Puntos':'+ Nota'}</button>`;
 }
 function abrirNotaEnFila(boton,{alGuardar,idCampo}={}){
   if(!boton||!boton.isConnected)return;
@@ -109,25 +112,36 @@ function abrirNotaEnFila(boton,{alGuardar,idCampo}={}){
   input.setAttribute('aria-label',boton.getAttribute('aria-label'));
   if(boton.dataset.sombraClave)input.setAttribute('aria-label','Anotar nota real de '+boton.dataset.sombraNombre);
   let terminado=false;
-  const valido=()=>!input.value.trim()||!isNaN(parseNota(input.value));
+  // Inicio guarda por su cuenta; en la ficha, una evaluación con puntaje total
+  // recibe puntos (ver leerNotaEnCategoria).
+  const ramo=!alGuardar&&S.ramos.find(x=>x.id===currentRamoId);
+  const cat=ramo&&(ramo.categorias||[]).find(c=>c.id===boton.dataset.catId);
+  const puntaje=cat?puntajeDeCategoria(ramo,cat):null;
+  if(puntaje){
+    input.maxLength=7;input.placeholder='pts';
+    input.setAttribute('aria-label',`${boton.getAttribute('aria-label')}, en puntos de ${nf(puntaje.total,Number.isInteger(puntaje.total)?0:1)}`);
+  }
+  const valido=()=>!input.value.trim()||!isNaN(puntaje?leerNotaEnCategoria(input.value,ramo,cat).valor:parseNota(input.value));
   const guardar=()=>{
     if(terminado)return;
-    if(!valido()){input.setAttribute('aria-invalid','true');if(typeof avisoErrorNativo==='function')avisoErrorNativo();showToast('Escribe una calificación válida');return;}
+    if(!valido()){input.setAttribute('aria-invalid','true');if(typeof avisoErrorNativo==='function')avisoErrorNativo();showToast(puntaje?`Escribe tus puntos, de 0 a ${nf(puntaje.total,Number.isInteger(puntaje.total)?0:1)}`:'Escribe una calificación válida');return;}
     terminado=true;
     const raw=input.value.trim();
     if(!raw){input.replaceWith(boton);return;}
     // Inicio reutiliza el mismo campo sin navegar ni cambiar currentRamoId.
     if(alGuardar){if(alGuardar(raw)===false)terminado=false;return;}
-    if(boton.dataset.notaId)setSlotNota(boton.dataset.catId,boton.dataset.notaId,raw);
-    else if(boton.dataset.slot!==undefined)setSlotNota(boton.dataset.catId,Number(boton.dataset.slot),raw);
-    else setDirectNota(boton.dataset.catId,raw);
+    const leida=puntaje?leerNotaEnCategoria(raw,ramo,cat):null;
+    const nota=leida?String(leida.valor):raw,puntos=leida?leida.puntos:undefined;
+    if(boton.dataset.notaId)setSlotNota(boton.dataset.catId,boton.dataset.notaId,nota,puntos);
+    else if(boton.dataset.slot!==undefined)setSlotNota(boton.dataset.catId,Number(boton.dataset.slot),nota,puntos);
+    else setDirectNota(boton.dataset.catId,nota,puntos);
   };
   input.addEventListener('click',e=>e.stopPropagation());
   input.addEventListener('input',()=>input.removeAttribute('aria-invalid'));
   input.addEventListener('blur',guardar);
   input.addEventListener('keydown',e=>{
     if(e.key==='Escape'){e.preventDefault();e.stopPropagation();terminado=true;input.replaceWith(boton);boton.focus({preventScroll:true});}
-    else if((e.key==='Enter'||e.key==='Tab')&&!valido()){e.preventDefault();e.stopPropagation();input.setAttribute('aria-invalid','true');if(typeof avisoErrorNativo==='function')avisoErrorNativo();showToast('Escribe una calificación válida');}
+    else if((e.key==='Enter'||e.key==='Tab')&&!valido()){e.preventDefault();e.stopPropagation();input.setAttribute('aria-invalid','true');if(typeof avisoErrorNativo==='function')avisoErrorNativo();showToast(puntaje?`Escribe tus puntos, de 0 a ${nf(puntaje.total,Number.isInteger(puntaje.total)?0:1)}`:'Escribe una calificación válida');}
   });
   boton.replaceWith(input);input.focus({preventScroll:true});
   return input;
@@ -346,10 +360,11 @@ function renderRamo(){
     const info=infoPeriodoPauta(r);
     const def=!sugerida&&!consenso&&r.origen?.tenant?pautaOficialDelRamo(r.nombre,r.origen.tenant):null;
     const publicado=def&&!pautaEditada(r)&&programaQueCalza(r,def);
-    const texto=consenso?`Pauta por consenso · ${consenso} estudiantes`
+    // `consenso` es sí o no; el número vive en el ramo (se leía «según true estudiantes»).
+    const texto=consenso?`Ponderaciones según ${Number(r.consensoRespaldos)} estudiantes`
       :sugerida&&intacta?esc(textoProcedenciaSugerida(sugerida).replace('Programa oficial','Programa'))
       :publicado?esc(textoReferenciaSugerida(publicado).replace('Programa oficial','Programa'))
-      :info&&info.periodo?`Pauta del ${esc(info.periodo)}`:'';
+      :info&&info.periodo?`Programa ${esc(info.periodo)}`:'';
     if(!texto){periodoEl.style.display='none';periodoEl.innerHTML='';}
     else{
       periodoEl.className='pauta-periodo';
@@ -366,12 +381,12 @@ function renderRamo(){
     if(cambio){
       const cuantos=cambio.cambios.length;
       pcw.style.display='flex';pcw.className='weight-setup-nudge';
-      pcw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>La pauta de este ramo cambió.</b><br>${cuantos} ${cuantos===1?'cambio':'cambios'} respecto de lo que tienes hoy. Tu promedio se calcula con lo que tienes ahora.<div style="margin-top:8px;"><button type="button" class="rep-link" style="width:auto;padding:7px 12px;margin:0;" onclick="verCambioDePauta('${esc(r.id)}')">Ver qué cambia</button></div></div>`;
+      pcw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>Las ponderaciones de este ramo cambiaron.</b><br>${cuantos} ${cuantos===1?'cambio':'cambios'} respecto de lo que tienes hoy. Tu promedio se calcula con lo que tienes ahora.<div style="margin-top:8px;"><button type="button" class="rep-link" style="width:auto;padding:7px 12px;margin:0;" onclick="verCambioDePauta('${esc(r.id)}')">Ver qué cambia</button></div></div>`;
     }else if(r.consensoRespaldos&&(!r.pautaSugerida?.aceptada||!pautaEditada(r))){
       // Esta pauta la reportaron estudiantes, no sale de un programa oficial.
       // Decirlo es la diferencia entre una pauta y una ponderación inventada.
       pcw.style.display='flex';pcw.className='weight-setup-nudge';
-      pcw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>Pauta reportada por estudiantes.</b><br>La enviaron ${r.consensoRespaldos} personas de tu universidad. No sale del programa del curso: compárala con la tuya.</div>`;
+      pcw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>Ponderaciones reportadas por estudiantes.</b><br>Las enviaron ${r.consensoRespaldos} personas de tu universidad. No salen del programa del curso: compáralas con las tuyas.</div>`;
     }else{pcw.style.display='none';pcw.innerHTML='';}
   }
 
@@ -405,7 +420,7 @@ function renderRamo(){
         <span>${resumen}</span>
         ${iconoDespliegue(abierto)}
       </button>
-      <div class="reglas-cuerpo${abierto?' open':''}">${bloques.join('<div style="height:10px;"></div>')}<span style="display:block;margin-top:6px;">Compáralo con la pauta del curso.</span></div>
+      <div class="reglas-cuerpo${abierto?' open':''}">${bloques.join('<div style="height:10px;"></div>')}<span style="display:block;margin-top:6px;">Compáralo con el programa del curso.</span></div>
     </div>`;
   }else{ncw.style.display='none';ncw.innerHTML='';}
 
@@ -506,7 +521,7 @@ function renderRamo(){
           const valor=b.entrada==='confirmacion'?r.bonusConfirmado?.[b.id]:r.bonusIngresado?.[b.id];
           const resultados=(calc.res.mejoras||[]).filter(m=>m.id===b.id);
           const vigente=reglasBonusVigentes(r).some(x=>x.id===b.id);
-          const detalle=!vigente?'Esta regla necesita la pauta del programa. Tus evaluaciones se conservan.'
+          const detalle=!vigente?'Esta regla necesita las ponderaciones del programa. Tus evaluaciones se conservan.'
             :resultados.some(m=>m.pendiente)?'Se aplicará cuando estén todas las notas necesarias.'
             :resultados.filter(m=>m.destinoId).map(m=>`${r.categorias.find(c=>c.id===m.destinoId)?.nombre}: ${nf(m.antes)} pasa a ${nf(m.valor)}.`).join(' ');
           if(b.entrada==='confirmacion')return `<div class="bonus-card mejoras-programa mejora-texto"><label class="mejoras-interruptor"><span>${esc(b.pregunta)}</span><input type="checkbox" role="switch"${valor===true?' checked':''} onchange="declararMejora('${esc(b.id)}',this.checked)"></label>
@@ -589,8 +604,8 @@ function renderRamo(){
       // agregar contexto; la pauta propia completa ya aporta por sí sola.
       const txt=document.getElementById('ramo-report-text');
       if(txt)txt.textContent=pautaEditada(r)
-        ?'Corregiste la pauta oficial · agrega un reporte'
-        :'¿La pauta oficial no calza con tu curso? Repórtala';
+        ?'Corregiste las ponderaciones del programa · agrega un reporte'
+        :'¿El programa cargado no calza con tu curso? Repórtalo';
     }else{rep.style.display='none';rep.onclick=null;}
   }
 
@@ -599,8 +614,8 @@ function renderRamo(){
   const addCatBtn=document.querySelector('.add-cat-btn');
   if(addCatBtn){
     const armar=r.categorias.length===0&&delCatalogo;
-    addCatBtn.textContent=armar?'Armar mi pauta':'Editar evaluaciones';
-    addCatBtn.setAttribute('aria-label',armar?'Armar mi pauta con nombres y porcentajes':'Editar evaluaciones');
+    addCatBtn.textContent=armar?'Armar mis ponderaciones':'Editar evaluaciones';
+    addCatBtn.setAttribute('aria-label',armar?'Armar mis ponderaciones con nombres y porcentajes':'Editar evaluaciones');
     // Sin evaluaciones, la acción va dentro del aviso, a la vista: abajo quedaba
     // después del horario y había que bajar para encontrarla.
     addCatBtn.hidden=r.categorias.length===0;
@@ -610,15 +625,15 @@ function renderRamo(){
     // estudiante creó a mano. En el primero la app le prometió el ramo y le
     // quedó debiendo las evaluaciones, y decírselo es más honesto que un
     // "Sin evaluaciones" que parece que él no hizo algo.
-    const titulo=delCatalogo?'Todavía no tenemos la pauta de este ramo':'Sin evaluaciones';
+    const titulo=delCatalogo?'Todavía no tenemos las ponderaciones de este ramo':'Sin evaluaciones';
     const sub=delCatalogo
-      ? 'Ármala con el programa del curso: el nombre de cada evaluación y su porcentaje.'
+      ? 'Ármalas con el programa del curso: el nombre de cada evaluación y su porcentaje.'
       : 'Agrega tus pruebas, controles o tareas con su porcentaje del ramo. Puedes incluir la fecha para que aparezcan en la Agenda.';
     cl.innerHTML=`<div class="empty" style="padding:32px 20px;">
       <div class="empty-icon"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
       <div class="empty-title">${titulo}</div>
       <div class="empty-sub">${sub}</div>
-      <button type="button" class="btn-primary empty-accion" onclick="openPautaManualModal()">${delCatalogo?'Armar mi pauta':'Agregar evaluaciones'}</button>
+      <button type="button" class="btn-primary empty-accion" onclick="openPautaManualModal()">${delCatalogo?'Armar mis ponderaciones':'Agregar evaluaciones'}</button>
     </div>`;
   }
   const series=seriesNumeradasFicha(r.categorias.filter(c=>!(categoriaEximida(r,c)&&eximicion&&eximicion.regla.ocultaEvaluacion===true)));
@@ -708,7 +723,7 @@ function renderRamo(){
           rows+=`<div class="eval-sub${sobra?' eval-sub-sobra':''}">
             <button type="button" class="eval-sub-open" onclick="event.stopPropagation();abrirCasilla('${cat.id}',${i})" title="Fecha y detalle de ${esc(etiqueta)}" aria-label="Fecha y detalle de ${esc(etiqueta)}">
               <span class="eval-sub-name">${esc(etiqueta)}</span>
-              ${notasDescartadas.has(nota?.id)?'<span class="eval-sub-aviso">No cuenta en el promedio</span>':sobra?'<span class="eval-sub-aviso">sobra en la pauta · sigue contando</span>':`<span class="eval-sub-fecha">${v==null?'Pendiente':''}${v==null&&fSub?' · ':''}${esc(fSub)}</span>`}
+              ${notasDescartadas.has(nota?.id)?'<span class="eval-sub-aviso">No cuenta en el promedio</span>':sobra?'<span class="eval-sub-aviso">sobra en tus ponderaciones · sigue contando</span>':`<span class="eval-sub-fecha">${v==null?'Pendiente':''}${v==null&&fSub?' · ':''}${esc(fSub)}</span>`}
               ${recorreccion?`<span class="recorreccion-chip">Falta mandar${textoRecorreccion!=='sin plazo calculable'?` · ${esc(textoRecorreccion)}`:''}</span>`:''}
             </button>
             ${v==null?botonNotaEnFilaHTML(cat.id,i,etiqueta,sombras):`<input class="eval-row-input sm" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(nota))}" style="color:${getColor(v)}" onchange="setSlotNota('${cat.id}',${i},this.value)" onclick="event.stopPropagation();" aria-label="${esc(etiqueta)}"/>`}
@@ -726,9 +741,11 @@ function renderRamo(){
         // "+ Agregar nota" en vez del contador −/+ (Martín, 2026-11-11): la cantidad
         // ya se lee arriba ("promedio de 3"). Quitar solo aparece si la última
         // casilla está vacía, así que nunca se lleva una nota.
-        const cantidad=Array.isArray(cat.nombresCasillas)||Array.isArray(cat.pesosCasillas)?'':`<div class="casillas-pie">
-            ${cat.slots<100?`<button type="button" class="casillas-btn" aria-label="Agregar una nota en ${esc(cat.nombre)}" onclick="agregarCasilla('${cat.id}')">+ Agregar nota</button>`:''}
-            ${cat.slots>minimoCasillas(cat)?`<button type="button" class="casillas-btn casillas-quitar" aria-label="Quitar la última nota de ${esc(cat.nombre)}, que está vacía" onclick="cambiarCasillas('${cat.id}',-1)">Quitar la última</button>`:''}
+        const fijas=Array.isArray(cat.nombresCasillas)||Array.isArray(cat.pesosCasillas);
+        const cantidad=`<div class="casillas-pie">
+            ${!fijas&&cat.slots<100?`<button type="button" class="casillas-btn" aria-label="Agregar una nota en ${esc(cat.nombre)}" onclick="agregarCasilla('${cat.id}')">+ Agregar nota</button>`:''}
+            <button type="button" class="casillas-btn" aria-label="Editar evaluación ${esc(cat.nombre)}" onclick="openEditCatModal('${cat.id}')">Editar</button>
+            ${!fijas&&cat.slots>minimoCasillas(cat)?`<button type="button" class="casillas-btn casillas-quitar" aria-label="Quitar la última nota de ${esc(cat.nombre)}, que está vacía" onclick="cambiarCasillas('${cat.id}',-1)">Quitar la última</button>`:''}
           </div>`;
         wrap.innerHTML=`
           <div class="eval-group-hd" role="button" tabindex="0" aria-expanded="${isOpen?'true':'false'}" onclick="toggleCat('${cat.id}')">
@@ -795,7 +812,7 @@ function renderRamo(){
     if(catAvg!=null&&!justificada)wrap.style.borderLeftColor=getColor(catAvg);
     const rows=notas.map(n=>{
       const v=n.valor!=null?n.valor:null;
-      const detalle=[n.peso!==1?`${n.peso}%`:'',v==null?'Pendiente':'',n.fecha?fechaHoraCorta(n.fecha,n.hora):''].filter(Boolean).join(' · ');
+      const detalle=[n.peso!==1?`${pesoTexto(n.peso)}%`:'',v==null?'Pendiente':'',n.fecha?fechaHoraCorta(n.fecha,n.hora):''].filter(Boolean).join(' · ');
       const textoRecorreccion=n.recorreccionPendiente===true?textoPlazoRecorreccion(plazoRecorreccion(n,cat,S.tenant)):'';
       return `<div class="eval-sub">
         <button type="button" class="eval-sub-open" onclick="event.stopPropagation();openEditNotaModal('${cat.id}','${n.id}')" title="Fecha y detalle de ${esc(n.nombre)}" aria-label="Fecha y detalle de ${esc(n.nombre)}">
@@ -810,6 +827,7 @@ function renderRamo(){
     const ultima=notas[notas.length-1];
     const pie=`<div class="casillas-pie">
         <button type="button" class="casillas-btn" aria-label="Agregar una nota en ${esc(cat.nombre)}" onclick="agregarNotaLista('${cat.id}')">+ Agregar nota</button>
+        <button type="button" class="casillas-btn" aria-label="Editar evaluación ${esc(cat.nombre)}" onclick="openEditCatModal('${cat.id}')">Editar</button>
         ${ultima&&ultima.valor==null&&!ultima.fecha?`<button type="button" class="casillas-btn casillas-quitar" aria-label="Quitar la última nota de ${esc(cat.nombre)}, que está vacía" onclick="deleteNota('${cat.id}','${ultima.id}')">Quitar la última</button>`:''}
       </div>`;
     wrap.innerHTML=`

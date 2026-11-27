@@ -78,7 +78,7 @@
       "isAccessibleForFree": true,
       "audience": { "@type": "EducationalAudience", "educationalRole": "student" },
       "featureList": [
-        "Promedio ponderado de cada ramo con su pauta de evaluación",
+        "Promedio ponderado de cada ramo con las ponderaciones de su programa",
         "Qué nota necesitas en lo que queda para aprobar",
         "Simulador de escenarios de notas",
         "Promedio general del semestre ponderado por créditos",
@@ -94,7 +94,6 @@
 
 <!-- Analítica: Google Analytics 4. Nunca le mandamos notas ni nombres de ramos
      — ver la regla en track(), app.js. El ID sale de GA → Admin → Flujos de datos. -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-TS791S6PDM"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -102,10 +101,22 @@
   // Va ANTES del config. client_storage:'none' no sirve en GA4 (se probó en
   // producción y la _ga apareció igual); lo que corta la cookie es consent mode.
   gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
-  gtag('js', new Date());
-  // Solo analítica propia: sin Google Signals ni señales de anuncios. Así GA no
-  // cruza datos con otras apps o sitios y la App Store no lo cuenta como rastreo.
-  gtag('config', 'G-TS791S6PDM', { allow_google_signals: false, allow_ad_personalization_signals: false });
+  // En la web carga al tiro, como siempre. En la app (App Review 5.1.1) carga
+  // recién con sesión iniciada —quien entra ya aceptó términos y privacidad— y
+  // si no apagó las estadísticas en Ajustes: lo llama activarAnaliticaApp().
+  function cargarGoogleAnalytics(){
+    if (window.__gaCargado) return;
+    window.__gaCargado = true;
+    var s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://www.googletagmanager.com/gtag/js?id=G-TS791S6PDM';
+    document.head.appendChild(s);
+    gtag('js', new Date());
+    // Solo analítica propia: sin Google Signals ni señales de anuncios. Así GA no
+    // cruza datos con otras apps o sitios y la App Store no lo cuenta como rastreo.
+    gtag('config', 'G-TS791S6PDM', { allow_google_signals: false, allow_ad_personalization_signals: false });
+  }
+  if (!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform())) cargarGoogleAnalytics();
 </script>
 
 <!-- La app iOS (Capacitor) se marca antes de pintar: la pantalla de carga de
@@ -208,7 +219,7 @@ if(document.documentElement.classList.contains('app-nativa'))document.addEventLi
       <input type="email" id="auth-user" placeholder="tu@correo.com" maxlength="60" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email" onkeydown="if(event.key==='Enter')document.getElementById('auth-pass').focus()"/>
       <label class="field-label" for="auth-pass" style="margin-top:14px;">Contraseña</label>
       <div class="password-input-wrap">
-        <input type="password" id="auth-pass" placeholder="Tu contraseña" maxlength="60" autocomplete="current-password" onkeydown="if(event.key==='Enter'){if(document.getElementById('auth-pass-confirm-wrap').style.display!=='none')document.getElementById('auth-pass2').focus();else submitAuth()}"/>
+        <input type="password" id="auth-pass" placeholder="Tu contraseña" maxlength="72" autocomplete="current-password" onkeydown="if(event.key==='Enter'){if(document.getElementById('auth-pass-confirm-wrap').style.display!=='none')document.getElementById('auth-pass2').focus();else submitAuth()}"/>
         <button class="password-toggle" type="button" data-password-for="auth-pass" aria-label="Mostrar contraseña" aria-pressed="false" onclick="togglePasswordVisibility('auth-pass',this)">
           <svg class="ic eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.5"/></svg>
           <svg class="ic eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10.6 6.1A10.5 10.5 0 0 1 12 6c6 0 9.5 6 9.5 6a16 16 0 0 1-2.1 2.7M6.2 6.2C3.8 8 2.5 12 2.5 12s3.5 6 9.5 6c1.4 0 2.7-.3 3.8-.8M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
@@ -217,7 +228,7 @@ if(document.documentElement.classList.contains('app-nativa'))document.addEventLi
       <div id="auth-pass-confirm-wrap" style="display:none;">
         <label class="field-label" for="auth-pass2" style="margin-top:14px;">Repetir contraseña</label>
         <div class="password-input-wrap">
-          <input type="password" id="auth-pass2" placeholder="Repite tu contraseña" maxlength="60" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitAuth()"/>
+          <input type="password" id="auth-pass2" placeholder="Repite tu contraseña" maxlength="72" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitAuth()"/>
           <button class="password-toggle" type="button" data-password-for="auth-pass2" aria-label="Mostrar contraseña" aria-pressed="false" onclick="togglePasswordVisibility('auth-pass2',this)">
             <svg class="ic eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.5"/></svg>
             <svg class="ic eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10.6 6.1A10.5 10.5 0 0 1 12 6c6 0 9.5 6 9.5 6a16 16 0 0 1-2.1 2.7M6.2 6.2C3.8 8 2.5 12 2.5 12s3.5 6 9.5 6c1.4 0 2.7-.3 3.8-.8M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
@@ -248,7 +259,7 @@ if(document.documentElement.classList.contains('app-nativa'))document.addEventLi
         <div class="ap-head">
           <div class="ap-name">Introducción a la Microeconomía</div>
           <div class="ap-meta"><span class="ap-sigla">MIC1505</span> · 6 evaluaciones · 40% evaluado</div>
-          <div class="ap-official">★ Con pauta</div>
+          <div class="ap-official">★ Con programa</div>
         </div>
         <div class="ap-hero">
           <div class="ap-avg">4,9</div>
@@ -327,9 +338,9 @@ if(document.documentElement.classList.contains('app-nativa'))document.addEventLi
     <div class="ob-sub">Escribe una nueva contraseña para tu cuenta.</div>
     <div class="ob-card">
       <label class="field-label">Nueva contraseña</label>
-      <input type="password" id="reset-pass" placeholder="Mínimo 8 caracteres" maxlength="60" autocomplete="new-password"/>
+      <input type="password" id="reset-pass" placeholder="Mínimo 8 caracteres" maxlength="72" autocomplete="new-password"/>
       <label class="field-label" style="margin-top:14px;">Confirmar contraseña</label>
-      <input type="password" id="reset-pass2" placeholder="Repite la contraseña" maxlength="60" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitNewPassword()"/>
+      <input type="password" id="reset-pass2" placeholder="Repite la contraseña" maxlength="72" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitNewPassword()"/>
       <div id="reset-error" style="display:none;font-size:12px;color:var(--red);margin-top:10px;line-height:1.4;"></div>
     </div>
     <button class="btn-primary" id="reset-btn" onclick="submitNewPassword()">Guardar y entrar</button>
@@ -384,15 +395,24 @@ if(document.documentElement.classList.contains('app-nativa'))document.addEventLi
     <div class="ob-step" data-step="2" style="display:none;">
       <div class="ob-step-num">Paso 2 de 4</div>
       <h1 class="ob-title ob-title-left" tabindex="-1" id="ob-titulo-universidad">¿Cuál es tu universidad?</h1>
-      <div class="ob-sub ob-sub-left">Así te mostramos los ramos de tu universidad.</div>
+      <div class="ob-sub ob-sub-left">Elige dónde estudias. Podrás agregar tus ramos a mano.</div>
+      <div class="modal-input ob-buscar-universidad">
+        <input type="search" id="ob-tenant-buscar" aria-label="Buscar universidad" placeholder="Nombre o sigla de tu universidad" maxlength="100" autocomplete="off" spellcheck="false" oninput="renderTenantPick()"/>
+      </div>
+      <p class="settings-help ob-resultados-universidad" id="ob-tenant-estado" role="status"></p>
       <div id="tenant-grid" class="ob-options"></div>
     </div>
 
     <div class="ob-step" data-step="3" style="display:none;">
       <div class="ob-step-num">Paso 3 de 4</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿Qué estudias?</h1>
-      <div class="ob-sub ob-sub-left">Busca tu carrera. Si no aparece, puedes escribirla.</div>
-      <div class="modal-input" style="margin-bottom:10px;"><input type="text" id="ob-carrera-buscar" aria-label="Buscar carrera" placeholder="Busca tu carrera" autocomplete="off" oninput="filtrarCarreras(this.value)"/></div>
+      <div class="ob-sub ob-sub-left" id="ob-carrera-sub">Busca tu carrera. Si no aparece, puedes escribirla.</div>
+      <div class="modal-input" id="ob-carrera-busqueda" style="margin-bottom:10px;"><input type="search" id="ob-carrera-buscar" aria-label="Buscar carrera" placeholder="Busca tu carrera" maxlength="80" autocomplete="off" spellcheck="false" oninput="filtrarCarreras(this.value)"/></div>
+      <details class="carrera-manual" id="ob-otra-carrera">
+        <summary>Otra carrera</summary>
+        <label class="field-label" for="ob-carrera-manual">Nombre de tu carrera</label>
+        <div class="modal-input"><input type="text" id="ob-carrera-manual" maxlength="80" autocomplete="off" oninput="escribirCarreraOnboarding(this.value)"/></div>
+      </details>
       <div id="carrera-grid" class="ob-options"></div>
     </div>
 
@@ -502,7 +522,7 @@ if(document.documentElement.classList.contains('app-nativa'))document.addEventLi
     <div id="instalar-aviso" class="instalar-aviso" hidden></div>
     <footer class="app-footer">
       <span class="app-footer-claim">Por estudiantes, para estudiantes.</span>
-      GradeHub · Chile
+      GradeHub · Chile · © 2026 Martín Sotomayor y Lucas Irarrázaval
     </footer>
   </div>
 </div>
@@ -545,7 +565,7 @@ if(document.documentElement.classList.contains('app-nativa'))document.addEventLi
     <button class="add-cat-btn" onclick="openPautaManualModal()">Editar evaluaciones</button>
     <button class="rep-link" id="ramo-report" style="display:none;">
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15V4h16l-3 4 3 4H4"/><path d="M4 21v-6"/></svg>
-      <span id="ramo-report-text">¿Esta pauta no calza con tu curso? Repórtala</span>
+      <span id="ramo-report-text">¿El programa cargado no calza con tu curso? Repórtalo</span>
     </button>
   </div>
 </div>

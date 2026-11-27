@@ -35,7 +35,7 @@ function openRenombrarHistModal(histId){
     <button type="button" class="course-picker-manual" id="m-hist-ren-agregar" style="min-height:44px;" aria-expanded="false" aria-controls="m-hist-ren-buscador" onclick="alternarBuscadorHistRename()">Agregar ramo</button>
     <div id="m-hist-ren-buscador" hidden>
       <label class="modal-label" for="m-hist-ren-buscar">Busca el ramo</label>
-      <div class="course-picker-search"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg><input id="m-hist-ren-buscar" type="text" placeholder="Nombre o sigla" maxlength="${NOMBRE_MAX}" autocomplete="off" oninput="renderBusquedaSemestreAnterior(this.value,{editar:true})"/></div>
+      <div class="course-picker-search"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg><input id="m-hist-ren-buscar" type="text" placeholder="Nombre o sigla" maxlength="${NOMBRE_MAX}" autocomplete="off" spellcheck="false" oninput="renderBusquedaSemestreAnterior(this.value,{editar:true})"/></div>
       <div id="m-hist-ren-resultados"></div>
     </div>
     <div id="m-hist-ren-err" role="alert" style="display:none;font-size:0.75rem;color:var(--red);margin:8px 0 0;"></div>

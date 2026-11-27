@@ -54,6 +54,80 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   await run('cargarAmigos()');
   chk('sin amigos_grupos.sql, no hay sección Grupos',run('amigosGruposDisponible')===false&&run('seccionGruposHTML()')==='');
 
+  console.log('\n=== Las búsquedas de amigos pueden responder fuera de orden ===');
+  const busquedas=new Map();
+  ctx.buscarUsuarioPrueba=usuario=>new Promise(resolver=>busquedas.set(usuario,resolver));
+  run("supabaseClient.rpc=(n,args)=>buscarUsuarioPrueba(args.p_username)");
+  const primero=run("buscarAmigo('perfil_primero')");
+  const segundo=run("buscarAmigo('perfil_segundo')");
+  busquedas.get('perfil_segundo')({data:[{username:'perfil_segundo',relacion:'ninguna'}],error:null});
+  await segundo;
+  chk('la búsqueda reciente ofrece el contacto correcto',el('amigos-resultado').innerHTML.includes('data-user="perfil_segundo"'));
+  busquedas.get('perfil_primero')({data:[{username:'perfil_primero',relacion:'ninguna'}],error:null});
+  await primero;
+  chk('una respuesta anterior no reemplaza la acción reciente',el('amigos-resultado').innerHTML.includes('data-user="perfil_segundo"'));
+  const pendiente=run("buscarAmigo('perfil_pendiente')");
+  await run("buscarAmigo('a')");
+  busquedas.get('perfil_pendiente')({error:{message:'error sintético'}});
+  await pendiente;
+  chk('un fallo anterior no reemplaza la validación del username',/username completo/.test(el('amigos-resultado').innerHTML));
+
+  console.log('\n=== Ficha de grupo ===');
+  run(`amigosGruposDisponible=true;amigosGruposCache=[{id:'g1',nombre:'Estudio & repaso',estado:'miembro',miembros:2}];
+    amigosListaCache=[];S.ramos=[];`);
+  chk('sin amigos se conservan los grupos existentes y no se ofrece crear otro',
+    /Estudio &amp; repaso/.test(run('seccionGruposHTML()'))&&!/grupo-nuevo/.test(run('seccionGruposHTML()')));
+  run(`amigosListaCache=[{estado:'amigos',username:'beto_ej',nombre:'Beto'}];`);
+  chk('con amigos aparece la acción para crear y el selector tiene etiquetas',
+    /Crear grupo/.test(run('seccionGruposHTML()'))&&/role="status"[\s\S]*<label class="amigos-elegir"/.test(run('elegirAmigosHTML([])')));
+  run(`var abrirModalOriginal=openModal;openModal=()=>{};
+    pintarGrupo('g1',[{username:'ana_ej',yo:true,creador:true,estado:'miembro'},{username:'beto_ej',nombre:'Beto',estado:'miembro'},
+      {username:'carla_ej',nombre:'Carla',estado:'invitado'}]);openModal=abrirModalOriginal;`);
+  const ficha=el('modal-content').innerHTML;
+  chk('la ficha cuenta solo integrantes y separa las invitaciones pendientes',
+    /<h2 class="modal-title grupo-titulo">Estudio &amp; repaso<\/h2>/.test(ficha)
+    &&/2 personas/.test(ficha)&&ficha.indexOf('Beto')<ficha.indexOf('Invitaciones pendientes')
+    &&ficha.indexOf('Invitaciones pendientes')<ficha.indexOf('Carla'));
+  chk('sin dos horarios la ficha explica por qué faltan coincidencias',
+    /al menos dos horarios/.test(ficha)&&!/Todos libres a la vez/.test(ficha));
+  el('modal').classList.contains=()=>false;
+  run("amigosDisponibleCache=true;amigosGrupoDetalle=null;currentTab='amigos';");
+  cliente("()=>({error:{message:'No disponible'}})");
+  await run("abrirGrupo('g1')");
+  chk('un fallo ofrece reintentar dentro de Amigos',/Reintentar/.test(el('amigos-body').innerHTML));
+  cliente("()=>new Promise(r=>setTimeout(()=>r({data:[],error:null}),10))");
+  const detallePendiente=run("abrirGrupo('g1')");run('volverDeGrupo()');await detallePendiente;
+  chk('volver durante la carga descarta su respuesta',run('amigosGrupoDetalle')===null);
+  const filas=[{username:'ana',yo:true,estado:'miembro'},{username:'beto',nombre:'Beto',estado:'miembro'},{username:'dani',nombre:'Dani',estado:'invitado'}];
+  ctx.filasPrueba=filas;
+  cliente("n=>({data:n==='grupo_detalle'?filasPrueba:[],error:null})");
+  await run("abrirGrupo('g1')");
+  // Lucas, 2026-11-22: la cabecera no repite «2 personas» y la invitación va en su subtítulo (la ficha la abre).
+  chk('entra a actividad con dos miembros y una invitación aparte',/Novedades|Lo que viene/.test(el('amigos-body').innerHTML)&&/Tú y Beto · 1 invitación/.test(el('amigos-body').innerHTML)&&!/2 personas/.test(el('amigos-body').innerHTML)&&!/Cambiar nombre|Salir del grupo/.test(el('amigos-body').innerHTML));
+  chk('la invitación se ve en la cabecera, que abre la ficha',el('amigos-body').innerHTML.includes('data-amigos="grupo-info"'));
+  run('amigosCalendarioDisponible=true');
+  ctx.solicitudesCalendario=[];
+  // Sin el SQL de novedades aplicado: el grupo vuelve a la agenda de antes.
+  run("supabaseClient.rpc=async(n,args)=>{if(n==='grupo_calendario')solicitudesCalendario.push(args);if(n==='grupo_novedades')return {data:null,error:{message:'no existe'}};return {data:n==='grupo_detalle'?filasPrueba:[]};}");
+  await run('cargarActividadGrupo(amigosGrupoDetalle)');
+  chk('el grupo lee los mismos 60 días que permite anotar y aclara el período vacío',ctx.solicitudesCalendario[0].p_dias===60&&el('amigos-body').innerHTML.includes('próximos 60 días'));
+  run("openModal=()=>{};pintarGrupo('g1',filasPrueba);openModal=abrirModalOriginal;");
+  const info=el('modal-content').innerHTML;
+  chk('los integrantes y las invitaciones se encuentran antes de los horarios',info.indexOf('Integrantes')<info.indexOf('Invitaciones pendientes')&&info.indexOf('Invitaciones pendientes')<info.indexOf('Horarios libres'));
+  run("openModal=()=>{};pintarGrupo('g1',[{username:'beto_ej',estado:'miembro'}]);openModal=abrirModalOriginal;");
+  chk('si todos los amigos ya están en el grupo la ficha omite Invitar amigos',!el('modal-content').innerHTML.includes('data-amigos="grupo-invitar"'));
+  run("openModal=()=>{};amigosListaCache=[{estado:'enviada',username:'dani'}];abrirMiembroGrupo('g1','dani');openModal=abrirModalOriginal;");
+  chk('una amistad solicitada no se puede solicitar por segunda vez',el('modal-content').innerHTML.includes('Solicitud de amistad enviada')&&!el('modal-content').innerHTML.includes('grupo-agregar-amigo'));
+  // Lucas, 2026-11-22: volver desde una persona deja donde estabas, no en la información del grupo.
+  chk('volver desde un integrante cierra y deja donde estabas',!el('modal-content').innerHTML.includes('data-amigos="grupo-info"')&&el('modal-content').innerHTML.includes('onclick="closeModal()"'));
+  {const f=fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8');
+   chk('tocar a un integrante abre su ficha de una, con Sacar del grupo al final',/if\(f\.estado==='miembro'\)\{/.test(f)&&/\$\{cuerpo\}\s*\$\{grupo&&[^\n]*Sacar del grupo/.test(f));}
+  filas[2].estado='miembro';await run('cargarActividadGrupo(amigosGrupoDetalle)');
+  chk('al aceptar cambian la cabecera y el resumen de la lista',/Tú, Beto y Dani/.test(el('amigos-body').innerHTML)&&!/· 1 invitación/.test(el('amigos-body').innerHTML)&&run('lineaGrupo(amigosGruposCache[0])')==='Tú, Beto y Dani'&&!/invitación pendiente/.test(el('amigos-body').innerHTML));
+  run('volverDeGrupo()');
+  const prueba={tipo:'prueba',fecha:'2099-01-10',inicio:'09:00',titulo:'Prueba 1',detalle:'SYN101',username:'beto',nombre:'Beto'};
+  const eventos=ctx.eventosGrupo([prueba,{...prueba},{...prueba,username:'ana',yo:true},{...prueba,inicio:'10:00'},{...prueba,detalle:'SYN102'}]);
+  chk('las pruebas agrupan solo mismo ramo, nombre, día y hora y cada persona aparece una vez',eventos.length===3&&eventos.find(e=>e.personas.length===2)?.detalle==='SYN101');
   console.log('\n=== Lo que se publica de las notas ===');
   run(`S.ramos=[{id:'r1',nombre:'Curso Sintético',sigla:'syn101',categorias:[{id:'c1',nombre:'Controles',peso:50,notas:[{id:'n1',valor:6.0}]},{id:'c2',nombre:'Examen',peso:50,notas:[{id:'n2',valor:null}]}],horario:[]},
     {id:'r2',nombre:'Sin sigla',categorias:[],horario:[]}];`);
@@ -65,6 +139,7 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   chk('compartir notas es un interruptor y parte apagado',/id="amigos-notas" type="checkbox" role="switch"\$\{amigosNotasComparte\?' checked':''\}/.test(fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8')));
 
   console.log('\n=== Como Instagram ===');
+  run('amigosGruposDisponible=false;amigosGruposCache=null');
   run(`amigosEstadoCache={username:'ana_s'};amigosListaCache=[{id:'x1',username:'beto_ej',nombre:'Beto',estado:'amigos'},{id:'x2',username:'dani99',nombre:'Dani',estado:'amigos'}];
     amigosHorariosCache=new Map([['x1',normalizarRamosAmigo([{nombre:'Uno',sigla:'SYN1',horario:[{dias:['L'],inicio:'08:00',fin:'10:00'},{dias:['L'],inicio:'12:00',fin:'13:00'}]}])],
                                  ['x2',normalizarRamosAmigo([{nombre:'Dos',sigla:'SYN2',horario:[{dias:['L'],inicio:'09:00',fin:'11:00'}]}])]]);`);
@@ -90,9 +165,13 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   run(`S.ramos[0].categorias[0].fecha=new Date(Date.now()+5*864e5).toISOString().slice(0,10);`);
   const pr2=JSON.parse(run('JSON.stringify(resumenPruebasAmigos(S.ramos))'));
   chk('una prueba en 5 días sí, con ramo, sigla, nombre y fecha',pr2.length===1&&Object.keys(pr2[0]).sort().join()==='fecha,hora,nombre,ramo,sigla'&&pr2[0].nombre==='Prueba 1');
-  chk('el calendario agrupa por día y deja borrar solo lo propio',(()=>{const h=run(`calendarioGrupoHTML('g1',[{tipo:'reserva',id:'r1',username:'b',nombre:'Beto',yo:false,fecha:'2099-01-10',inicio:'14:00',fin:'16:00',titulo:'Sala B-12'},
+  chk('el hilo agrupa las reservas por día y abre su detalle',(()=>{const h=run(`calendarioGrupoHTML('g1',[{tipo:'reserva',id:'r1',username:'b',nombre:'Beto',yo:false,fecha:'2099-01-10',inicio:'14:00',fin:'16:00',titulo:'Sala B-12'},
     {tipo:'reserva',id:'r2',username:'a',nombre:'Ana',yo:true,fecha:'2099-01-10',inicio:'10:00',fin:'11:00',titulo:'Sala 3'}])`);
-    return (h.match(/cal-dia/g)||[]).length===1&&(h.match(/reserva-borrar/g)||[]).length===1&&/Anotar sala reservada/.test(h);})());
+    return (h.match(/<h3>/g)||[]).length===1&&(h.match(/data-amigos="grupo-reserva"/g)||[]).length===2&&!h.includes('reserva-borrar');})());
+  chk('el código de la sala se ve en la reserva, escapado',(()=>{const h=run(`calendarioGrupoHTML('g1',[{tipo:'reserva',id:'r1',username:'b',nombre:'Beto',yo:false,fecha:'2099-01-10',inicio:'14:00',fin:'16:00',titulo:'Sala B-12',detalle:'4821<b>'},
+    {tipo:'reserva',id:'r2',username:'a',nombre:'Ana',yo:true,fecha:'2099-01-10',inicio:'10:00',fin:'11:00',titulo:'Sala 3',detalle:null}])`);
+    return (h.match(/cal-codigo/g)||[]).length===1&&/Código <b>4821&lt;b&gt;<\/b>/.test(h);})());
+  chk('el formulario de sala pide el código y lo manda solo si hay',/id="amigos-reserva-codigo"/.test(fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8'))&&/\.\.\.\(codigo\?\{p_codigo:codigo\}:\{\}\)/.test(fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8'))&&/Código de la sala <b>/.test(fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8')));
 
   chk('la semana del amigo se mira, no se edita: sin botones',(()=>{const h=run(`semanaAmigoHTML({universidad:'uc'},normalizarRamosAmigo([{nombre:'Uno',sigla:'SYN1',horario:[{dias:['L'],inicio:'08:00',fin:'10:00'}]}]))`);
     return /horario-semana/.test(h)&&!/<button/.test(h)&&/role="img"/.test(h);})());
@@ -128,7 +207,7 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
 
   console.log('\n=== Se olvida al cerrar sesión ===');
   run('olvidarAmigos();recalcularNavTabs()');
-  chk('quien entra después no hereda la pestaña',!run('NAV_TABS').includes('amigos')&&run('amigosEstadoCache')===null);
+  chk('quien entra después no hereda la pestaña ni la ficha de grupo',!run('NAV_TABS').includes('amigos')&&run('amigosEstadoCache')===null&&run('amigosGrupoDetalle')===null);
   chk('cerrar sesión llama a olvidarAmigos',/olvidarAmigos\(\)/.test(fs.readFileSync(raiz+'src/app-session/salida-cuenta.js','utf8')));
   chk('entrar pregunta una vez, sin bloquear',/cargarAmigos\(\)\s*\n\s*\.then\(/.test(fs.readFileSync(raiz+'src/app-session/entrada-cuenta.js','utf8')));
   // Una respuesta que llega después de cerrar sesión no revive la pestaña.

@@ -6,20 +6,63 @@ function claveUc(nombre){
 function carreraBaseUc(carrera){
   return (typeof CARRERA_BASE_UC!=='undefined'&&CARRERA_BASE_UC[carrera])||carrera;
 }
-function presetUcDisponible(nombre,carrera){
+// `sigla` es la que el ramo tiene GUARDADA (#1090). Sin ella todo queda como
+// antes: Ingeniería recibe todos los programas y COM y Medicina, su lista.
+function presetUcDisponible(nombre,carrera,sigla){
   carrera=carreraBaseUc(carrera);
   const clave=claveUc(nombre);if(!clave)return false;
   if(carrera==='ING-PC')return true;
-  if(carrera!=='COM')return false;
-  return PRESETS_UC_COM.some(n=>normName(n)===normName(clave));
+  if((PRESETS_UC_POR_CARRERA[carrera]||[]).some(n=>normName(n)===normName(clave)))return true;
+  return presetUcPorSigla(clave,sigla);
 }
-function findPresetName(nombre,tenant,carrera){
+// Misma sigla = mismo curso (#362). Un alumno de College o Agronomía con
+// MAT1610 toma el mismo Cálculo I que Ingeniería y recibe su programa; quien
+// toma MAT1100, que también se llama «Cálculo I», no. La sigla nunca se deduce
+// del nombre: sale del ramo. Los programas por sección o no coordinados
+// (Derecho, teológicos) siguen solo en su carrera: dicen la pauta de un
+// profesor, no la del curso.
+function presetUcPorSigla(clave,sigla){
+  if(typeof sigla!=='string'||!sigla.trim())return false;
+  const def=PRESETS_UC[clave];
+  if(!def||(!Array.isArray(def)&&(def.coordinado===false||def.porSeccion)))return false;
+  const propia=siglaProgramaUc(clave);
+  return !!propia&&normName(propia)===normName(sigla);
+}
+// La sigla de un programa: la que declara el preset o, si no la declara, la
+// que le dan las mallas que ya lo reciben por nombre. Si dos mallas no
+// coinciden no hay una sigla segura y el programa no se ofrece por sigla.
+const _siglaProgramaUc=new Map();
+function siglaProgramaUc(clave){
+  if(_siglaProgramaUc.has(clave))return _siglaProgramaUc.get(clave);
+  const def=PRESETS_UC[clave];let sigla=null;
+  if(def&&!Array.isArray(def)&&typeof def.sigla==='string'&&def.sigla)sigla=def.sigla;
+  else if(def&&typeof SIGLAS_UC!=='undefined'){
+    const halladas=new Set();
+    ['ING-PC',...Object.keys(PRESETS_UC_POR_CARRERA)].forEach(carrera=>{
+      if(!presetUcDisponible(clave,carrera))return;
+      const tabla=SIGLAS_UC[carrera]||{},k=Object.keys(tabla).find(n=>normName(n)===normName(clave));
+      if(k&&tabla[k])halladas.add(String(tabla[k]).toUpperCase());
+    });
+    if(halladas.size===1)sigla=[...halladas][0];
+  }
+  _siglaProgramaUc.set(clave,sigla);
+  return sigla;
+}
+// La sigla con que un ramo pide su programa. Un ramo que recibió la pauta del
+// consenso no la usa para que le lleguen reglas o fechas por su cuenta: el
+// programa se le ofrece (cambioDePauta) y entra solo cuando la persona acepta.
+function siglaParaPrograma(r){
+  return r&&!r.consensoRespaldos&&typeof r.sigla==='string'&&r.sigla.trim()?r.sigla:null;
+}
+function findPresetName(nombre,tenant,carrera,sigla){
   if(tenant!=='uc'){
     const presets=PRESETS_POR_TENANT[tenant]||{};
     return claveCatalogo(nombre,Object.keys(presets).filter(k=>pautaPresetSuficiente(evalsDePreset(presets[k]))),tenant);
   }
-  if(tenant!=='uc'||!MALLA_UC[carreraBaseUc(carrera)])return null;
-  return claveCatalogo(nombre,presetsUcConPauta(carreraBaseUc(carrera)),'uc');
+  const porCarrera=claveCatalogo(nombre,presetsUcConPauta(carreraBaseUc(carrera)),'uc');
+  if(porCarrera||!sigla)return porCarrera;
+  const clave=claveUc(nombre),evals=clave?evalsDePreset(PRESETS_UC[clave]):[];
+  return clave&&evals.length&&pautaPresetSuficiente(evals)&&presetUcPorSigla(clave,sigla)?clave:null;
 }
 // La estrella y el selector prometen ponderaciones precargadas. Un programa
 // que solo trae reglas (como Cálculo II) no debe fingir que las tiene, así
@@ -59,13 +102,13 @@ function reglasNoCalculadas(ramo){
   const def=definicionPresetDelRamo(ramo);
   const calculadas=reglasCalculoVigentes(ramo);
   if(def?.eximicion?.requierePautaOriginal===true&&!estadoEximicion(ramo))
-    pendientes.push('La eximición necesita la pauta del programa. Revisa tus evaluaciones y pesos antes de aplicarla');
+    pendientes.push('La eximición necesita las ponderaciones del programa. Revisa tus evaluaciones y pesos antes de aplicarla');
   const formula=!Array.isArray(def)&&def&&(def.formulasCondicionales||[]).length;
   const limite=!Array.isArray(def)&&def&&def.limiteAusencias;
   const optativos=!Array.isArray(def)&&def&&(def.reemplazosOptativos||[]).length;
-  if(formula&&!calculadas.some(g=>g.type==='conditional_weights'))pendientes.push('La exclusión condicional del programa requiere actualizar a su pauta. Si personalizaste las evaluaciones, tu pauta se conserva y esta regla no se aplica');
-  if(limite&&!calculadas.some(g=>g.type==='absence_limit'))pendientes.push('El traspaso por pruebas justificadas y su máximo requieren actualizar a la pauta del programa');
-  if(optativos&&!(ramo.reemplazosOptativos||[]).length)pendientes.push('El reemplazo optativo del programa requiere actualizar a su pauta. Si la personalizaste, tu versión se conserva');
+  if(formula&&!calculadas.some(g=>g.type==='conditional_weights'))pendientes.push('La exclusión condicional del programa requiere actualizar a sus ponderaciones. Si personalizaste las evaluaciones, tu versión se conserva y esta regla no se aplica');
+  if(limite&&!calculadas.some(g=>g.type==='absence_limit'))pendientes.push('El traspaso por pruebas justificadas y su máximo requieren actualizar a las ponderaciones del programa');
+  if(optativos&&!(ramo.reemplazosOptativos||[]).length)pendientes.push('El reemplazo optativo del programa requiere actualizar a sus ponderaciones. Si las personalizaste, tu versión se conserva');
   const ausencias=estadoAusenciasJustificadas(ramo);
   if(ausencias&&ausencias.bloqueadas&&ausencias.bloqueadas.length)pendientes.push(`Las pruebas justificadas superan el máximo de ${ausencias.normaAplicada.topePesoDestino}% del examen. El promedio y la nota necesaria quedan pendientes de resolver el derecho a examen o la recuperativa con el curso`);
   return pendientes;
@@ -124,5 +167,5 @@ function repartirPesoRestante(categorias,totalAntes){
 // app sí sabe qué curso es, pero todavía no tiene su programa transcrito. Esta
 // distinción decide qué ayuda ofrecer sin inventar ponderaciones.
 function pautaCatalogoSinOficial(r){
-  return !!(r&&r.origen&&r.origen.tenant&&!presetRamo(r.nombre,r.origen.tenant,r.origen.carrera));
+  return !!(r&&r.origen&&r.origen.tenant&&!presetRamo(r.nombre,r.origen.tenant,r.origen.carrera,undefined,siglaParaPrograma(r)));
 }

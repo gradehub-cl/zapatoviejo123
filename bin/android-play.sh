@@ -46,7 +46,7 @@ if ! grep -qF "$HUELLA" .well-known/assetlinks.json; then
   echo "La firma ($HUELLA) no es la clave de subida de assetlinks.json. No lo subas."
   exit 1
 fi
-VERSION="$(awk '/versionCode/{print $2; exit}' android/app/build.gradle)"
+VERSION="$(awk '$1=="versionCode"{print $2; exit}' android/app/build.gradle)"
 echo
 echo "Listo: $AAB"
 echo "versionCode $VERSION · firmado con $HUELLA"

@@ -80,12 +80,16 @@ if(typeof APP_NATIVA!=='undefined'&&APP_NATIVA&&window.Capacitor.Plugins){
   });
   // Android tiene botón atrás; el iPhone, el gesto desde el borde.
   if(App&&!APP_IOS&&typeof atrasAndroid==='function')App.addListener('backButton',ev=>atrasAndroid(!!(ev&&ev.canGoBack)));
-  if(App)App.addListener('appUrlOpen',ev=>{
+  const abrirEnlaceNativo=ev=>{
     const url=ev&&ev.url;
     if(typeof url==='string'&&url.startsWith(VUELTA_NATIVA))volverDeOAuthNativo(url);
     else if(typeof recibirLinkAmigo==='function'&&recibirLinkAmigo(url))return;
     else if(typeof abrirEnlaceWidget==='function')abrirEnlaceWidget(url);
-  });
+  };
+  if(App){
+    if(typeof registrarEnlacesUniversales==='function')registrarEnlacesUniversales(App,abrirEnlaceNativo);
+    else App.addListener('appUrlOpen',abrirEnlaceNativo);
+  }
   // Lo que se respondió en la Actividad en Vivo con la app cerrada.
   if(typeof recogerSensaciones==='function'){
     setTimeout(recogerSensaciones,0);
