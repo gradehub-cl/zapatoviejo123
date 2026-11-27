@@ -500,8 +500,9 @@ function openSettings(){
       g.appendChild(b);
     });
     // Misma salida que en el onboarding: la lista oficial envejece y nadie puede
-    // quedarse sin poder declarar lo que estudia.
-    if(q){
+    // quedarse sin poder declarar lo que estudia. Salvo que el texto sea el
+    // nombre exacto de una de la lista: sería la misma, pero sin su malla.
+    if(q&&!vistas.some(c=>normName(c.n)===q)){
       const b=document.createElement('button');
       b.className='carrera-opt'+(!settingsCarrera&&settingsCarreraFiltro.trim()===settingsCarreraNombre?' sel':'');
       b.innerHTML='Usar «'+esc(settingsCarreraFiltro.trim())+'»';
