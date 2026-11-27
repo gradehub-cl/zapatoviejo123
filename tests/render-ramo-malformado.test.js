@@ -141,4 +141,21 @@ delete respaldoSinSlot.ramos[0].categorias.find(c=>c.nombre==='Informes').notas[
 const legadoRecuperado=val('normalize')(respaldoSinSlot).ramos[0].categorias.find(c=>c.nombre==='Informes');
 chk('una nota ya afectada se recupera solo si su nombre identifica la casilla',legadoRecuperado.notas[0]?.slot===0);
 
+// La etiqueta decía «Ponderaciones según true estudiantes»: se imprimía el sí
+// o no de «hay consenso» en vez de cuántos lo respaldan (auditoría #1376).
+console.log('\n=== La etiqueta del consenso dice cuántos estudiantes ===');
+vm.runInContext(`
+  S={...freshState(),ramos:[{
+    id:'ramo-consenso',nombre:'Ramo de consenso sintético',color:'#6d5dd3',consensoRespaldos:3,
+    categorias:[
+      {id:'a',nombre:'Prueba 1',peso:50,directNota:true,notas:[]},
+      {id:'b',nombre:'Prueba 2',peso:50,directNota:true,notas:[]}
+    ]
+  }]};
+  currentRamoId='ramo-consenso';
+`,ctx);
+error=null;try{val('renderRamo')();}catch(e){error=e;}
+chk('«Ponderaciones según 3 estudiantes», no «según true»',
+  error===null&&byId('pauta-periodo').innerHTML==='<span>Ponderaciones según 3 estudiantes</span>');
+
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);process.exit(fail?1:0);

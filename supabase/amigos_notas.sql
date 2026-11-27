@@ -92,8 +92,12 @@ returns table(id uuid, ramos jsonb)
 language plpgsql stable security definer set search_path = '' as $$
 declare uid uuid := public.amigos_exigir_sesion(); mias text[];
 begin
-  if not exists (select 1 from public.amigos_notas where user_id = uid) then return; end if;
-  select public.amigos_siglas(d.data) into mias from public.user_ramos d where d.user_id = uid;
+  -- Recíproco de verdad: «en común» son los ramos que quien pregunta publicó
+  -- él mismo, no los de su user_ramos (que escribe sin compartir nada).
+  -- Publicar '[]' ya no abre las notas de nadie.
+  select array_agg(distinct upper(btrim(r ->> 'sigla'))) into mias
+    from public.amigos_notas n, jsonb_array_elements(n.ramos) r
+   where n.user_id = uid and coalesce(btrim(r ->> 'sigla'), '') <> '';
   if mias is null or cardinality(mias) = 0 then return; end if;
   return query
   select a.id, coalesce((select jsonb_agg(r) from jsonb_array_elements(n.ramos) r where r ->> 'sigla' = any (mias)), '[]'::jsonb)

@@ -13,7 +13,7 @@
 // el estudiante arma sus ramos a mano.
 //
 // DE DÓNDE SALEN. UC: admision.uc.cl/carreras (71 programas de pregrado).
-// FEN: fen.uchile.cl/es/pregrado (3). Ninguna se escribió de memoria — un
+// U. de Chile: admisionuchile.cl (75) más el Plan Común FCFM. Ninguna se escribió de memoria — un
 // nombre inventado acá no falla, se queda en la base y después manda a
 // construir la malla equivocada.
 const CARRERAS_DECLARABLES={
@@ -97,6 +97,72 @@ const CARRERAS_DECLARABLES={
     {n:'Bachillerato de Odontología',malla:'UA-BACHILLERATO-DE-ODONTOLOGIA'},
     {n:'Bachillerato de Psicología',malla:'UA-BACHILLERATO-DE-PSICOLOGIA'},
   ],
+  // UDP: las 48 fichas de admision.udp.cl (carrera-sitemap.xml), con el
+  // nombre de cada una (og:title), leídas el 2026-11-26. Las menciones de
+  // Ingeniería Comercial, Ingeniería en Administración de Empresas y
+  // Tecnología Médica tienen ficha propia y van como opciones distintas.
+  // Las vespertinas (Campus Casco Histórico) llevan «(vespertino)» porque el
+  // nombre oficial no lo dice y Contador Auditor existe en las dos jornadas.
+  // Ninguna lleva malla todavía: sus PDF no traen siglas ni créditos.
+  udp:[
+    // Administración y Economía
+    {n:'Ingeniería Comercial mención Administración',alias:['Ingeniería Comercial','Comercial']},
+    {n:'Ingeniería Comercial mención Economía',alias:['Ingeniería Comercial','Comercial']},
+    {n:'Ingeniería Comercial mención Emprendimiento',alias:['Ingeniería Comercial','Comercial']},
+    {n:'Contador Auditor – Contador Público',alias:['Contador Auditor','Auditoría']},
+    {n:'Ingeniería en Control de Gestión',alias:['Control de Gestión']},
+    {n:'Administración Pública'},
+    {n:'Bachillerato en Administración y Economía',alias:['Bachillerato']},
+    // Arquitectura, Arte y Diseño
+    {n:'Arquitectura'},
+    {n:'Artes Visuales',alias:['Arte']},
+    {n:'Diseño'},
+    // Ciencias Sociales e Historia
+    {n:'Antropología'},
+    {n:'Ciencia Política'},
+    {n:'Sociología'},
+    {n:'Licenciatura en Historia',alias:['Historia']},
+    {n:'Bachillerato en Ciencias Sociales y Humanidades',alias:['Bachillerato']},
+    // Comunicación y Letras
+    {n:'Periodismo'},
+    {n:'Publicidad'},
+    {n:'Cine y Realización Audiovisual',alias:['Cine']},
+    {n:'Cine de Animación',alias:['Cine','Animación']},
+    {n:'Literatura Creativa',alias:['Literatura']},
+    // Derecho
+    {n:'Derecho'},
+    // Educación
+    {n:'Pedagogía en Educación Parvularia',alias:['Pedagogía','Educación Parvularia']},
+    {n:'Pedagogía en Educación General Básica',alias:['Pedagogía','Educación Básica']},
+    {n:'Pedagogía en Educación Diferencial con mención en Desarrollo Cognitivo',alias:['Pedagogía','Educación Diferencial']},
+    {n:'Pedagogía en Inglés',alias:['Pedagogía','Inglés']},
+    {n:'Pedagogía Media en Matemática',alias:['Pedagogía']},
+    {n:'Pedagogía Media en Historia y Ciencias Sociales',alias:['Pedagogía']},
+    {n:'Pedagogía Media en Lengua Castellana y Comunicación',alias:['Pedagogía','Lenguaje']},
+    // Ingeniería y Ciencias
+    {n:'Ingeniería Civil Plan Común',alias:['Plan Común','Ingeniería','Ingeniería Civil']},
+    {n:'Ingeniería Civil Industrial',alias:['Industrial']},
+    {n:'Ingeniería Civil en Informática y Telecomunicaciones',alias:['Informática']},
+    {n:'Ingeniería Civil en Obras Civiles',alias:['Obras Civiles']},
+    {n:'Ingeniería Civil en Ciencia de Datos e Inteligencia Artificial',alias:['Ciencia de Datos','Inteligencia Artificial']},
+    // Medicina, Psicología, Salud y Odontología
+    {n:'Medicina'},
+    {n:'Psicología'},
+    {n:'Enfermería'},
+    {n:'Kinesiología'},
+    {n:'Obstetricia y Neonatología',alias:['Obstetricia']},
+    {n:'Odontología',alias:['Dental']},
+    {n:'Tecnología Médica mención Bioanálisis Clínico y Medicina Transfusional',alias:['Tecnología Médica']},
+    {n:'Tecnología Médica mención Imagenología y Física Médica',alias:['Tecnología Médica']},
+    {n:'Tecnología Médica mención en Oftalmología y Optometría',alias:['Tecnología Médica']},
+    // Vespertinas
+    {n:'Contador Auditor (vespertino)',alias:['Auditoría']},
+    {n:'Ingeniería en Administración de Empresas mención Gestión de Marketing (vespertino)',alias:['Administración de Empresas']},
+    {n:'Ingeniería en Administración de Empresas mención Gestión Empresarial (vespertino)',alias:['Administración de Empresas']},
+    {n:'Ingeniería en Administración de Empresas mención Gestión en Finanzas (vespertino)',alias:['Administración de Empresas']},
+    {n:'Ingeniería en Industria y Logística (vespertino)',alias:['Logística']},
+    {n:'Ingeniería en Informática y Gestión (vespertino)',alias:['Informática']},
+  ],
   // Las 32 carreras, 6 bachilleratos y el Plan Común que la UDD lista en
   // udd.cl/admision-pregrado/carreras (revisada el 2026-10-31), con los nombres
   // tal como salen ahí. Concepción no tiene carreras propias: las doce que
@@ -155,10 +221,110 @@ const CARRERAS_DECLARABLES={
     {n:'Tecnología Médica (Oftalmología y Optometría)',malla:'UDD-TECNOLOGIA-MEDICA-OFTALMOLOGIA'},
     {n:'Terapia Ocupacional',malla:'UDD-TERAPIA-OCUPACIONAL'},
   ],
+  // La U. de Chile completa. El código del tenant sigue siendo `fen` porque
+  // así está guardado en profiles y en gradehub_v1; lo visible dice UChile.
+  // Las tres de la FEN no cambian: son las que ya eligieron cientos de cuentas.
+  // El resto sale de admisionuchile.cl (sitemap de carreras y nombre de cada
+  // ficha, leídos el 2026-11-26), salvo el Plan Común, que admisión no lista
+  // como carrera aparte y se toma de ingenieria.uchile.cl/carreras/plan-comun.
+  // Ninguna lleva `malla` todavía: se declaran y los ramos se arman a mano.
+  // Fuentes, PDF de malla y lo pendiente: docs/mallas-uchile.md.
   fen:[
+    // Economía y Negocios
     {n:'Ingeniería Comercial',malla:'IC'},
-    {n:'Ingeniería en Información y Control de Gestión',malla:'IICG'},
-    {n:'Contador Auditor'},
+    {n:'Ingeniería en Información y Control de Gestión',malla:'IICG',alias:['IICG','Control de Gestión']},
+    {n:'Contador Auditor',alias:['Auditoría']},
+    // Ciencias Físicas y Matemáticas. Se entra al Plan Común y la especialidad
+    // se elige después: igual que los majors UC, las especialidades no salen
+    // en el onboarding y se eligen desde Ajustes (Lucas, 2026-11-23).
+    {n:'Plan Común de Ingeniería y Ciencias (FCFM)',alias:['Plan Común','Ingeniería y Ciencias','Ingeniería','FCFM','Beauchef']},
+    {n:'Ingeniería Civil',soloAjustes:true,alias:['FCFM','Obras Civiles','Estructuras','Hidráulica','Transporte']},
+    {n:'Ingeniería Civil de Minas',soloAjustes:true,alias:['FCFM','Minería']},
+    {n:'Ingeniería Civil Eléctrica',soloAjustes:true,alias:['FCFM']},
+    {n:'Ingeniería Civil en Biotecnología',soloAjustes:true,alias:['FCFM']},
+    {n:'Ingeniería Civil en Computación',soloAjustes:true,alias:['FCFM','Informática','Computación']},
+    {n:'Ingeniería Civil Industrial',soloAjustes:true,alias:['FCFM','Industrial']},
+    {n:'Ingeniería Civil Matemática',soloAjustes:true,alias:['FCFM']},
+    {n:'Ingeniería Civil Mecánica',soloAjustes:true,alias:['FCFM']},
+    {n:'Ingeniería Civil Química',soloAjustes:true,alias:['FCFM']},
+    {n:'Geofísica',soloAjustes:true,alias:['FCFM']},
+    {n:'Geología',soloAjustes:true,alias:['FCFM']},
+    {n:'Licenciatura en Ciencias con mención en Astronomía',soloAjustes:true,alias:['FCFM','Astronomía']},
+    {n:'Licenciatura en Ciencias con mención en Física (FCFM)',soloAjustes:true,alias:['Física','Beauchef']},
+    // Medicina
+    {n:'Medicina'},
+    {n:'Enfermería'},
+    {n:'Fonoaudiología'},
+    {n:'Kinesiología'},
+    {n:'Nutrición y Dietética',alias:['Nutrición']},
+    {n:'Obstetricia y Puericultura',alias:['Obstetricia']},
+    {n:'Tecnología Médica'},
+    {n:'Terapia Ocupacional'},
+    // Derecho
+    {n:'Derecho',alias:['Ciencias Jurídicas y Sociales']},
+    // Ciencias Sociales
+    {n:'Antropología - Arqueología',alias:['Antropología','Arqueología','Antropología Social','Antropología Física']},
+    {n:'Psicología'},
+    {n:'Sociología'},
+    {n:'Trabajo Social'},
+    {n:'Pedagogía en Educación Parvularia',alias:['Educación Parvularia','Pedagogía']},
+    {n:'Pedagogía en Educación Especial',alias:['Educación Diferencial','Pedagogía']},
+    {n:'Pedagogía en Educación Física',alias:['Pedagogía']},
+    // Ciencias Químicas y Farmacéuticas
+    {n:'Bioquímica'},
+    {n:'Ingeniería en Alimentos'},
+    {n:'Química'},
+    {n:'Química y Farmacia',alias:['Farmacia']},
+    // Ciencias
+    {n:'Biología con mención en Medio Ambiente',alias:['Biología Ambiental']},
+    {n:'Ingeniería en Biotecnología Molecular',alias:['Biotecnología']},
+    {n:'Química Ambiental'},
+    {n:'Licenciatura en Ciencias con mención en Biología',alias:['Biología']},
+    {n:'Licenciatura en Ciencias con mención en Física (Facultad de Ciencias)',alias:['Física']},
+    {n:'Licenciatura en Ciencias con mención en Matemáticas',alias:['Matemáticas']},
+    {n:'Licenciatura en Ciencias con mención en Química'},
+    {n:'Pedagogía en Educación Media en Biología y Química',alias:['Pedagogía']},
+    {n:'Pedagogía en Educación Media en Matemáticas y Física',alias:['Pedagogía']},
+    // Filosofía y Humanidades
+    {n:'Licenciatura en Filosofía',alias:['Filosofía']},
+    {n:'Licenciatura en Historia',alias:['Historia']},
+    {n:'Licenciatura en Lingüística y Literatura',alias:['Literatura','Lingüística']},
+    {n:'Licenciatura en Lingüística y Literatura Inglesas',alias:['Inglés','Literatura Inglesa']},
+    {n:'Pedagogía en Educación Básica',alias:['Pedagogía','Educación Básica']},
+    {n:'Pedagogía en Educación Media en Asignaturas Científico-Humanistas',alias:['Pedagogía','PEMACH']},
+    {n:'Estudios Internacionales'},
+    // Gobierno
+    {n:'Administración Pública'},
+    {n:'Ciencia Política'},
+    // Comunicación e Imagen
+    {n:'Periodismo'},
+    {n:'Cine y Televisión',alias:['Cine']},
+    // Arquitectura y Urbanismo
+    {n:'Arquitectura'},
+    {n:'Diseño'},
+    {n:'Geografía'},
+    // Artes
+    {n:'Actuación Teatral',alias:['Teatro','Actuación']},
+    {n:'Danza'},
+    {n:'Diseño Teatral'},
+    {n:'Ingeniería en Sonido',alias:['Sonido']},
+    {n:'Interpretación Musical',alias:['Música']},
+    {n:'Teoría de la Música',alias:['Música']},
+    {n:'Licenciatura en Artes con mención en Artes Visuales',alias:['Artes Visuales','Arte']},
+    {n:'Licenciatura en Artes con mención en Composición Musical',alias:['Composición','Música']},
+    {n:'Licenciatura en Artes con mención en Teoría e Historia del Arte',alias:['Historia del Arte','Arte']},
+    // Ciencias Agronómicas y Ambientales
+    {n:'Ingeniería Agronómica',alias:['Agronomía']},
+    {n:'Ingeniería en Recursos Naturales Renovables',alias:['Recursos Naturales']},
+    // Ciencias Forestales y de la Conservación de la Naturaleza
+    {n:'Ingeniería Forestal',alias:['Forestal']},
+    {n:'Ingeniería en Recursos Hídricos'},
+    // Ciencias Veterinarias y Pecuarias
+    {n:'Medicina Veterinaria',alias:['Veterinaria']},
+    // Odontología
+    {n:'Odontología',alias:['Dental']},
+    // Programa Académico de Bachillerato
+    {n:'Programa Académico de Bachillerato',alias:['Bachillerato']},
   ],
   uc:[
     // Sinónimos de búsqueda: admision.uc.cl/carreras/ingenieria/ y /actuacion/.
