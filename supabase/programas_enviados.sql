@@ -7,7 +7,7 @@ insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 create table if not exists public.programas_enviados(
  id uuid primary key default gen_random_uuid(),
  user_id uuid not null references auth.users(id) on delete cascade,
- tenant text not null check(tenant in ('uc','fen','uai','uandes','udd')),
+ tenant text not null check(tenant in ('uc','fen','uai','uandes','udd','udp','unab')),
  carrera text check(carrera is null or char_length(carrera) between 1 and 100),
  sigla text check(sigla is null or sigla ~ '^[A-Z0-9_-]{1,40}$'),
  ramo text not null check(char_length(btrim(ramo)) between 1 and 160),
@@ -75,7 +75,7 @@ returns jsonb language plpgsql security definer set search_path='' as $$
 declare uid uuid:=auth.uid();p public.programas_enviados%rowtype;nuevo uuid;dia date:=(now() at time zone 'America/Santiago')::date;
 begin
  if uid is null then raise exception 'Inicia sesión' using errcode='42501'; end if;
- if p_tenant is null or p_tenant not in ('uc','fen','uai','uandes','udd') or p_ramo is null or char_length(btrim(p_ramo)) not between 1 and 160
+ if p_tenant is null or p_tenant not in ('uc','fen','uai','uandes','udd','udp','unab') or p_ramo is null or char_length(btrim(p_ramo)) not between 1 and 160
   or p_periodo is null or char_length(btrim(p_periodo)) not between 1 and 32
   or p_ramo_id is null or p_ramo_id !~ '^[A-Za-z0-9_-]{1,64}$'
   or p_ruta is null or p_ruta !~ ('^'||uid::text||'/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.pdf$')
