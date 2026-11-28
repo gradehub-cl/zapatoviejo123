@@ -16,7 +16,7 @@ function arnes({fallaRemoto=false}={}){
   const almacen=new Map([['gradehub_v1',copia],['gradehub_cache_owner',UID],['gradehub_v1_base',copia],
     ['gradehub_v1_pre_import',copia],['gradehub_curso_siglas','["SYN100"]'],['gradehub_v1_respaldo_'+UID,copia],
     // Preferencia del dispositivo, no de la cuenta: tiene que sobrevivir.
-    ['gradehub_sombras','0']]);
+    ['gradehub_canvas_avisos_leidos_'+UID,'[]'],['gradehub_sombras','0']]);
   const nativo={borrar:0,actividades:[],cancelados:[],rpc:[],salidas:0,recargas:0,subidas:0,canvas:[]};
   const timers=new Map();let nTimer=0;
   const window={addEventListener(){},matchMedia:()=>({matches:true,addEventListener(){},addListener(){}}),
@@ -51,7 +51,7 @@ const conNotas=h=>[...h.almacen].filter(([,v])=>v.includes(MARCA)).map(([k])=>k)
   await new Promise(r=>setImmediate(r)); // getPending → cancel
   assert.deepEqual(h.nativo.rpc,['eliminar_mi_cuenta']);
   assert.deepEqual(conNotas(h),[],'ninguna clave local conserva las notas');
-  for(const k of ['gradehub_v1','gradehub_cache_owner','gradehub_v1_base','gradehub_v1_pre_import','gradehub_curso_siglas','gradehub_v1_respaldo_'+UID])
+  for(const k of ['gradehub_v1','gradehub_cache_owner','gradehub_v1_base','gradehub_v1_pre_import','gradehub_curso_siglas','gradehub_v1_respaldo_'+UID,'gradehub_canvas_avisos_leidos_'+UID])
     assert.equal(h.almacen.has(k),false,k+' se borra');
   assert.equal(h.almacen.get('gradehub_sombras'),'0','una preferencia del dispositivo no se toca');
   assert.equal(h.nativo.borrar,1,'se borra el resumen de los widgets');

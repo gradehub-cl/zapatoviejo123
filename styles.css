@@ -7169,3 +7169,20 @@ button.amigos-cifra:active{opacity:.55;}
   .app-nativa button:active,.app-nativa #modal button:active,.app-nativa .confirm-overlay.open .confirm-box{transform:none;}
   .app-nativa::view-transition-group(root),.app-nativa::view-transition-old(root),.app-nativa::view-transition-new(root){animation:none;}
 }
+
+.app-nativa .avisos-canvas{font-family:var(--font-ui);color:var(--fg);margin-block:1rem;overflow-wrap:anywhere}
+.app-nativa .avisos-canvas article{padding-block:.85rem;border-bottom:1px solid var(--border)}
+.app-nativa .avisos-canvas h3,.app-nativa .avisos-canvas h4{margin:.25rem 0}
+.app-nativa .avisos-canvas h4{font-size:1rem;font-weight:500}
+.app-nativa .avisos-canvas .aviso-nuevo h4{font-weight:750}
+.app-nativa .avisos-canvas time{font-size:.8125rem;color:var(--fg2);font-variant-numeric:tabular-nums}
+.app-nativa .avisos-canvas article p{white-space:pre-line;line-height:1.5;margin:.55rem 0}
+.app-nativa .avisos-canvas button,.app-nativa .avisos-canvas a{display:inline-flex;align-items:center;min-height:44px;min-width:44px;margin-right:.5rem;padding:.25rem .5rem;background:transparent;border:0;color:var(--fg);font:inherit;text-decoration:underline;cursor:pointer}
+.app-nativa #avisos-canvas-inicio>button{display:flex;width:100%;justify-content:space-between;margin:0;padding:0 .25rem;text-decoration:none;font-weight:600;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
+.app-nativa #avisos-canvas-inicio>button::after{content:"";width:7px;height:7px;margin-right:6px;border-top:1.5px solid currentColor;border-right:1.5px solid currentColor;transform:rotate(45deg)}
+.app-nativa .avisos-canvas article button,.app-nativa .avisos-canvas article a{margin-left:-.5rem;margin-right:.85rem;font-size:.875rem;text-underline-offset:.18em}
+.app-nativa .avisos-canvas h3{font-size:1.125rem}
+.app-nativa #lista-avisos-canvas h3{margin-top:1.5rem}
+
+.app-nativa #avisos-canvas-inicio,.app-nativa #avisos-canvas-ficha{margin-inline:20px}
+.app-nativa #avisos-canvas-ficha{border-top:1px solid var(--border);padding-top:1rem}

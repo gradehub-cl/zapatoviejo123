@@ -40,6 +40,7 @@ function renderRecorreccionesHome(){
     </article>`).join('')}`;
 }
 function renderHome(){
+  if(typeof pintarAvisosCanvas==='function')pintarAvisosCanvas('inicio');
   if(typeof pintarHerramientasInicio==="function")pintarHerramientasInicio();
   renderClasesHoy();
   renderPropuestasPautaHome();

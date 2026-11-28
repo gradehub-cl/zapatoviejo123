@@ -21,6 +21,8 @@ const run=s=>vm.runInContext(s,ctx),json=s=>JSON.parse(run('JSON.stringify('+s+'
 run(`S.tenant='uc';S.tipoCuenta='estudiante';currentUser={id:'00000000-0000-0000-0000-000000000001'};S.ramos=[{id:'r',nombre:'Curso sintético',sigla:'SYN100',seccion:2,categorias:[{id:'i1',nombre:'Interrogación 1',peso:30,notas:[]},{id:'i2',nombre:'Interrogación 2',peso:40,notas:[]},{id:'c',nombre:'Controles',peso:30,slots:3,notas:[{id:'c3',nombre:'Control 3',slot:2,valor:null,peso:1}]}]}];globalThis.r=S.ramos.find(r=>r.id==='r');`);
 const anuncio=(texto,title='Fechas del curso',posted_at='2026-11-08T15:00:00Z')=>({title,posted_at,texto});
 const leerAnuncio=(a,ahora='2026-11-18T15:00:00Z')=>json('fechasDeAnuncioCanvas('+JSON.stringify(a)+',r,new Date('+JSON.stringify(ahora)+'))');
+ctx.cortado={...anuncio('La I1 será el 20/11. La I2 será el 25/11'),recortado:true};
+assert.deepEqual(json('propuestasAnunciosCanvas([cortado],r,new Date("2026-11-18T15:00:00Z")).map(p=>p.target)'),['r|i1|'],'el recorte solo propone fechas de frases completas');
 const antes=run('JSON.stringify(S)');
 let p=leerAnuncio(anuncio('Les recuerdo que la I2 es el jueves 20 de noviembre a las 17:30 en B12'));
 assert.equal(p.length,1);assert.equal(p[0].target,'r|i2|');assert.equal(p[0].fecha,'2026-11-20');assert.equal(p[0].hora,'17:30');assert.equal(p[0].sala,'B12');

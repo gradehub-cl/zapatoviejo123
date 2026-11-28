@@ -87,14 +87,14 @@ assert(CanvasPolitica.paginaAnunciosValida(URL(string:"https://cursos.canvas.uc.
 for query in ["page=2","only_announcements=false&page=2","only_announcements=true&page=4","only_announcements=true&include%5B%5D=authors","only_announcements=true&page=2&page=3"] { assert(!CanvasPolitica.paginaAnunciosValida(URL(string:"https://cursos.canvas.uc.cl/api/v1/courses/42/discussion_topics?"+query)!,ruta:"courses/42/discussion_topics")) }
 let anuncios = CanvasPolitica.proyectarAnuncios([["id":1,"title":"<b>I2</b>","posted_at":"2026-11-08T15:00:00Z","message":"<p>La I2 ser&aacute; el 20 de noviembre a las 17:30 en B12.</p><script>secreto()</script><img src=x><a href=\\"https://privado\\">Ver</a>","published":true,"is_announcement":true,"author":["name":"Persona"],"attachments":["url":"secreto"],"replies":["privado"],"html_url":"https://privado"],["title":"Foro","posted_at":"2026-11-08","is_announcement":false],["title":"Borrador","published":false],["title":"Sin fecha"]])
 assert(anuncios.count == 1)
-assert(Set(anuncios[0].keys) == ["title","posted_at","texto"])
+assert(Set(anuncios[0].keys) == ["title","posted_at","texto","recortado"])
 assert(anuncios[0]["title"] as? String == "I2")
 let mensaje = anuncios[0]["texto"] as? String ?? ""
 assert(mensaje.contains("será el 20 de noviembre") && !mensaje.contains("<") && !mensaje.contains("secreto") && !mensaje.contains("https://privado"))
 let recortadoAnuncio = CanvasPolitica.proyectarAnuncios([["title":String(repeating:"a",count:300),"posted_at":"2026-11-08","message":"Fecha confirmada. " + String(repeating:"x",count:10000)]])[0]
 assert((recortadoAnuncio["title"] as? String ?? "").count == 180)
-assert((recortadoAnuncio["texto"] as? String ?? "").count <= CanvasPolitica.anuncioMax)
-assert(!(recortadoAnuncio["texto"] as? String ?? "").hasSuffix("x"),"el texto recortado no conserva una frase incompleta")
+assert((recortadoAnuncio["texto"] as? String ?? "").count == CanvasPolitica.anuncioMax)
+assert(recortadoAnuncio["recortado"] as? Bool == true && anuncios[0]["recortado"] as? Bool == false)
 let filas = CanvasPolitica.agregarGrupos([["id":1,"name":"Entrega","due_at":"2026-11-15","assignment_group_id":12,"grade":"privado"]],grupos:[["id":12,"name":"Controles"]])
 assert((filas[0]["assignment_group"] as? [String:String])?["name"] == "Controles")
 assert(filas[0]["grade"] == nil)

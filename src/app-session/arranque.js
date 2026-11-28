@@ -96,6 +96,7 @@ async function boot(){
       // anterior. La copia local se conserva; no se borra una edición sin subir.
       if(!_cerrandoSesion&&currentUser&&(event==='SIGNED_OUT'||
         (event==='SIGNED_IN'&&session&&session.user.id!==currentUser.id))){
+        if(typeof limpiarAvisosCanvas==='function')limpiarAvisosCanvas(true);
         currentUser=null;closeModal();showAuthScreen();location.reload();return;
       }
       if(event==='PASSWORD_RECOVERY'){

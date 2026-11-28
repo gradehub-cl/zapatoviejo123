@@ -112,13 +112,8 @@ enum CanvasPolitica {
             guard a["published"] as? Bool != false, a["is_announcement"] as? Bool != false,
                   let publicado = a["posted_at"] as? String, !publicado.isEmpty else { return nil }
             let completo = textoPrograma(a["message"] as? String ?? "")
-            var texto = String(completo.prefix(anuncioMax))
-            // Un recorte a mitad de una frase no se interpreta como fecha completa.
-            if completo.count > anuncioMax {
-                if let fin = texto.lastIndex(where: { $0 == "\n" || $0 == "." || $0 == ";" }) { texto = String(texto[...fin]) }
-                else { texto = "" }
-            }
-            return ["title": String(textoPrograma(a["title"] as? String ?? "").prefix(180)), "posted_at": String(publicado.prefix(40)), "texto": texto]
+            return ["title": String(textoPrograma(a["title"] as? String ?? "").prefix(180)), "posted_at": String(publicado.prefix(40)),
+                    "texto": String(completo.prefix(anuncioMax)), "recortado": completo.count > anuncioMax]
         }
     }
 
