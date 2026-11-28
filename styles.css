@@ -6875,6 +6875,23 @@ html.app-nativa .grupo-estudiar-principal{width:100%;margin:0 0 1.25rem;}
 html.app-nativa .grupo-para{margin:-.25rem 0 1rem;font-size:.9375rem;line-height:1.45;color:var(--fg2);}
 html.app-nativa .grupo-proximo{color:var(--primary);}
 html.app-nativa .grupo-ya{display:block;margin:.35rem 0 0 .9rem;font-size:.8125rem;color:var(--fg2);}
+/* Grupo: «Lo próximo», lo primero al entrar (2026-11-27) */
+html.app-nativa .grupo-destacado{margin:0 1rem;border:1px solid var(--border);border-radius:16px;background:var(--celda-agrupada);overflow:hidden;}
+html.app-nativa .grupo-destacado-boton{display:grid;grid-template-columns:1fr auto;align-items:center;gap:.3rem .75rem;width:100%;min-height:44px;padding:1rem 1rem 1rem 1.1rem;border:0;background:none;color:var(--fg);font:inherit;text-align:left;cursor:pointer;overflow-wrap:anywhere;}
+html.app-nativa .grupo-destacado-boton>span{grid-column:1;}
+html.app-nativa .grupo-destacado-boton>svg{grid-column:2;grid-row:1/span 4;}
+html.app-nativa .grupo-destacado-cuando{font-size:.875rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+html.app-nativa .grupo-destacado-cuando b{color:var(--primary);font-weight:700;}
+html.app-nativa .grupo-destacado-titulo{display:flex;align-items:center;gap:.45rem;font-size:1.3125rem;font-weight:700;letter-spacing:-.015em;line-height:1.2;}
+html.app-nativa .grupo-destacado-titulo .ic{flex:none;width:20px;height:20px;color:var(--fg2);}
+html.app-nativa .grupo-destacado-codigo{margin:.1rem 0;font-size:.875rem;color:var(--fg2);font-variant-numeric:tabular-nums;-webkit-user-select:text;user-select:text;}
+html.app-nativa .grupo-destacado-codigo b{color:var(--fg);font-size:1rem;font-weight:700;letter-spacing:.06em;}
+html.app-nativa .grupo-destacado-quien{font-size:.875rem;color:var(--fg2);}
+html.app-nativa .grupo-destacado-accion{width:auto;margin:0 1rem 1rem;min-height:44px;padding:.7rem 1rem;}
+html.app-nativa .grupo-destacado-despues{margin:0;padding:.7rem 1.1rem;border-top:1px solid var(--border);font-size:.875rem;color:var(--fg2);}
+html.app-nativa .grupo-nuevas{display:inline-block;margin-left:.35rem;padding:.1rem .5rem;border-radius:1rem;background:var(--primary);color:var(--primary-fg);font-size:.75rem;font-weight:700;vertical-align:.15em;font-variant-numeric:tabular-nums;}
+html.app-nativa .grupo-hilo li.grupo-nuevo-raya{display:flex;align-items:center;gap:.6rem;margin:.9rem 0 .5rem;font-size:.75rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--primary);}
+html.app-nativa .grupo-hilo li.grupo-nuevo-raya::before,html.app-nativa .grupo-hilo li.grupo-nuevo-raya::after{content:'';flex:1;height:1px;background:currentColor;opacity:.5;}
 html.app-nativa .grupo-hilo div.grupo-mensaje{cursor:default;}
 
 
