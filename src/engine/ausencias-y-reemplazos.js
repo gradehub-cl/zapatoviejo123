@@ -106,9 +106,10 @@ function gh_prepararAusenciasJustificadas(structure,grades,regla,declaraciones,n
     }else bloqueadas.push({...entrada,tipo:'promedio',motivo:'sin_regla_para_exceso'});
   });
   promedios.slice(0,maxPromedios).forEach(({entrada,desde,otros})=>{
-    const conocidos=otros.map(n=>({valor:valores.get(n.id),peso:Number(n.weight)||0}));
+    const conocidos=otros.map(n=>({valor:valores.get(n.id),peso:entrada.pesosIguales===true?1:Number(n.weight)||0}));
     const total=conocidos.reduce((s,n)=>s+n.peso,0);
-    if(!(total>0)||conocidos.some(n=>n.valor==null)){
+    const fuentesIncompletas=entrada.pesosIguales===true&&otros.some(n=>gh_hasPendingLeaf(n,notas));
+    if(!(total>0)||conocidos.some(n=>n.valor==null)||fuentesIncompletas){
       pendientes.push({...entrada,tipo:'promedio',motivo:'faltan_sumativas'});return;
     }
     const valor=conocidos.reduce((s,n)=>s+n.valor*n.peso,0)/total;

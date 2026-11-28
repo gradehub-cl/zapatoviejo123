@@ -20,6 +20,7 @@ function openSimuladorModal(){
         <button type="button" class="sim-meta-btn" id="sim-meta-mas" onclick="simCambiarMeta(0.1)" aria-label="Subir la meta">+</button>
       </div>
       <div class="sim-needed" id="sim-needed" aria-live="polite" hidden></div>
+      ${enAppNativa()?'<div class="sim-needed" id="sim-requisitos" aria-live="polite" hidden></div>':''}
     </div>
     <div class="sim-section-label">Evaluaciones</div>
     <div class="sim-cats" id="sim-cats"></div>
@@ -61,15 +62,27 @@ function simProjectedRamo(r){
   // las resuelve el mismo motor: nada de aritmética nueva acá. Se suman a las
   // que el ramo ya tuviera declaradas, porque "y además falto a esta" es
   // justamente la pregunta.
-  const entradas=Object.entries(simAusencias).filter(([id,a])=>a&&a.hacia&&a.hacia!==id);
+  const categorias=new Set(base.categorias.map(c=>c.id));
+  const entradas=Object.entries(simAusencias).filter(([id,a])=>{
+    if(!a||!categorias.has(id))return false;
+    if(a.tipo!=='promedio')return a.hacia!==id&&categorias.has(a.hacia);
+    return a.deIds?.length===2&&a.deIds[0]!==a.deIds[1]&&a.deIds.every(fuente=>fuente!==id&&categorias.has(fuente));
+  });
   if(!entradas.length)return base;
-  const previa=r.reglasAusenciaJustificada||r.reglasAusenciaJustificadaUsuario||{};
+  const previa=reglasAusenciaOficiales(r)||r.reglasAusenciaJustificadaUsuario||{};
+  const promedios=entradas.filter(([,a])=>a.tipo==='promedio')
+    .map(([desdeId,a])=>({desdeId,deIds:a.deIds,pesosIguales:true}));
+  const desdePromedio=new Set(promedios.map(a=>a.desdeId));
+  const conservar=reglas=>(reglas||[]).filter(a=>!desdePromedio.has(a?.desdeId));
   return {...base,
     reglasAusenciaJustificada:{
-      reemplazos:[...(previa.reemplazos||[]),
+      ...previa,
+      rezagos:conservar(previa.rezagos),
+      reemplazos:[...conservar(previa.reemplazos),
         ...entradas.filter(([,a])=>a.tipo==='reemplazo').map(([desdeId,a])=>({desdeId,haciaId:a.hacia}))],
-      traspasos:[...(previa.traspasos||[]),
-        ...entradas.filter(([,a])=>a.tipo!=='reemplazo').map(([desdeId,a])=>({desdeId,haciaId:a.hacia}))],
+      traspasos:[...conservar(previa.traspasos),
+        ...entradas.filter(([,a])=>a.tipo==='traspaso').map(([desdeId,a])=>({desdeId,haciaId:a.hacia}))],
+      promedios:[...conservar(previa.promedios),...promedios],
     },
     ausenciasJustificadas:[...new Set([...(r.ausenciasJustificadas||[]),...entradas.map(([id])=>id)])],
   };
@@ -96,9 +109,18 @@ function simToggleFalta(catId){
 }
 function simSetFalta(catId,valor){
   const [tipo,hacia]=String(valor||'').split('|');
-  if(!hacia)return;
-  simAusencias[catId]={hacia,tipo:tipo==='reemplazo'?'reemplazo':'traspaso'};
+  if(tipo==='promedio')simAusencias[catId]={tipo,deIds:['','']};
+  else if(hacia)simAusencias[catId]={hacia,tipo:tipo==='reemplazo'?'reemplazo':'traspaso'};
+  else return;
   renderSimulador();
+  if(tipo==='promedio')document.getElementById(`sim-falta-${catId}-fuente-0`)?.focus();
+}
+function simSetFaltaFuente(catId,indice,fuente){
+  const falta=simAusencias[catId];
+  if(falta?.tipo!=='promedio')return;
+  falta.deIds[indice]=fuente;
+  renderSimulador();
+  document.getElementById(`sim-falta-${catId}-fuente-${indice}`)?.focus();
 }
 function simProjectedAvg(r){return ramoAvg(simProjectedRamo(r));}
 
@@ -111,7 +133,7 @@ function simCambiarMeta(d){
   simMeta=Math.round(Math.min(7,Math.max(1,simMeta+d))*10)/10;
   renderSimulador();
 }
-function simNotaNecesaria(proyectado,meta=simMeta){
+function simNotaNecesaria(proyectado,meta=simMeta,gruposSeparados=false){
   const m=simConComa(meta.toFixed(1)),aprobar=Math.abs(meta-4)<1e-9;
   // Con un descarte cuya cantidad no se conoce, el efecto depende de notas que
   // no existen: no se inventa un número (era de la calculadora).
@@ -123,6 +145,8 @@ function simNotaNecesaria(proyectado,meta=simMeta){
   const calculo=calculoRamoConCompuertas(proyectado);
   const motivo=motivoCalculoPendiente(proyectado);
   if(motivo)return {texto:'Resultado pendiente de confirmar con el curso',detalle:motivo};
+  if(calculo.ausencias?.pendientes.some(a=>a.pesosIguales===true))
+    return {texto:'Ingresa las dos notas para calcular el reemplazo simulado'};
   // Lo pendiente se mide igual que notaNecesaria: una categoría sin notas y
   // sin cantidad declarada no siempre aparece en emptyLeaves, y el simulador
   // daba el ramo por cerrado mientras «Nota mínima» pedía una nota.
@@ -156,7 +180,7 @@ function simNotaNecesaria(proyectado,meta=simMeta){
   if(!Number.isFinite(necesaria)||necesaria>7)return {texto:`Con esto ya no alcanzas el ${m}${deCatedra}`};
 
   const pendientes=compuertas.filter(x=>x.pendiente);
-  const condiciones=pendientes.map(x=>{
+  const condiciones=pendientes.filter(x=>!gruposSeparados||x.g.type!=='group_min').map(x=>{
     const ids=x.g.type==='group_min'?x.g.catIds:[x.g.catId];
     const nombre=x.g.nombre||(ids||[]).map(id=>(proyectado.categorias||[]).find(c=>c.id===id)?.nombre).filter(Boolean).join(' y ')||'el requisito del ramo';
     return `Además, ${nombre} debe llegar a ${fmtPromedio(x.g.min)} para cumplir su mínimo.`;
@@ -204,10 +228,18 @@ function renderSimuladorResumen(r){
   const menos=document.getElementById('sim-meta-menos'),mas=document.getElementById('sim-meta-mas');
   if(menos)menos.disabled=simMeta<=1;if(mas)mas.disabled=simMeta>=7;
   const neededEl=document.getElementById('sim-needed');
-  const necesaria=simNotaNecesaria(proyectado);
+  const requisitosEl=document.getElementById('sim-requisitos');
+  const htmlRequisitos=requisitosEl&&enAppNativa()?simRequisitosHTML(proyectado):'';
+  const faltanFuentes=Object.values(simAusencias).some(a=>a?.tipo==='promedio'&&a.deIds.some(id=>!id));
+  const necesaria=faltanFuentes?{texto:'Elige las dos evaluaciones para simular el reemplazo'}
+    :simNotaNecesaria(proyectado,simMeta,!!htmlRequisitos);
   if(neededEl){
     neededEl.hidden=!necesaria;
     neededEl.textContent=necesaria?[necesaria.texto,necesaria.detalle].filter(Boolean).join(' '):'';
+  }
+  if(requisitosEl){
+    requisitosEl.hidden=!htmlRequisitos;
+    requisitosEl.innerHTML=htmlRequisitos;
   }
   const soloEl=document.getElementById('sim-solo-parte');
   if(soloEl){
@@ -216,6 +248,37 @@ function renderSimuladorResumen(r){
   }
 
   const cb=document.getElementById('sim-commit-btn');if(cb)cb.disabled=!hasSim;
+}
+
+function simRequisitosHTML(ramo){
+  const requisitos=calculoRamo.compuertasEfectivas(ramo).filter(g=>g?.type==='group_min'&&Number.isFinite(g.min));
+  if(requisitos.length<=1)return '';
+  const {estructura,res,notas}=calculoRamoConCompuertas(ramo);
+  const nodos=new Map(estructura.children.map(n=>[n.id,n]));
+  return `<strong>Requisitos de aprobación</strong><ul>${requisitos.map(g=>{
+    const ids=g.catIds||[];
+    const nombre=g.nombre||ids.map(id=>nodos.get(id)?.name).filter(Boolean).join(' y ')||'Requisito';
+    const valor=avgDeGrupoCalculado(res,estructura,ids);
+    const pendiente=ids.some(id=>{
+      const nodo=nodos.get(id);
+      return nodo?.weight>0&&gh_hasPendingLeaf(nodo,notas);
+    });
+    const estado=pendiente?'Faltan notas':valor===null?'Sin nota':gh_cumpleCompuerta(valor,g)?'Cumple':'Bajo el mínimo';
+    const minimo=Number.isInteger(g.min)?nf(g.min,1):notaConComa(g.min);
+    const promedio=valor===null?'':`${g.exacto?fmtPromedioExacto(valor):fmtPromedio(valor)} · `;
+    return `<li><strong>${esc(nombre)}</strong> (mínimo ${minimo}). ${promedio}${estado}</li>`;
+  }).join('')}</ul>`;
+}
+
+function simFaltaPromedioHTML(catId,otras,deIds){
+  return deIds.map((fuente,indice)=>{
+    const id=`sim-falta-${catId}-fuente-${indice}`;
+    return `<label class="sim-falta-label" for="${esc(id)}">${indice===0?'Primera evaluación':'Segunda evaluación'}</label>
+      <select id="${esc(id)}" onchange="simSetFaltaFuente(${esc(JSON.stringify(catId))},${indice},this.value)">
+        <option value="">Elige una evaluación</option>
+        ${otras.filter(o=>o.id!==deIds[1-indice]).map(o=>`<option value="${esc(o.id)}"${o.id===fuente?' selected':''}>${esc(o.nombre)}</option>`).join('')}
+      </select>`;
+  }).join('')+'<small class="sim-falta-hint">Las dos notas valen lo mismo en este promedio simulado.</small>';
 }
 
 function renderSimulador(){
@@ -230,6 +293,7 @@ function renderSimulador(){
     // sea la ventana quedaba rota sin decir por qué. El resto del archivo ya usa
     // esta guarda; acá faltaba.
     const falta=simAusencias[c.id]||null;
+    const otras=falta?r.categorias.filter(o=>o.id!==c.id):[];
     const notasReales=Array.isArray(c.notas)?c.notas:[];
     // Una casilla con fecha y sin nota todavía no es una nota: desde que cada
     // casilla puede tener su propia fecha existen notas con `valor` en null, y
@@ -248,12 +312,13 @@ function renderSimulador(){
           <div class="sim-falta-hd"><b>Ausencia simulada</b><button type="button" class="sim-falta-x" onclick="simToggleFalta('${c.id}')" aria-label="Ya no faltar a ${esc(c.nombre)}">✕</button></div>
           <label class="sim-falta-label" for="sim-falta-${c.id}">¿Qué pasa con su ${r2(c.peso)}%?</label>
           <select id="sim-falta-${c.id}" onchange="simSetFalta('${c.id}',this.value)">${
-            (r.categorias||[]).filter(o=>o.id!==c.id).map(o=>{
+            otras.map(o=>{
               const t=esc(o.nombre);
-              return `<option value="traspaso|${esc(o.id)}"${falta.tipo!=='reemplazo'&&falta.hacia===o.id?' selected':''}>El ${r2(c.peso)}% se suma a ${t}</option>`+
+              return `<option value="traspaso|${esc(o.id)}"${falta.tipo==='traspaso'&&falta.hacia===o.id?' selected':''}>El ${r2(c.peso)}% se suma a ${t}</option>`+
                      `<option value="reemplazo|${esc(o.id)}"${falta.tipo==='reemplazo'&&falta.hacia===o.id?' selected':''}>Me ponen la nota de ${t}</option>`;
-            }).join('')}</select>
-          ${falta.tipo==='reemplazo'?'':'<small class="sim-falta-hint">La acumulación tiene un máximo de 75%. El excedente cuenta con nota 1,0.</small>'}
+            }).join('')}${enAppNativa()&&otras.length>=2?`<option value="promedio"${falta.tipo==='promedio'?' selected':''}>Promedio simple de dos evaluaciones</option>`:''}</select>
+          ${falta.tipo==='traspaso'?'<small class="sim-falta-hint">La acumulación tiene un máximo de 75%. El excedente cuenta con nota 1,0.</small>':''}
+          ${falta.tipo==='promedio'?simFaltaPromedioHTML(c.id,otras,falta.deIds):''}
         </div>`:''}
         ${falta?'':`<div class="sim-fields" id="sim-fields-${esc(c.id)}">${campos}</div>`}
       </div>`;
