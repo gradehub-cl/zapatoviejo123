@@ -19,6 +19,7 @@ Quedan, en orden de dificultad:
 | Eximición del examen con Casos ≥ 5,5 (Gestión de Personas) | Falta el dato: “Casos y ensayos” está agrupado y el programa no dice cuántos casos son. Sin poder contar cuántos quedaron bajo 4,0 no se puede decidir la eximición; requiere rediseño del preset FEN con Martín, no un `if` por ramo. |
 | Examen de Segunda Fecha (Métodos) | El programa da quién puede rendirlo (examen bajo 3,0 y promedio ≥ 3,95; en Métodos I también una inasistencia justificada), pero no dice con qué nota queda el ramo al aprobarlo. Falta una nota fija o fórmula oficial; no se puede reutilizar el recuperativo de Micro sin inventarla. |
 | ±10 décimas por evaluación entre compañeros | El dato no existe en la app |
+| Presentación a examen aproximada antes de ponderar (Derecho UACh, art. 16) | La nota de presentación se aproxima a la décima y recién entonces se pondera con el examen. El motor pondera todas las notas y aproxima solo la final: en el borde puede diferir una décima. Falta una regla de aproximación intermedia por grupo |
 | Busuu reprobatorio (Inglés IV) | El programa dice que reprueba pero no fija la nota mínima, así que no hay umbral que declarar |
 
 Y una que **no es calculable y no lo va a ser**: el 75% de asistencia a los
