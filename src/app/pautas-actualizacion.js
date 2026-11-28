@@ -57,7 +57,7 @@ function firmaReglasCalculo(r){
 function requisitosDeGrupo(r){
   const nombres=new Map((r.categorias||[]).map(c=>[c.id,normName(c.nombre)]));
   return (r.gates||[]).filter(g=>g.type==='group_min').map(g=>({nombre:g.nombre||'Requisito',min:g.min,efecto:g.efecto||'tope',
-    clave:JSON.stringify([g.min,g.cap,g.efecto||'tope',(g.catIds||[]).map(id=>nombres.get(id)).filter(Boolean).sort()])}));
+    clave:JSON.stringify([g.min,g.cap,g.efecto||'tope',g.redondearPonderado===true,(g.catIds||[]).map(id=>nombres.get(id)).filter(Boolean).sort()])}));
 }
 function pautaOficialIntacta(r){
   if(!r.origen?.tenant||!r.pautaHuella||r.consensoRespaldos||r.pautaSugerida?.aceptada||pautaEditada(r))return false;

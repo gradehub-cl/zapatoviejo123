@@ -45,7 +45,7 @@ for(const n of nombres){
   }else{
     // El examen pesa 30, 35 o 40 según lo que declara cada programa.
     assert.ok([30,35,40].includes(examen[1]),n+': examen de 30%, 35% o 40%');
-    assert.equal(JSON.stringify(p.grupos),JSON.stringify([{nombre:'Presentación a examen',evals:parciales.map(e=>e[0]),min:3.5,cap:'self'}]),n+': compuerta del art. 16 sobre todas las parciales');
+    assert.equal(JSON.stringify(p.grupos),JSON.stringify([{nombre:'Presentación a examen',evals:parciales.map(e=>e[0]),min:3.5,cap:'self',efecto:'reemplazar',redondearPonderado:true}]),n+': compuerta del art. 16 sobre todas las parciales');
     assert.ok(p.reglasDelCurso.includes(run('REGLA_PRESENTACION_UACH'))&&p.reglasDelCurso.includes(run('REGLA_EXAMEN_UACH')),n+': avisa las dos reglas');
   }
   const r=run(`presetRamo(${JSON.stringify(n)},'uach','UACH-DERECHO')`);
@@ -53,7 +53,8 @@ for(const n of nombres){
   assert.equal(r.gates.length,SIN_EXAMEN.has(n)?0:1,n+': la compuerta llega al ramo');
   if(!SIN_EXAMEN.has(n)){
     const ids=parciales.map(e=>r.categorias.find(c=>c.nombre===e[0]).id).join();
-    assert.equal(JSON.stringify(r.gates.map(g=>[g.type,g.catIds.join(),g.min,g.cap,g.exacto===true])),JSON.stringify([['group_min',ids,3.5,'self',false]]),n+': sobre las parciales, sin `exacto`');
+    assert.equal(JSON.stringify(r.gates.map(g=>[g.type,g.catIds.join(),g.min,g.cap,g.exacto===true,g.efecto,g.redondearPonderado])),
+      JSON.stringify([['group_min',ids,3.5,'self',false,'reemplazar',true]]),n+': aplica el redondeo antes de ponderar');
   }
 }
 // Los dos programas que se contradicen no se cargan.
@@ -71,15 +72,16 @@ const nota=(id,valor)=>({id,nombre:id,valor,peso:1});
 const ramo=(presentacion,examen)=>({id:'r',nombre:'Ramo UACh sintético',origen:{tenant:'uach'},
   categorias:[{id:'p',nombre:'Parciales',peso:65,directNota:true,notas:presentacion===null?[]:[nota('a',presentacion)]},
     {id:'e',nombre:'Examen',peso:35,directNota:true,notas:examen===null?[]:[nota('b',examen)]}],
-  gates:[{type:'group_min',catIds:['p'],min:3.5,cap:'self',nombre:'Presentación a examen'}]});
+  gates:[{type:'group_min',catIds:['p'],min:3.5,cap:'self',nombre:'Presentación a examen',efecto:'reemplazar',redondearPonderado:true}]});
 const con=(p,e,expr)=>{ctx.r=ramo(p,e);run('S.ramos=[r]');return run(expr);};
 // Art. 16: con menos de 3,5 no hay examen y la final es la presentación.
 assert.equal(con(3.4,7,'notaFinalOficial(ramoAvg(r))'),3.4,'con 3,4 de presentación la final es 3,4 aunque el examen fuera un 7');
+assert.equal(con(3.4,1,'notaFinalOficial(ramoAvg(r))'),3.4,'sin derecho a examen, la presentación reemplaza también un promedio inferior');
 assert.equal(con(3.4,7,'notaAprobadaRamo(r,ramoAvg(r))'),false);
 assert.equal(con(3.4,7,'gatesActivas(r)[0].nombre'),'Presentación a examen','y lo avisa');
 // La presentación se aproxima a la décima: 3,45 es 3,5 y da derecho a examen.
 assert.equal(con(3.45,5,'gatesActivas(r).length'),0,'3,45 se aproxima a 3,5');
-assert.equal(con(3.45,5,'notaFinalOficial(ramoAvg(r))'),4,'0,65 × 3,45 + 0,35 × 5,0 = 3,99 → 4,0');
+assert.equal(con(3.45,5,'notaFinalOficial(ramoAvg(r))'),4,'0,65 × 3,5 + 0,35 × 5,0 = 4,025 → 4,0');
 assert.equal(con(3.44,7,'gatesActivas(r).length'),1,'3,44 es 3,4: sin derecho a examen');
 // Con 3,5 justo, cuenta el promedio ponderado; se aprueba con 4,0.
 assert.equal(con(3.5,5,'notaFinalOficial(ramoAvg(r))'),4,'0,65 × 3,5 + 0,35 × 5,0 = 4,025 → 4,0');
@@ -89,4 +91,24 @@ assert.equal(con(3.5,4.5,'notaAprobadaRamo(r,ramoAvg(r))'),false);
 // No hay eximición ni mínimo en el examen: un examen bajo solo pesa su 35%.
 assert.equal(con(6,2,'notaFinalOficial(ramoAvg(r))'),4.6,'0,65 × 6,0 + 0,35 × 2,0 = 4,6');
 assert.equal(con(6,2,'gatesActivas(r).length'),0);
+
+// Contratos: parciales al 30% y al 30%, examen al 40%. La aproximación
+// intermedia cambia la aprobación. Se comprueban también el motor sin
+// catálogo (como en el MCP) y la nota necesaria cuando falta el examen.
+const contratos=ramo(3.5,4.5);
+contratos.categorias[0].peso=30;
+contratos.categorias[1].peso=40;
+contratos.categorias.push({id:'p2',nombre:'Segunda parcial',peso:30,directNota:true,notas:[nota('c',3.6)]});
+contratos.gates[0].catIds.push('p2');
+ctx.r=contratos;
+run('S.ramos=[r]');
+assert.equal(run('notaFinalOficial(ramoAvg(r))'),4);
+assert.equal(run('notaAprobadaRamo(r,ramoAvg(r))'),true);
+const motor=require('../engine.js').gh_crearCalculoRamo({normName:n=>n,tenant:()=> 'uach',ramos:()=>[contratos],
+  copiarRecuperativo:()=>null,definicionPresetDelRamo:()=>null});
+assert.equal(motor.notaFinalOficial(motor.ramoAvg(JSON.parse(JSON.stringify(contratos)))),4);
+contratos.categorias[1].notas=[];
+assert.ok(Math.abs(run('notaNecesaria(r,4)')-4.475)<1e-6,'la proyección usa presentación 3,6');
+contratos.categorias[2].notas=[];
+assert.equal(run('ramoAvg(r)'),3.5,'sin presentación completa calcula el avance con lo rendido');
 console.log('OK pautas UACh Derecho: '+nombres.length+' pautas, fuente por pauta, art. 13 y compuerta del art. 16');

@@ -20,8 +20,8 @@
 // que remiten los programas), Título IV:
 //   · Art. 16: para rendir el examen hay que tener 3,5 de presentación,
 //     aproximada a la décima; con menos, la nota final ES la de presentación.
-//     Es la compuerta `cap:'self'` sobre las parciales, sin `exacto` porque el
-//     artículo aproxima.
+//     El promedio se aproxima también al ponderarlo con el examen. Bajo 3,5,
+//     la presentación reemplaza el promedio que incluiría el examen.
 //   · Art. 10: el examen final es obligatorio; no hay eximición.
 // El art. 20 de 2017 fija 60/40 para todo; los programas de 2025 y 2026 ya usan
 // 70/30 y 65/35 en los primeros semestres, como el texto refundido de 2025, que
@@ -32,7 +32,7 @@
 // programas no declaran SCT. La clave es el nombre de mallas-uach.js.
 const REGLA_PRESENTACION_UACH='Para rendir el examen necesitas 3,5 de presentación; con menos repruebas y tu nota final es la de presentación (Reglamento Interno de Derecho, art. 16)';
 const REGLA_EXAMEN_UACH='El examen final es obligatorio: no se exime (Reglamento Interno de Derecho, art. 10)';
-const presentacionUach=evals=>({nombre:'Presentación a examen',evals,min:3.5,cap:'self'});
+const presentacionUach=evals=>({nombre:'Presentación a examen',evals,min:3.5,cap:'self',efecto:'reemplazar',redondearPonderado:true});
 const PRESETS_UACH={
   // ── 1° semestre ──
   // DPRI050-23 (Valdivia) / ICJU050-23 (Puerto Montt), 2025, primer semestre, https://derecho.uach.cl/_wp/wp-content/uploads/2020/01/SISTEMA_JURIDICO_2025_VD.pdf
