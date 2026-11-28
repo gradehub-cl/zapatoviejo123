@@ -1,6 +1,6 @@
 # Reglas que no se rompen y antes de entregar
 
-> Detalle de [AGENTS.md](../../AGENTS.md). Las reglas cortas están allá; acá van completas: arquitectura, diseño (Editorial, HIG), y por qué se prueba como se prueba.
+> Complementa [AGENTS.md](../../AGENTS.md) con las reglas de arquitectura y diseño, las HIG de Apple y el criterio de pruebas.
 
 ## Arquitectura
 
@@ -62,13 +62,10 @@ comunica como cierre y nunca como aprobación o celebración verde.
 gana contra una clase sola aunque aparezca antes; un padding especializado usa
 `input.clase` o `.contenedor input`, no `!important`.
 
-**La dirección visual es Editorial, con tipografía del sistema (`--font-ui`).**
+**Usa la tipografía del sistema (`--font-ui`).**
 No se descargan fuentes. Revisa también los estilos inline de `app.js` y las
 páginas 404, preguntas, términos y privacidad. Las notas y columnas numéricas
-conservan `tabular-nums`. El color del ramo vive en su línea lateral, no tiñe
-su nota; el avance de Inicio es un riel neutro con `scaleX`, no un fondo relleno.
-Las superficies de Neutro son blancas/casi negras; Papel y Pizarra siguen siendo
-preferencias válidas. No cambies el semáforo para armonizar la interfaz.
+conservan `tabular-nums`.
 
 **Estadísticas pone cada número en su escala** (Lucas, 2026-10-26, a partir de
 cómo lo hace Whoop): un anillo de 1 a 7 con el 4,0 marcado, un medidor para la
@@ -148,9 +145,8 @@ visual que no las cumple no se mergea. Lo que más aplica a una PWA:
   se usan **muestras que se ven como va a quedar**, como en Ajustes → Apariencia,
   no una lista de radios.
 
-La única excepción son las otras reglas de esta sección: el semáforo, la
-tipografía del sistema y la dirección Editorial se mantienen. Si una guía choca
-con una de ellas, no elijas por tu cuenta: dilo en la PR y que decida Lucas.
+Si alguna HIG entra en conflicto con las reglas del semáforo o la tipografía
+del sistema, documéntalo en la PR para que Lucas decida.
 
 **`gradehub_v1` es la clave de localStorage.** No se renombra sin migración.
 

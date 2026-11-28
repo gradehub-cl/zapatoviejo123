@@ -36,14 +36,14 @@ Antes de leer código, comprueba rama, cambios locales, PRs y tests. Busca con
 - Semáforo = aprobado / al borde / reprobado; no se tiñe por tema. Avance 100%
   significa cierre, nunca celebración verde. Respeta el vocabulario de cada
   universidad/carrera (`tests/vocabulario.test.js`).
-- Diseño **Editorial**, fuente del sistema `--font-ui`, sin fuentes descargadas;
-  cifras con `tabular-nums`. Estadísticas usa `htmlAnillo` y compañía y brillo
+- Usa la fuente del sistema `--font-ui` y cifras con `tabular-nums`, sin descargar
+  fuentes. Estadísticas usa `htmlAnillo` y compañía y brillo
   suave según [reglas-y-entrega](docs/guia/reglas-y-entrega.md).
 - **HIG de Apple obligatorias:** lee la guía del caso y cítala en la PR. 44×44 pt,
   contraste 4,5:1 en claro/oscuro, áreas seguras, `prefers-reduced-motion`, una
-  acción principal. Conflictos con semáforo, tipografía o Editorial los decide
-  Lucas: documéntalos. CSS: `input[type=text]` gana a una clase; usa selectores
-  específicos, no `!important`.
+  acción principal. Si hay un conflicto con el semáforo o la tipografía,
+  documéntalo para que Lucas decida. En CSS, `input[type=text]` gana a una clase.
+  Usa selectores específicos y evita `!important`.
 - Secretos `sb_secret_*` nunca en cliente; solo `sb_publishable_*`. Toda tabla
   nueva de usuario lleva RLS y FK a `auth.users ON DELETE CASCADE`; reabre la
   auditoría de acceso y borrado. Admin requiere MFA; estudiantes, opcional.
