@@ -2,7 +2,7 @@
 // la red y una campaña realmente ausente nunca se confunden con SQL antiguo.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const ctx={console,esc:s=>String(s),currentUser:{id:'00000000-0000-0000-0000-000000000001'},supabaseClient:null};
-vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,'../marketplace.js'),'utf8'),ctx);
+vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,'../src/app/programas-pdf.js'),'utf8'),ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,'../marketplace.js'),'utf8'),ctx);
 const run=s=>vm.runInContext(s,ctx),id='00000000-0000-0000-0000-000000000010';
 const codes=['42883','42703','PGRST202','PGRST204','42P01','PGRST205'];
 let schemaError=null,campaign={dias:10,inicio:null,tope_clp:10000},writes=0;

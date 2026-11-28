@@ -97,7 +97,7 @@ const jwt=payload=>['e30',Buffer.from(JSON.stringify(payload)).toString('base64u
   }
   let b=await borrar();
   chk('en la app: confirma con Apple, revoca y recién ahí borra',
-    b.pasos.join(' > ')==='apple > servidor:https://gradehub.cl/apple-revocar > rpc:eliminar_mi_cuenta');
+    b.pasos.join(' > ')==='apple > servidor:https://gradehub.cl/apple-revocar > rpc:programas_cuenta_tiene_archivos > rpc:eliminar_mi_cuenta');
   b=await borrar({fetchOk:false});
   chk('si la revocación falla, la cuenta NO se borra',!b.pasos.includes('rpc:eliminar_mi_cuenta')&&b.toasts.some(t=>/Tu cuenta no se borró/.test(t)));
   b=await borrar({cancela:true});
@@ -105,9 +105,9 @@ const jwt=payload=>['e30',Buffer.from(JSON.stringify(payload)).toString('base64u
   b=await borrar({code:null});
   chk('sin código de Apple, no se borra',!b.pasos.some(p=>p.startsWith('rpc')));
   b=await borrar({proveedor:'google'});
-  chk('una cuenta de Google borra como siempre, sin hablar con Apple',b.pasos.join(' > ')==='rpc:eliminar_mi_cuenta');
+  chk('una cuenta de Google borra como siempre, sin hablar con Apple',b.pasos.join(' > ')==='rpc:programas_cuenta_tiene_archivos > rpc:eliminar_mi_cuenta');
   b=await borrar({nativa:false});
-  chk('en la web, una cuenta de Apple se borra sin la revocación (no hay código)',b.pasos.join(' > ')==='rpc:eliminar_mi_cuenta');
+  chk('en la web, una cuenta de Apple se borra sin la revocación (no hay código)',b.pasos.join(' > ')==='rpc:programas_cuenta_tiene_archivos > rpc:eliminar_mi_cuenta');
 
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
   process.exit(fail?1:0);

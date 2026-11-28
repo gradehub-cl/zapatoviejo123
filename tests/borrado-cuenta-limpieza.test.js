@@ -49,7 +49,7 @@ const conNotas=h=>[...h.almacen].filter(([,v])=>v.includes(MARCA)).map(([k])=>k)
   assert.notEqual(h.run('_syncTimer'),null,'hay una subida esperando');
   await h.run('eliminarCuenta()');
   await new Promise(r=>setImmediate(r)); // getPending → cancel
-  assert.deepEqual(h.nativo.rpc,['eliminar_mi_cuenta']);
+  assert.deepEqual(h.nativo.rpc,['programas_cuenta_tiene_archivos','eliminar_mi_cuenta'],'primero pregunta por PDFs, después borra');
   assert.deepEqual(conNotas(h),[],'ninguna clave local conserva las notas');
   for(const k of ['gradehub_v1','gradehub_cache_owner','gradehub_v1_base','gradehub_v1_pre_import','gradehub_curso_siglas','gradehub_v1_respaldo_'+UID])
     assert.equal(h.almacen.has(k),false,k+' se borra');

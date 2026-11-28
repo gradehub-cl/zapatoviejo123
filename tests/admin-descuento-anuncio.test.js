@@ -45,7 +45,7 @@ const ctx={console,Intl,root,Promise,S:{ramos:[]},currentUser:{id:'admin-fictici
   if(esperar)await esperar;
   anuncio.descuento_gradehub_pct=p.p_pct;return {data:true};
  }}};
-vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(path.join(__dirname,'../marketplace.js'),'utf8'));
+vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,'../src/app/programas-pdf.js'),'utf8'),ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(path.join(__dirname,'../marketplace.js'),'utf8'));
 const pintar=()=>run('pintarPanelAdmin(root)');
 const bloque=()=>root.querySelector('[data-admin-descuento]');
 const campo=()=>bloque().querySelector('[data-descuento-pct]');
