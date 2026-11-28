@@ -9,10 +9,10 @@ const lector=texto=>({getDocument:()=>({promise:Promise.resolve({numPages:2,getP
  await assert.rejects(validar({size:10485761},lector(true)),/10 MB/);
  const con=await validar(pdf,lector(true)),sin=await validar(pdf,lector(false));assert.equal(con.paginas,2);assert.equal(con.con_texto,true);assert.equal(sin.con_texto,false,'escaneo aceptado');assert.equal(con.sha256.length,64);
  let llamadas=[],archivos=[],borrados=[],respuesta={id:'envio'},duplicado=false,perder=false;
- ctx.__rpc=async(n,p)=>{llamadas.push({n,p});if(n==='programa_ya_recibido')return {data:duplicado};if(n==='enviar_programa'){if(perder){perder=false;return {error:{message:'respuesta perdida'}};}return {data:respuesta};}return {data:false};};
+ ctx.__rpc=async(n,p)=>{llamadas.push({n,p});if(n==='estado_programa_curso')return {data:duplicado?'pendiente':'disponible'};if(n==='enviar_programa'){if(perder){perder=false;return {error:{message:'respuesta perdida'}};}return {data:respuesta};}return {data:false};};
  run("supabaseClient={rpc:__rpc,storage:{from:()=>({upload:async(r,archivo,o)=>{__archivos.push({r,o});return {data:{path:r}}},remove:async rs=>{__borrados.push(...rs);return {data:[]}}})}}");ctx.__archivos=archivos;ctx.__borrados=borrados;run("currentUser={id:'00000000-0000-4000-8000-000000000001'}");
- const datos={tenant:'udd',carrera:'Carrera sintética',sigla:'SYN100',ramo:'Curso sintético',periodo:'2026-2',ramoId:'ramo'},mandar=run('mandarProgramaPdf');
- duplicado=true;assert.equal((await mandar(pdf,datos,con)).duplicado,true);assert.equal(archivos.length,0,'duplicado detectado antes de subir');
+ const datos={tenant:'udd',carrera:'Carrera sintética',sigla:'SYN100',ramo:'Curso sintético',periodo:'2026-2',seccion:2,ramoId:'ramo'},mandar=run('mandarProgramaPdf');
+ duplicado=true;assert.equal((await mandar(pdf,datos,con)).duplicado,true);assert.equal(archivos.length,0,'duplicado detectado antes de subir');assert.equal(llamadas[0].p.p_seccion,2);assert.equal('p_sha256' in llamadas[0].p,false);
  duplicado=false;const carga={};perder=true;await assert.rejects(mandar(pdf,datos,con,carga),/confirmar/);const ruta=carga.ruta;
  assert.equal((await mandar(pdf,datos,con,carga)).id,'envio');assert.equal(archivos.length,1,'reintento no guarda otro binario');assert.equal(carga.ruta,ruta);assert.equal(borrados.length,0,'respuesta perdida no borra un PDF que pudo quedar aceptado');
  respuesta={duplicado:true};await mandar(pdf,datos,con,{});assert.equal(borrados.length,1,'carrera entre dos subidas elimina la copia propia antes de agradecer');

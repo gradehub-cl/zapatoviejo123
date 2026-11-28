@@ -27,7 +27,7 @@ function pintarProgramaPdfRamo(r){
   const origen=document.getElementById('pauta-periodo');if(!origen||typeof origen.insertAdjacentElement!=='function')return;
   let caja=document.getElementById('ramo-programa-pdf');
   if(!caja){caja=document.createElement('section');caja.id='ramo-programa-pdf';caja.className='programa-pdf-ficha';origen.insertAdjacentElement('afterend',caja);}
-  if(esCuentaProfesor()){caja.hidden=true;return;}caja.hidden=false;
+  if(!enAppNativa()||esCuentaProfesor()){caja.hidden=true;return;}caja.hidden=false;
   const oficial=!!definicionPresetDelRamo(r)&&!pautaEditada(r),version=++versionProgramaFicha,usuario=currentUser?.id;
   caja.innerHTML=`<button type="button" class="programa-pdf-boton${oficial?'':' programa-pdf-destacado'}">Mandar el programa (PDF)</button><p class="programa-pdf-estado" role="status"></p>`;
   caja.querySelector('button').addEventListener('click',()=>abrirProgramaPdf(r.id));
@@ -40,14 +40,29 @@ function pintarProgramaPdfRamo(r){
     caja.querySelector('.programa-pdf-estado').textContent=estadoProgramaTexto(programa);
   }).catch(()=>{});
 }
+function datosProgramaCurso(datos){
+  return {p_tenant:datos.tenant,p_sigla:datos.sigla||null,p_periodo:datos.periodo,p_seccion:datos.seccion??null};
+}
+function avisoProgramaCurso(estado){
+  if(estado==='publicado')return 'Ya tenemos el programa para este ramo, en este período.';
+  if(estado==='pendiente')return 'Ya recibimos el programa. Está en revisión.';
+  if(estado==='falta_seccion')return 'Indica tu sección para revisar si ya tenemos su programa.';
+  return '';
+}
+async function consultarProgramaCurso(cliente,datos){
+  const {data,error}=await cliente.rpc('estado_programa_curso',datosProgramaCurso(datos));
+  if(error||!['disponible','publicado','pendiente','falta_seccion'].includes(data))
+    throw Error('No pudimos comprobar si ya tenemos el programa. Intenta de nuevo.');
+  return data;
+}
 async function mandarProgramaPdf(archivo,datos,meta,estadoCarga={}){
   const cliente=supabaseClient,usuario=currentUser?.id;if(!cliente||!usuario)throw Error('Inicia sesión para mandar un programa.');
-  const args={p_tenant:datos.tenant,p_carrera:datos.carrera||null,p_sigla:datos.sigla||null,p_ramo:datos.ramo,p_periodo:datos.periodo,p_ramo_id:datos.ramoId,p_bytes:meta.bytes,p_sha256:meta.sha256,p_paginas:meta.paginas,p_con_texto:meta.con_texto};
+  const args={...datosProgramaCurso(datos),p_carrera:datos.carrera||null,p_ramo:datos.ramo,p_ramo_id:datos.ramoId,p_bytes:meta.bytes,p_sha256:meta.sha256,p_paginas:meta.paginas,p_con_texto:meta.con_texto};
   if(!estadoCarga.ruta){
-    const previo=await cliente.rpc('programa_ya_recibido',{p_tenant:args.p_tenant,p_sigla:args.p_sigla,p_periodo:args.p_periodo,p_sha256:args.p_sha256});
-    if(previo.error)throw Error('El envío de programas aún no está disponible. Intenta más tarde.');
+    const previo=await consultarProgramaCurso(cliente,datos);
     if(currentUser?.id!==usuario)throw Error('La sesión cambió. Vuelve a abrir el envío.');
-    if(previo.data===true)return {duplicado:true};
+    if(previo==='falta_seccion')throw Error(avisoProgramaCurso(previo));
+    if(previo!=='disponible')return {duplicado:true};
     estadoCarga.ruta=usuario+'/'+programaUuid()+'.pdf';
   }
   const almacen=cliente.storage.from('programas');
@@ -70,35 +85,69 @@ async function mandarProgramaPdf(archivo,datos,meta,estadoCarga={}){
   return envio.data;
 }
 function abrirProgramaPdf(ramoId){
-  const r=S.ramos.find(x=>x.id===ramoId);if(!r||esCuentaProfesor())return;
+  const r=S.ramos.find(x=>x.id===ramoId);if(!r||!enAppNativa()||esCuentaProfesor())return;
   if(!supabaseClient||!currentUser){showToast('Inicia sesión para mandar el programa.',true);return;}
-  const usuario=currentUser.id,caja=document.getElementById('modal-content'),info=infoPeriodoPauta(r);
+  const usuario=currentUser.id,cliente=supabaseClient,caja=document.getElementById('modal-content');
   let archivo=null,meta=null,leyendo=false,estadoCarga={};
   caja.innerHTML=`<form class="programa-pdf-form"><h2 class="modal-title">Manda el programa del ramo</h2><p class="modal-desc">Ayuda a tus compañeros: sube el programa y podremos revisar las ponderaciones para todos.</p>
-    <label class="programa-pdf-elegir">Elegir PDF<input type="file" accept="application/pdf,.pdf" aria-label="Elegir programa en PDF"></label><p class="programa-pdf-archivo" role="status" aria-live="polite">Máximo 10 MB. El archivo se guarda en privado.</p>
-    <div class="programa-pdf-campos"><label>Universidad<select name="tenant">${Object.entries(TENANTS).map(([k,t])=>`<option value="${k}"${k===S.tenant?' selected':''}>${esc(t.label||t.name)}</option>`).join('')}</select></label>
+    <div class="programa-pdf-campos"><label>Universidad<select name="tenant">${Object.entries(TENANTS).map(([k,t])=>`<option value="${k}"${k===(r.origen?.tenant||S.tenant)?' selected':''}>${esc(t.label||t.name)}</option>`).join('')}</select></label>
     <label>Carrera <small>(opcional)</small><input name="carrera" type="text" maxlength="100" value="${esc(r.origen?.carrera||S.carrera||'')}"></label>
     <label>Sigla <small>(si aparece en el programa)</small><input name="sigla" type="text" maxlength="${SIGLA_PROGRAMA_MAX}" value="${esc(siglaDeRamo(r)||'')}"></label>
     <label>Ramo<input name="ramo" type="text" maxlength="160" required value="${esc(r.nombre)}"></label>
-    <label>Período<input name="periodo" type="text" maxlength="32" required value="${esc(info?.periodo||semester())}" placeholder="Ej.: 2026-2"></label></div>
+    <label>Período<input name="periodo" type="text" pattern="[0-9]{4}-[12v]" maxlength="6" required value="${esc(periodoReporte(r))}" placeholder="Ej.: 2026-2"></label>
+    <label>Sección <small>(si la sabes)</small><input name="seccion" type="number" min="1" max="999" step="1" value="${seccionReporte(r)??''}"></label></div>
+    <label class="programa-pdf-elegir" hidden>Elegir PDF<input type="file" accept="application/pdf,.pdf" aria-label="Elegir programa en PDF" disabled></label>
+    <p class="programa-pdf-archivo" role="status" aria-live="polite">Comprobando si ya tenemos el programa…</p>
+    <button type="button" class="programa-pdf-boton" data-programa-reintentar hidden>Volver a comprobar</button>
     <p class="programa-pdf-privacidad">Lo revisa una persona antes de publicarlo. Tu nombre no aparece en las ponderaciones.</p><p class="programa-pdf-error" role="alert"></p>
     <div class="modal-btns"><button type="button" class="btn-cancel" data-programa-cancelar>Cancelar</button><button type="submit" class="btn-confirm" disabled>Mandar programa</button></div></form>`;
   const form=caja.querySelector('form'),estado=caja.querySelector('.programa-pdf-archivo'),error=caja.querySelector('.programa-pdf-error'),enviar=form.querySelector('[type=submit]');
   const vigente=()=>currentUser?.id===usuario&&form.isConnected&&document.getElementById('modal')?.classList.contains('open');
   caja.querySelector('[data-programa-cancelar]').addEventListener('click',closeModal);
-  const input=form.querySelector('[type=file]');input.addEventListener('change',async()=>{
-    const elegido=input.files?.[0];if(!elegido||leyendo)return;
+  const input=form.querySelector('[type=file]'),elegir=input.closest('label'),reintentar=form.querySelector('[data-programa-reintentar]');
+  const datosFormulario=()=>{
+    const datos={ramoId:r.id,...Object.fromEntries(['tenant','carrera','sigla','ramo','periodo'].map(k=>[k,form.elements[k].value.trim()]))};
+    datos.sigla=datos.sigla.toUpperCase().replace(/\s/g,'');
+    datos.seccion=form.elements.seccion.value===''?null:Number(form.elements.seccion.value);
+    return datos;
+  };
+  let consulta=0,habilitado=false;
+  const camposIdentidad='[name=tenant],[name=sigla],[name=periodo],[name=seccion]';
+  const comprobar=async()=>{
+    const version=++consulta,datos=datosFormulario();
+    archivo=null;meta=null;habilitado=false;input.value='';elegir.hidden=true;input.disabled=true;enviar.disabled=true;
+    error.textContent='';reintentar.hidden=true;
+    if(!/^\d{4}-[12v]$/.test(datos.periodo)||!form.elements.seccion.validity.valid||
+      (datos.sigla&&!/^[A-Z0-9_-]{1,40}$/.test(datos.sigla))){
+      estado.textContent='Revisa la sigla, el período y la sección.';return;
+    }
+    estado.textContent='Comprobando si ya tenemos el programa…';
+    try{
+      const previo=await consultarProgramaCurso(cliente,datos);
+      if(!vigente()||version!==consulta)return;
+      habilitado=previo==='disponible';elegir.hidden=!habilitado;input.disabled=!habilitado;
+      estado.textContent=avisoProgramaCurso(previo)||'Máximo 10 MB. El archivo se guarda en privado.';
+    }catch(e){
+      if(!vigente()||version!==consulta)return;
+      estado.textContent=e.message;reintentar.hidden=false;
+    }
+  };
+  form.querySelectorAll(camposIdentidad).forEach(n=>n.addEventListener('change',comprobar));
+  reintentar.addEventListener('click',comprobar);
+  input.addEventListener('change',async()=>{
+    const elegido=input.files?.[0],version=consulta;if(!elegido||leyendo||!habilitado)return;
+    form.querySelectorAll(camposIdentidad).forEach(n=>n.disabled=true);
     leyendo=true;input.disabled=true;enviar.disabled=true;error.textContent='';estado.textContent='Revisando el PDF en tu dispositivo…';
     try{
-      const leido=await validarProgramaPdf(elegido);if(!vigente())return;
+      const leido=await validarProgramaPdf(elegido);if(!vigente()||version!==consulta)return;
       archivo=elegido;meta=leido;estadoCarga={};
       estado.textContent=`${elegido.name} · ${meta.paginas} ${meta.paginas===1?'página':'páginas'}`+(meta.con_texto?'':' · No detectamos texto: lo aceptamos, pero la revisión será más lenta.');enviar.disabled=false;
-    }catch(e){if(vigente()){archivo=null;meta=null;error.textContent=e.message;estado.textContent='Elige otro PDF.';}}
-    finally{leyendo=false;input.disabled=false;}
+    }catch(e){if(vigente()&&version===consulta){archivo=null;meta=null;error.textContent=e.message;estado.textContent='Elige otro PDF.';}}
+    finally{leyendo=false;form.querySelectorAll(camposIdentidad).forEach(n=>n.disabled=false);if(version===consulta)input.disabled=!habilitado;}
   });
   form.addEventListener('submit',async e=>{
     e.preventDefault();if(enviar.disabled||!archivo||!meta||!vigente())return;
-    const datos={ramoId:r.id,...Object.fromEntries(['tenant','carrera','sigla','ramo','periodo'].map(k=>[k,form.elements[k].value.trim()]))};datos.sigla=datos.sigla.toUpperCase().replace(/\s/g,'');
+    const datos=datosFormulario();
     if(datos.sigla&&!/^[A-Z0-9_-]{1,40}$/.test(datos.sigla)){error.textContent='Revisa la sigla: usa letras, números, guion o guion bajo.';return;}
     form.querySelectorAll('input,select').forEach(n=>n.disabled=true);enviar.disabled=true;enviar.textContent='Enviando…';error.textContent='';
     try{
@@ -107,7 +156,7 @@ function abrirProgramaPdf(ramoId){
       showToast(resultado.duplicado?'Ya lo tenemos, gracias.':'Programa enviado · en revisión');
     }catch(e){if(vigente())error.textContent=e.message;}
     finally{if(!estadoCarga.ruta)form.querySelectorAll('input,select').forEach(n=>n.disabled=false);enviar.disabled=false;enviar.textContent='Mandar programa';}
-  });openModal();
+  });openModal();void comprobar();
 }
 // La revisión vive dentro de la bandeja existente, sin alterar los reportes de texto.
 function prepararPestanasProgramas(caja){
@@ -124,7 +173,7 @@ async function pintarColaProgramas(caja,tenant=''){
   let resultado;try{resultado=await supabaseClient.rpc('admin_programas_enviados',{p_tenant:tenant||null});}catch{resultado={error:true};}
   const {data,error}=resultado;if(!caja.isConnected)return;
   if(error){caja.innerHTML='<p role="alert">No pudimos cargar los PDFs. Revisa que tengas la verificación en dos pasos e intenta más tarde.</p>';return;}
-  caja.innerHTML=`<label>Universidad<select data-programas-tenant><option value="">Todas</option>${Object.entries(TENANTS).map(([k,t])=>`<option value="${k}"${k===tenant?' selected':''}>${esc(t.label||t.name)}</option>`).join('')}</select></label><p>Usa «Publicado» cuando las ponderaciones ya estén disponibles para estudiantes.</p>${(data||[]).length?(data||[]).map(p=>`<article class="programa-pdf-revision"><h4>${esc(p.ramo)}</h4><p>${esc([TENANTS[p.tenant]?.short,p.sigla,p.carrera,p.periodo].filter(Boolean).join(' · '))} · ${p.paginas} páginas${p.con_texto?'':' · Sin texto'}</p><button type="button" class="programa-pdf-boton" data-descargar="${esc(p.id)}">Descargar PDF</button><label>Motivo<input type="text" maxlength="240" data-motivo="${esc(p.id)}" placeholder="Resultado de la revisión"></label><div class="programa-pdf-acciones"><button type="button" class="programa-pdf-boton" data-revisar="${esc(p.id)}" data-estado="publicado">Publicado</button><button type="button" class="programa-pdf-boton" data-revisar="${esc(p.id)}" data-estado="descartado">No sirvió</button></div><p role="status" data-estado-programa="${esc(p.id)}"></p></article>`).join(''):'<p>No hay programas pendientes en esta universidad.</p>'}`;
+  caja.innerHTML=`<label>Universidad<select data-programas-tenant><option value="">Todas</option>${Object.entries(TENANTS).map(([k,t])=>`<option value="${k}"${k===tenant?' selected':''}>${esc(t.label||t.name)}</option>`).join('')}</select></label><p>Usa «Publicado» cuando las ponderaciones ya estén disponibles para estudiantes.</p>${(data||[]).length?(data||[]).map(p=>`<article class="programa-pdf-revision"><h4>${esc(p.ramo)}</h4><p>${esc([TENANTS[p.tenant]?.short,p.sigla,p.carrera,p.periodo,p.seccion?'Sección '+p.seccion:null].filter(Boolean).join(' · '))} · ${p.paginas} páginas${p.con_texto?'':' · Sin texto'}</p><button type="button" class="programa-pdf-boton" data-descargar="${esc(p.id)}">Descargar PDF</button><label>Motivo<input type="text" maxlength="240" data-motivo="${esc(p.id)}" placeholder="Resultado de la revisión"></label><div class="programa-pdf-acciones"><button type="button" class="programa-pdf-boton" data-revisar="${esc(p.id)}" data-estado="publicado">Publicado</button><button type="button" class="programa-pdf-boton" data-revisar="${esc(p.id)}" data-estado="descartado">No sirvió</button></div><p role="status" data-estado-programa="${esc(p.id)}"></p></article>`).join(''):'<p>No hay programas pendientes en esta universidad.</p>'}`;
   caja.querySelector('[data-programas-tenant]').addEventListener('change',e=>pintarColaProgramas(caja,e.target.value));
   caja.querySelectorAll('[data-descargar]').forEach(b=>b.addEventListener('click',async()=>{
     const p=data.find(p=>p.id===b.dataset.descargar),aviso=caja.querySelector('[data-estado-programa="'+p.id+'"]');b.disabled=true;
