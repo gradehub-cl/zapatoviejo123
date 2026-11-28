@@ -47,7 +47,7 @@ let ok=0,fail=0;const chk=(n,c)=>{console.log(`  ${c?'OK  ':'FAIL'} ${n}`);if(c)
   console.log('\n=== Cerrar sesión no borra lo que no alcanzó a subir ===');
   let red=true;
   const cliente2={auth:{signOut:async()=>({error:null})},rpc:async()=>({data:null,error:null}),
-    from(){const q={upsert:async()=>red?{error:null}:{error:{message:'sin red'}},update(){return q;},eq(){return q;},is(){return q;},
+    from(){const q={insert:async()=>red?{error:null}:{error:{message:'sin red'}},update(){return q;},eq(){return q;},is(){return q;},
       select:async()=>red?{data:[{user_id:'u-sintetico-1'}],error:null}:{data:null,error:{message:'sin red'}}};return q;}};
   const s=contexto('',cliente2);
   s.run(`currentUser={id:'u-sintetico-1'};S=normalize({...freshState(),onboardingDone:true,ramos:[{id:'r1',nombre:'Ramo sintético',categorias:[]}]});

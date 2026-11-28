@@ -84,8 +84,9 @@ async function lineasDePdf(archivo,pdfjs){
   return lineas;
 }
 
-function esSeguimientoCurricular(lineas,nombre){
-  return /^SC-/i.test(String(nombre||''))||(lineas||[]).slice(0,6).some(l=>/SEGUIMIENTO CURRICULAR/i.test(l));
+function esSeguimientoCurricular(lineas){
+  const encabezado=normName((lineas||[]).slice(0,8).join(' ').replace(/\s+/g,' '));
+  return encabezado.includes('seguimiento curricular')&&!encabezado.includes('ficha academica acumulada');
 }
 
 const FICHA_PDF_MAX=5*1024*1024;
@@ -95,8 +96,12 @@ async function subirFichaAcademica(input){
   const decir=t=>{if(aviso)aviso.textContent=t;};
   if(!archivo)return;
   input.value='';
-  if(archivo.size>FICHA_PDF_MAX||!/pdf$/i.test(archivo.type||archivo.name)){
-    decir('Ese archivo no es la ficha en PDF. Descárgala de nuevo desde el portal.');
+  if(archivo.size>FICHA_PDF_MAX){
+    decir('El archivo supera los 5 MB. Puedes pegar el Seguimiento Curricular más abajo.');
+    return;
+  }
+  if(!/^application\/pdf$/i.test(archivo.type)&&!/\.pdf$/i.test(archivo.name)){
+    decir('Elige la Ficha Académica Acumulada en PDF.');
     return;
   }
   decir('Leyendo tu ficha…');
@@ -104,14 +109,16 @@ async function subirFichaAcademica(input){
   if(!pdfjs){decir('No pudimos abrir el lector de PDF. Revisa tu conexión e inténtalo de nuevo.');return;}
   let lineas;
   try{lineas=await lineasDePdf(archivo,pdfjs);}
-  catch(e){decir('No pudimos leer ese PDF. Descarga la ficha de nuevo e inténtalo otra vez.');return;}
+  catch(e){decir('No pudimos abrir ese PDF. Descarga la ficha de nuevo o pega el Seguimiento Curricular más abajo.');return;}
   const {filas,omitidos}=leerFichaAcademica(lineas);
   if(!filas.length){
-    // El «Seguimiento Curricular» (SC-….pdf) se descarga desde el mismo lugar y
-    // con el mismo botón: es el error más probable, así que se nombra.
-    decir(esSeguimientoCurricular(lineas,archivo.name)
-      ?'Ese es el Seguimiento Curricular. Vuelve, elige la pestaña «Ficha Académica Acumulada» y descárgala (el archivo empieza con FAA).'
-      :'No encontramos ramos con nota. Sube la ficha académica acumulada (el archivo empieza con FAA).');
+    if(!lineas.length){
+      decir('El PDF no tiene texto legible. Descarga la ficha en PDF desde Mi UC o pega el Seguimiento Curricular más abajo.');
+    }else if(esSeguimientoCurricular(lineas)){
+      decir('Ese PDF es el Seguimiento Curricular. Descarga la Ficha Académica Acumulada en la otra pestaña o pega el texto del Seguimiento Curricular más abajo.');
+    }else{
+      decir('Abrimos el PDF, pero no pudimos identificar ramos con nota. Puedes importar tus semestres pegando el Seguimiento Curricular más abajo.');
+    }
     return;
   }
   await revisarFilasAvance(filas,omitidos,()=>!!document.getElementById('m-avance-ficha'));

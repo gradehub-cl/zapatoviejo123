@@ -54,6 +54,24 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   await run('cargarAmigos()');
   chk('sin amigos_grupos.sql, no hay sección Grupos',run('amigosGruposDisponible')===false&&run('seccionGruposHTML()')==='');
 
+  console.log('\n=== Las búsquedas de amigos pueden responder fuera de orden ===');
+  const busquedas=new Map();
+  ctx.buscarUsuarioPrueba=usuario=>new Promise(resolver=>busquedas.set(usuario,resolver));
+  run("supabaseClient.rpc=(n,args)=>buscarUsuarioPrueba(args.p_username)");
+  const primero=run("buscarAmigo('perfil_primero')");
+  const segundo=run("buscarAmigo('perfil_segundo')");
+  busquedas.get('perfil_segundo')({data:[{username:'perfil_segundo',relacion:'ninguna'}],error:null});
+  await segundo;
+  chk('la búsqueda reciente ofrece el contacto correcto',el('amigos-resultado').innerHTML.includes('data-user="perfil_segundo"'));
+  busquedas.get('perfil_primero')({data:[{username:'perfil_primero',relacion:'ninguna'}],error:null});
+  await primero;
+  chk('una respuesta anterior no reemplaza la acción reciente',el('amigos-resultado').innerHTML.includes('data-user="perfil_segundo"'));
+  const pendiente=run("buscarAmigo('perfil_pendiente')");
+  await run("buscarAmigo('a')");
+  busquedas.get('perfil_pendiente')({error:{message:'error sintético'}});
+  await pendiente;
+  chk('un fallo anterior no reemplaza la validación del username',/username completo/.test(el('amigos-resultado').innerHTML));
+
   console.log('\n=== Ficha de grupo ===');
   run(`amigosGruposDisponible=true;amigosGruposCache=[{id:'g1',nombre:'Estudio & repaso',estado:'miembro',miembros:2}];
     amigosListaCache=[];S.ramos=[];`);

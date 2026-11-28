@@ -9,7 +9,7 @@
 // elegir universidad (sin «de Chile» en la UC para que quepa en una línea a
 // 375 pt); `name` sigue siendo la forma corta del resto de la app.
 const TENANTS={
-  fen:{name:'U. de Chile', nombreCompleto:'Universidad de Chile', colores:{fondo:'#004B93',texto:'#FFFFFF'}, short:'FEN', conArticulo:'la U. de Chile', mono:'FEN', sub:'Economía y Negocios'},
+  fen:{name:'U. de Chile', nombreCompleto:'Universidad de Chile', colores:{fondo:'#004B93',texto:'#FFFFFF'}, short:'UChile', conArticulo:'la U. de Chile', mono:'UCH', sub:'Todas las carreras'},
   // profiles guarda el código estable del tenant; name/label son solo visibles.
   uc :{name:'U. Católica', label:'U. Católica', nombreCompleto:'Pontificia Universidad Católica', colores:{fondo:'#173F8A',texto:'#FEC60D'}, short:'UC', conArticulo:'la UC', mono:'UC', sub:'Ingeniería, Comercial y más carreras'},
   // oculto:true → no se ofrece al elegir universidad, pero sigue funcionando
@@ -22,6 +22,14 @@ const TENANTS={
   // Las mallas de la UDD viven en mallas-udd.js; sus pautas, en udd-pautas.js,
   // solo de los programas que publican ponderaciones.
   udd:{name:'U. del Desarrollo', nombreCompleto:'Universidad del Desarrollo', colores:{fondo:'#005293',texto:'#FFFFFF'}, short:'UDD', conArticulo:'la UDD', mono:'UDD', sub:'Todas las carreras'},
+  // Sin `colores` a propósito: la UDP no publica un manual de marca y no se
+  // inventan. La sigla toma el acento de la app hasta tenerlo (tenantBadge).
+  // Carreras, reglamento y fuentes: docs/mallas-udp.md.
+  udp:{name:'U. Diego Portales', nombreCompleto:'Universidad Diego Portales', short:'UDP', conArticulo:'la UDP', mono:'UDP', sub:'Todas las carreras'},
+  // Fondo: Pantone 296 del manual de marca UNAB (enero 2026,
+  // institucional.unab.cl), en su equivalente sRGB. Carreras, reglamento y
+  // fuentes: docs/mallas-unab.md.
+  unab:{name:'U. Andrés Bello', nombreCompleto:'Universidad Andrés Bello', colores:{fondo:'#051C2C',texto:'#FFFFFF'}, short:'UNAB', conArticulo:'la UNAB', mono:'UNAB', sub:'Todas las carreras'},
 };
 
 // El dominio del correo institucional de los estudiantes, por universidad. Al
@@ -31,6 +39,11 @@ const TENANTS={
 // Workspace de los alumnos UAndes (su acceso al correo usa hd=miuandes.cl).
 const DOMINIOS_CORREO_POR_TENANT={
   uandes:['miuandes.cl'],
+  // estudiantes.udp.cl/servicios-academicos/webmail: cuenta Gmail @mail.udp.cl
+  // que se crea al matricularse.
+  udp:['mail.udp.cl'],
+  // Infografía oficial de la Intranet UNAB (servicioestudiante, abril 2026).
+  unab:['uandresbello.edu'],
 };
 
 // Equivalencias institucionales para calificaciones que sí participan del
@@ -39,6 +52,8 @@ const DOMINIOS_CORREO_POR_TENANT={
 // todavía no sabe representar un ramo aprobado que no entra al promedio.
 const CALIFICACIONES_CONCEPTUALES_POR_TENANT={
   uc:{D:7.0,A:5.0,R:3.0},
+  // Reglamento del Estudiante de Pregrado UDP (Res. 16/2026), art. 27.
+  udp:{AD:7.0,AP:5.0,RP:3.0},
 };
 
 // ─── GLIFOS DE UNIVERSIDAD ───────────────────────────────────────────────────
@@ -66,3 +81,63 @@ const RECORDATORIO_NOTAS_POR_TENANT={
   defecto:{desde:1,hasta:14},
   uc:{desde:14,hasta:null},
 };
+
+// Mineduc, Directorio IES vigentes (mayo de 2026). Universidades en funcionamiento.
+// https://ayudamineduc.cl/ficha/instituciones-vigentes-reconocidas-por-el-mineduc
+// Las definiciones con catálogo propio conservan su código y tienen prioridad.
+const UNIVERSIDADES_CHILE=[
+  ['uach','UACh','Universidad Austral de Chile'],
+  ['uac','UAC','Universidad de Aconcagua'],
+  ['uah','UAH','Universidad Alberto Hurtado'],
+  ['uahc','UAHC','Universidad Academia de Humanismo Cristiano',['La Academia']],
+  ['uda','UDA','Universidad de Atacama'],
+  ['uay','UAY','Universidad de Aysén'],
+  ['uautonoma','UA','Universidad Autónoma de Chile',['UAutónoma']],
+  ['ubo','UBO',"Universidad Bernardo O’Higgins"],
+  ['ubio','UBB','Universidad del Bío-Bío',['Biobío','Bio Bio']],
+  ['ubolivariana','UB','Universidad Bolivariana'],
+  ['ucen','UCEN','Universidad Central de Chile',['UCentral']],
+  ['ucm','UCM','Universidad Católica del Maule'],
+  ['ucn','UCN','Universidad Católica del Norte'],
+  ['ucsc','UCSC','Universidad Católica de la Santísima Concepción'],
+  ['ucsh','UCSH','Universidad Católica Cardenal Raúl Silva Henríquez',['Silva Henríquez']],
+  ['uct','UCT','Universidad Católica de Temuco'],
+  ['udec','UdeC','Universidad de Concepción'],
+  ['udalba','UDALBA','Universidad del Alba'],
+  ['udla','UDLA','Universidad de Las Américas'],
+  ['udp','UDP','Universidad Diego Portales'],
+  ['uft','UFT','Universidad Finis Terrae',['Finis']],
+  ['ufro','UFRO','Universidad de La Frontera'],
+  ['ugm','UGM','Universidad Gabriela Mistral'],
+  ['ula','ULagos','Universidad de Los Lagos',['ULA']],
+  ['ulaleones','UL','Universidad Los Leones'],
+  ['ulrep','ULR','Universidad La República',['ULARE']],
+  ['umag','UMAG','Universidad de Magallanes'],
+  ['umayor','UM','Universidad Mayor',['UMayor']],
+  ['umc','UMC','Universidad Miguel de Cervantes'],
+  ['umce','UMCE','Universidad Metropolitana de Ciencias de la Educación',['Pedagógico']],
+  ['unab','UNAB','Universidad Andrés Bello'],
+  ['unach','UNACH','Universidad Adventista de Chile'],
+  ['uniacc','UNIACC','Universidad de Artes, Ciencias y Comunicación'],
+  ['unap','UNAP','Universidad Arturo Prat'],
+  ['uoh','UOH',"Universidad de O’Higgins"],
+  ['upla','UPLA','Universidad de Playa Ancha de Ciencias de la Educación'],
+  ['pucv','PUCV','Pontificia Universidad Católica de Valparaíso',['UCV']],
+  ['usach','USACH','Universidad de Santiago de Chile',['Santiago','USaCh','UTE']],
+  ['usek','USEK','Universidad SEK'],
+  ['userena','ULS','Universidad de La Serena',['ULaSerena']],
+  ['usm','USM','Universidad Técnica Federico Santa María',['UTFSM','Sansana','Santa María']],
+  ['uss','USS','Universidad San Sebastián'],
+  ['ust','UST','Universidad Santo Tomás'],
+  ['uta','UTA','Universidad de Tarapacá'],
+  ['utal','UTalca','Universidad de Talca'],
+  ['utem','UTEM','Universidad Tecnológica Metropolitana'],
+  // «UA» ya es la Autónoma; Antofagasta va con la sigla de su dominio.
+  ['uantof','UANTOF','Universidad de Antofagasta',['UA','UAntofagasta']],
+  ['uv','UV','Universidad de Valparaíso'],
+  ['uvm','UVM','Universidad de Viña del Mar'],
+];
+for(const [id,short,nombreCompleto,alias] of UNIVERSIDADES_CHILE){
+  const name=nombreCompleto.replace(/^Universidad /,'U. ');
+  TENANTS[id]??={name,nombreCompleto,short,conArticulo:'la '+name,alias,registroBasico:true};
+}

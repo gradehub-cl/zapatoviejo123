@@ -26,5 +26,19 @@ chk('con un ramo y fecha próxima hay insight card',/insight-card/.test(el('home
 vm.runInContext('S.ramos=[];renderHome();',ctx);
 chk('sin ramos, Inicio no deja insight cards viejas',el('home-insights').innerHTML===''&&el('home-insights').style.display==='none');
 
+// Tocar el promedio deja visible el exacto; al archivar no puede quedarse el
+// del semestre anterior debajo del «·» ni el toque que lo explicaba.
+const toasts=[];ctx.__t=toasts;vm.runInContext('showToast=m=>__t.push(m);',ctx);
+vm.runInContext(`promedioExactoVisible=false;S.ramos=[{id:'r',nombre:'Ramo Sintético',color:'#000',creditos:6,categorias:[
+  {id:'c',nombre:'Examen',peso:100,directNota:true,notas:[{id:'n',nombre:'Examen',valor:5.43,peso:1}]}]}];renderHome();`,ctx);
+el('home-gpa').onclick();
+chk('con ramos, tocar el promedio muestra el exacto',el('home-gpa-exacto').textContent==='5,43'&&el('home-gpa-exacto').hidden===false);
+vm.runInContext('S.ramos=[];renderHome();',ctx);
+chk('sin ramos, el exacto anterior se borra',el('home-gpa-exacto').textContent===''&&el('home-gpa-exacto').hidden===true);
+chk('sin ramos, el «·» no responde al toque',el('home-gpa').textContent==='·'&&el('home-gpa').onclick==null);
+toasts.length=0;if(typeof el('home-gpa').onclick==='function'){el('home-gpa').onclick();el('home-gpa').onclick();}
+chk('sin ramos, no aparece «Promedio redondeado» del semestre anterior',!toasts.some(t=>/Promedio redondeado/.test(t)));
+vm.runInContext('promedioExactoVisible=false;',ctx);
+
 console.log(`\n${ok} ok, ${fail} fail`);
 if(fail)process.exit(1);

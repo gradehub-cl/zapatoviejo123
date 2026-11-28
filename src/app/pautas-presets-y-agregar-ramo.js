@@ -1,5 +1,7 @@
-function presetRamo(nombre,tenant,carrera,ahora){
-  const def=definicionPreset(nombre,tenant,carrera);if(!def)return null;
+// `sigla`, la guardada en el ramo, habilita en otra carrera UC el programa del
+// mismo curso (#1090). Sin ella, igual que antes.
+function presetRamo(nombre,tenant,carrera,ahora,sigla){
+  const def=definicionPreset(nombre,tenant,carrera,sigla);if(!def)return null;
   const evals=Array.isArray(def)?def:(def.evals||[]);
   // Un programa puede traer reglas sin publicar ponderaciones. No se inventa una
   // pauta vacía: sus reglas se muestran por reglasDelPreset(). Tampoco se carga
@@ -105,7 +107,7 @@ function openAddRamoModal(despuesDeAgregar,despuesDeCancelar){
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Agregar ramo</div>
     <label class="modal-label">${etiquetaRamo}${hayCatalogo&&uni?` <span style="text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;">· lo buscamos en la malla ${esc(uni)}</span>`:''}</label>
-    <div class="modal-input"><input type="text" id="m-ramo-search" placeholder="${ejemploRamo}" maxlength="${NOMBRE_MAX}" autocomplete="off" autocapitalize="none" aria-describedby="m-ramo-error"/></div>
+    <div class="modal-input"><input type="text" id="m-ramo-search" placeholder="${ejemploRamo}" maxlength="${NOMBRE_MAX}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="m-ramo-error"/></div>
     <p id="m-ramo-error" role="alert" hidden style="margin:7px 0 0;font-size:0.75rem;line-height:1.4;color:var(--red);"></p>
     ${hayCatalogo?'<div id="m-ramo-results" class="cat-results"></div>':''}
     ${HORARIO_FOTO_POR_TENANT[S.tenant]?'<button type="button" class="horario-importar-link" onclick="abrirImportarHorarioBuscacursos()">Subir foto de tu horario</button>':''}
@@ -171,12 +173,12 @@ function addFromCatalogCodificado(nombre,sigla){
 // Devuelve el ramo creado para quien necesite completarlo (la sección, por
 // ejemplo, que el catálogo no conoce).
 function crearRamoDesdeCatalogo(nombre,sigla){
-  const candidato=findPresetName(nombre,S.tenant,S.carrera);
+  const candidato=findPresetName(nombre,S.tenant,S.carrera,sigla);
   // Dos cursos UC pueden compartir nombre y tener siglas distintas. El
   // horario trae la sigla exacta: nunca adjuntar la pauta de un homónimo.
   const siglaPreset=candidato&&S.tenant==='uc'?siglaDePreset(candidato):null;
   const presetName=sigla&&siglaPreset&&normName(sigla)!==normName(siglaPreset)?null:candidato;
-  const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
+  const preset=presetName?presetRamo(presetName,S.tenant,S.carrera,undefined,sigla):null;
   // Un ramo no coordinado (coordinacion-ramo.js) no trae pauta para todos,
   // pero sus datos siguen valiendo: nombre, sigla y créditos del programa.
   const referencia=!preset?datosRamoNoCoordinado(nombre,sigla):null;

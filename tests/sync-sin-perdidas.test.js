@@ -36,6 +36,7 @@ function crearNube(){
           if(/_rev/.test(cols||''))return {data:{rev:leerRev(filas.get(uid))},error:null};
           return {data:{data:JSON.parse(JSON.stringify(filas.get(uid)))},error:null};}})}),
         upsert:async fila=>{sinRed();nube.escrituras++;filas.set(fila.user_id,JSON.parse(JSON.stringify(fila.data)));return {error:null};},
+        insert:async fila=>{sinRed();if(filas.has(fila.user_id))return {error:{code:"23505"}};nube.escrituras++;filas.set(fila.user_id,JSON.parse(JSON.stringify(fila.data)));return {error:null};},
         update(valores){
           const filtros=[];
           const q={
@@ -103,6 +104,47 @@ async function preparar(nube,uid='u1'){
 const esperar=ms=>new Promise(r=>setTimeout(r,ms));
 
 (async()=>{
+  console.log('=== Primer respaldo en dos dispositivos sin base ===');
+  {
+    const nube=crearNube();
+    const cel=dispositivo(nube),pc=dispositivo(nube);
+    await Promise.all([cel.entrar('u1'),pc.entrar('u1')]);
+    for(const d of [cel,pc]) d.run('S=normalize('+JSON.stringify(estadoInicial())+')');
+    cel.anotar(0,6.2,'cel-sin-base');
+    pc.anotar(1,4.8,'pc-sin-base');
+    const respaldos=await Promise.all([cel.subir(),pc.subir()]);
+    chk('ambas subidas se respaldan',respaldos.every(Boolean));
+    chk('la segunda subida conserva la nota del primer respaldo',JSON.stringify(notasEnNube(nube))==='[[[6.2],[4.8]]]');
+    chk('el segundo dispositivo recibe ambas notas',JSON.stringify(pc.notas())==='[[[6.2],[4.8]]]');
+  }
+
+  console.log('=== Editar mientras se confirma el primer respaldo ===');
+  {
+    const nube=crearNube();
+    const cel=dispositivo(nube);await cel.entrar('u1');
+    cel.run('S=normalize('+JSON.stringify(estadoInicial())+')');
+    cel.anotar(0,6.2,'enviado');
+    const from=nube.cliente.from;
+    let confirmarInsert;
+    nube.cliente.from=tabla=>{
+      const tablaNube=from(tabla);
+      if(tabla!=='user_ramos')return tablaNube;
+      return {...tablaNube,insert:async fila=>{
+        const resultado=await tablaNube.insert(fila);
+        await new Promise(r=>{confirmarInsert=r;});
+        return resultado;
+      }};
+    };
+    const envio=cel.subir();await esperar(0);
+    cel.anotar(1,4.8,'durante-el-envio');
+    confirmarInsert();
+    chk('termina el respaldo de la primera nota',await envio);
+    chk('la edición hecha durante la petición sigue pendiente',cel.run('hayCambiosSinSubir()')===true);
+    nube.cliente.from=from;
+    cel.disparar('online');await esperar(20);
+    chk('al reintentar también se respalda la segunda nota',JSON.stringify(notasEnNube(nube))==='[[[6.2],[4.8]]]');
+  }
+
   console.log('=== 1. Una nota anotada sin conexión sobrevive al reabrir con red ===');
   {
     const nube=createNubeYa();

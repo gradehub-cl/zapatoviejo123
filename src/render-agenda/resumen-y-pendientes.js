@@ -72,7 +72,11 @@ function agendaPendientesHTML(items,ahora=new Date()){
       data-ramo-id="${esc(p.ramo.id)}" data-cat-id="${esc(p.cat.id)}" data-nota-id="${esc(p.nota?.id||'')}">
       <span class="ag-row-bar" style="background:${esc(p.ramo.color||'var(--primary)')}" aria-hidden="true"></span>
       <div class="ag-row-main">
-        <div class="ag-row-top"><span class="ag-row-when">${etiqueta(p)}</span>${p.fecha?`<span class="ag-row-date">${esc(fechaTexto(p))}</span>`:''}</div>
+        <div class="ag-row-top">${(c=>c
+          // Sin fecha, pero 3+ compañeros ya la tienen: se dice acá y se usa en el editor.
+          ?`<span class="ag-row-when">${c.respaldos} compañeros la tienen</span><span class="ag-row-date">${esc(fechaTexto(c))}</span>`
+          :`<span class="ag-row-when">${etiqueta(p)}</span>${p.fecha?`<span class="ag-row-date">${esc(fechaTexto(p))}</span>`:''}`
+        )(p.tipo==='sin-fecha'?fechaCompartida(p.ramo,p.cat,null,p.cat):null)}</div>
         <div class="ag-row-name">${esc(p.nombre)}</div>
         <div class="ag-row-sub">${esc(p.ramo.nombre)}</div>
       </div>

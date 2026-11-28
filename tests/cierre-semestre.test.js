@@ -28,7 +28,7 @@ ctx.save=()=>guardados++;ctx.closeModal=()=>{};ctx.openModal=()=>{};ctx.renderHo
  const nube=JSON.parse(JSON.stringify(normalizado));nube.userName='Cambio en otro dispositivo';ctx.nube=nube;ctx.base=JSON.parse(JSON.stringify(normalizado));
  assert.equal(run('fusionarSync(base,S,nube).historial[0].ramos[0].notaOficial'),4.5);
  // El documento que se sube realmente conserva la nota y el cierre; SQL ausente no impide respaldar.
- const calls=[];ctx.cliente={from:()=>({upsert:async fila=>{writes.push(JSON.parse(JSON.stringify(fila)));return {error:null}}}),rpc:async(n,args)=>{calls.push({n,args});return {error:{code:'PGRST202'}}}};run('supabaseClient=cliente');
+ const calls=[];ctx.cliente={from:()=>({insert:async fila=>{writes.push(JSON.parse(JSON.stringify(fila)));return {error:null}}}),rpc:async(n,args)=>{calls.push({n,args});return {error:{code:'PGRST202'}}}};run('supabaseClient=cliente');
  assert.equal(await run("subirConVersion('u')"),true);assert.equal(writes[0].data.historial[0].ramos[0].notaOficial,4.5);
  await new Promise(setImmediate);await run('enviarDiscrepanciasCierre()');assert(!run('S.historial[0].ramos[0].cierre.discrepanciaEnviada'));
  ctx.cliente.rpc=async(n,args)=>{calls.push({n,args});return {data:true,error:null}};await run('enviarDiscrepanciasCierre()');

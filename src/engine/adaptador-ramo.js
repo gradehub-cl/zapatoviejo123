@@ -283,7 +283,10 @@ function gh_crearCalculoRamo(deps){
     const finales=categoriasVigentes(r).filter(c=>c.peso>0&&norma.nombres.includes(normName(c.nombre)));
     if(finales.length!==1)return guardadas;
     const examen=finales[0];
-    if(guardadas.some(g=>g.catId===examen.id||g.catIds?.includes(examen.id)))return guardadas;
+    // Solo un mínimo puesto sobre el examen mismo reemplaza al del reglamento.
+    // Un requisito de grupo que además incluye el examen es otra regla: se suma.
+    const soloExamen=g=>g.catId===examen.id||(Array.isArray(g.catIds)&&g.catIds.length===1&&g.catIds[0]===examen.id);
+    if(guardadas.some(soloExamen))return guardadas;
     // Primero rige el reglamento. Las reglas personales solo pueden bajar
     // ese resultado, incluso cuando también fallan sus mínimos.
     return [{type:'group_min',catIds:[examen.id],nombre:examen.nombre,min:norma.min,cap:'self',efecto:'reemplazar'},...guardadas];
@@ -301,20 +304,26 @@ function gh_crearCalculoRamo(deps){
       // El núcleo pondera las casillas conocidas por su fracción rendida.
       // No se recalcula una segunda media que pierda descartes o beneficios.
       if(v!==null){
+        // El resultado no depende del orden de las reglas. Primero, si alguna
+        // regla de «la final es este promedio» no se cumple, la final pasa a ser
+        // el menor de esos promedios. Después, cada tope que no se cumple solo
+        // puede bajarla: un reemplazo nunca deshace un tope ni otro reemplazo.
+        const inicial=v,reemplazos=[],topes=[];
         for(const g of compuertasEfectivas(r)){
           if(g.type==='min_grade_required'){
             const valor=valorParaCompuerta(r,res,g.catId);
-            if(valor!==null && !gh_cumpleCompuerta(valor,g)){
-              const siguiente=Math.min(v,g.cap);if(siguiente<v)limitadoPorCompuerta=true;v=siguiente;
-            }
+            if(valor!==null && !gh_cumpleCompuerta(valor,g))topes.push(g.cap);
           } else if(g.type==='group_min'){
             const ga=avgDeGrupoCalculado(res,arbol,g.catIds);
             if(ga!==null && !gh_cumpleCompuerta(ga,g)){
               const tope=(g.cap==='self')?ga:g.cap;
-              const siguiente=g.efecto==='reemplazar'?tope:Math.min(v,tope);if(siguiente!==v)limitadoPorCompuerta=true;v=siguiente;
+              (g.efecto==='reemplazar'?reemplazos:topes).push(tope);
             }
           }
         }
+        if(reemplazos.length)v=Math.min(...reemplazos);
+        if(topes.length)v=Math.min(v,...topes);
+        limitadoPorCompuerta=v!==inicial;
       }
       return {res,valor:v,limitadoPorCompuerta,estructura:arbol,notas:notasEvaluadas,ausencias};
     }

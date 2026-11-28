@@ -144,11 +144,22 @@ function agregarNotaLista(catId){
   const boton=document.querySelector(`#cat-list .nota-en-fila[data-nota-id="${nueva.id}"]`);
   if(boton)abrirNotaEnFila(boton);
 }
+// Un texto que no es nota ("75", "8", "5 5", "R") no toca lo guardado. Antes
+// se leía como vacío: la casilla sin fecha se borraba y la con fecha quedaba
+// pendiente, y eso se guardaba y subía sin aviso (un 5,5 desaparecía por un
+// dedo de más). Se vuelve a dibujar la ficha, que repone la nota guardada en
+// el campo, y se dice qué formato vale, como en las hojas de nota (#1318).
+function rechazarNotaInvalida(){
+  if(typeof avisoErrorNativo==='function')avisoErrorNativo();
+  renderRamo();
+  showToast(`No se cambió la nota: revisa el rango y el formato. ${ejemploNotaEntrada()}.`);
+}
 function setSlotNota(catId,slot,raw,puntos){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const cat=r.categorias.find(c=>c.id===catId);if(!cat)return;
   const promedioAntes=ramoAvg(r);const gpaAntes=gpa(S.ramos);
   const txt=String(raw||'').trim();
+  if(txt!==''&&isNaN(parseNota(txt))){rechazarNotaInvalida();return;}
   // La casilla se EDITA, no se rehace. Antes se borraba y se volvía a crear, y
   // con eso se perdía todo lo que no fuera el número: la fecha de esa casilla,
   // su hora y el nombre que le hubieran puesto. Escribir la nota del Control 2
@@ -187,6 +198,9 @@ function setDirectNota(catId,raw,puntos){
   const cat=r.categorias.find(c=>c.id===catId);if(!cat)return;
   const promedioAntes=ramoAvg(r);const gpaAntes=gpa(S.ramos);
   const txt=String(raw||'').trim();
+  // Antes el texto inválido ya no borraba nada, pero se repintaba sin decir
+  // por qué la nota volvía a la anterior.
+  if(txt!==''&&isNaN(parseNota(txt))){rechazarNotaInvalida();return;}
   if(txt===''){cat.notas=[];}
   else{
     var val=parseNota(txt),leida={valor:val,puntos:isNaN(val)?null:puntos};
