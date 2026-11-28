@@ -1,9 +1,8 @@
-# Editorial: la información lleva la jerarquía
+# Registro histórico de la implementación Editorial
 
-Dirección elegida por Lucas en la muestra `02-editorial-interaccion.html`:
-filas abiertas, línea lateral de color, flecha alineada con la nota y una
-respuesta sutil de esa línea al apuntar. Esta entrega la lleva a la app real,
-sin recalcular, migrar ni reescribir datos.
+La muestra `02-editorial-interaccion.html` proponía filas abiertas, línea lateral
+de color, flecha alineada con la nota y una respuesta sutil de esa línea al
+apuntar. Este documento registra la implementación y sus pruebas.
 
 ## Qué cambia y qué no
 
