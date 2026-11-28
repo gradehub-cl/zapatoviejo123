@@ -43,7 +43,9 @@ function lineasDeItemsPdf(items){
 // SIGLA · [SECCIÓN] · CRÉDITOS · NOMBRE · [NOTA] · SEM. · AÑO · [(convalidación)]
 // La sección falta en exámenes como el de inglés y la nota falta en lo que se
 // está cursando. Una nota con letra (A, C, R, P/I) no es un promedio y no entra.
-const FILA_FICHA_RE=/^([A-Z]{2,5}\d{2,4}[A-Z]{0,2})\t(?:(\d{1,3})\t)?(\d{1,3})\t([^\t]+)\t(?:([^\t]+)\t)?([^\t]+)\t(20\d{2})(?:\t\((\d)\))?$/;
+const FILA_FICHA_RE=/^([A-Z]{2,5}\d{2,4}[A-Z]{0,2})\t(?:(\d{0,3})\t)?(\d{1,3})\t([^\t]+)\t(?:([^\t]*)\t)?([^\t]+)\t(20\d{2})(?:\t\((\d)\))?$/;
+const TABLA_FICHA_RE=/\bsigla\s+secci[oó]n\s+cr\.\s+nombre\s+curso\s+calif(?:\(\*\))?\s+sem\.\s+año\b/i;
+const INICIO_FILA_FICHA_RE=/(?=^[ \t]*[A-Z]{2,5}\d{2,4}[A-Z]{0,2}(?=[\t\n]|$))/m;
 function leerFichaAcademica(lineas){
   const filas=[],vistos=new Set();
   let omitidos=0;
@@ -67,6 +69,20 @@ function leerFichaAcademica(lineas){
     filas.push({sigla,nombre:nombre.trim(),nota,creditos,periodo});
   }
   return {filas,omitidos};
+}
+
+function leerFichaPegada(texto){
+  // Las dos pestañas comparten la página. El encabezado de columnas permite
+  // identificar la tabla de la ficha al pegar el texto.
+  if(!TABLA_FICHA_RE.test(texto))return null;
+  const lineas=texto.replace(/\r\n?/g,'\n').split(INICIO_FILA_FICHA_RE).map(bloque=>{
+    // Mi UC puede copiar celdas en una línea o separar cada tabulador con
+    // saltos de línea. Los tabuladores consecutivos conservan las celdas vacías.
+    const linea=bloque.replace(/\n([ \u00a0]*\t[ \t\u00a0]*)(?=\n)/g,'$1')
+      .replace(/(\t[ \u00a0]*)\n(?=[^\n])/g,'$1').split('\n',1)[0];
+    return linea.split('\t').map(celda=>celda.trim()).join('\t');
+  });
+  return leerFichaAcademica(lineas);
 }
 
 async function lineasDePdf(archivo,pdfjs){
@@ -97,7 +113,7 @@ async function subirFichaAcademica(input){
   if(!archivo)return;
   input.value='';
   if(archivo.size>FICHA_PDF_MAX){
-    decir('El archivo supera los 5 MB. Puedes pegar el Seguimiento Curricular más abajo.');
+    decir('El archivo supera los 5 MB. Puedes pegar la tabla de la ficha más abajo.');
     return;
   }
   if(!/^application\/pdf$/i.test(archivo.type)&&!/\.pdf$/i.test(archivo.name)){
@@ -109,15 +125,15 @@ async function subirFichaAcademica(input){
   if(!pdfjs){decir('No pudimos abrir el lector de PDF. Revisa tu conexión e inténtalo de nuevo.');return;}
   let lineas;
   try{lineas=await lineasDePdf(archivo,pdfjs);}
-  catch(e){decir('No pudimos abrir ese PDF. Descarga la ficha de nuevo o pega el Seguimiento Curricular más abajo.');return;}
+  catch(e){decir('No pudimos abrir ese PDF. Descarga la ficha de nuevo o pega la tabla de la ficha más abajo.');return;}
   const {filas,omitidos}=leerFichaAcademica(lineas);
   if(!filas.length){
     if(!lineas.length){
-      decir('El PDF no tiene texto legible. Descarga la ficha en PDF desde Mi UC o pega el Seguimiento Curricular más abajo.');
+      decir('El PDF no tiene texto legible. Descarga la ficha en PDF desde Mi UC o pega la tabla de la ficha más abajo.');
     }else if(esSeguimientoCurricular(lineas)){
       decir('Ese PDF es el Seguimiento Curricular. Descarga la Ficha Académica Acumulada en la otra pestaña o pega el texto del Seguimiento Curricular más abajo.');
     }else{
-      decir('Abrimos el PDF, pero no pudimos identificar ramos con nota. Puedes importar tus semestres pegando el Seguimiento Curricular más abajo.');
+      decir('Abrimos el PDF, pero no encontramos ramos con nota. Puedes pegar la tabla de la ficha o el Seguimiento Curricular más abajo.');
     }
     return;
   }

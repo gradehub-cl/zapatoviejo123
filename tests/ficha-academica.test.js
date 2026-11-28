@@ -91,6 +91,31 @@ check('texto que no es la ficha no produce filas',()=>{
   assert.deepEqual(ficha(['Hola','MAT1610 Cálculo I 5.0','202620 MAT1610']).filas,[]);
 });
 
+check('lee la tabla copiada de Mi UC con o sin saltos alrededor de los tabuladores',()=>{
+  const encabezado='Sigla\tSección\tCr.\tNombre Curso\tCalif(*)\tSem.\tAño\t(**)';
+  const filas=[
+    ['TST1001','4','5','Ramo Sintético Uno','6.2','1','2025',''],
+    ['TST1001','','10','Ramo Sintético Uno','6,4','2','2025',''],
+    ['TST1002','1','10','Ramo Convalidado','5.5','1','2026','(1)'],
+    ['TST1003','2','10','Ramo En Curso','','2','2026',''],
+    ['TST1004','2','10','Ramo Con Nota Conceptual','P/I','2','2026',''],
+  ];
+  for(const separador of ['\t','\n\t\n']){
+    ctx.__t=['Ficha Académica Acumulada',encabezado,...filas.map(f=>f.join(separador)),
+      'Créditos inscritos\t20','PPA\t6.24'].join('\n\n\n');
+    const r=JSON.parse(run('JSON.stringify(leerFichaPegada(__t))'));
+    assert.deepEqual(r.filas.map(f=>[f.sigla,f.creditos,f.nota,f.periodo]),[
+      ['TST1001',5,6.2,'2025-1'],['TST1001',10,6.4,'2025-2']
+    ]);
+    assert.equal(r.omitidos,2);
+  }
+});
+
+check('los nombres de las pestañas no confunden el texto del seguimiento con la ficha',()=>{
+  ctx.__t='Seguimiento Curricular\nFicha Académica Acumulada\nSem.-Año\tSigla\tCurso realizado\tCr. Aprob.\tCalif.';
+  assert.equal(run('leerFichaPegada(__t)'),null);
+});
+
 check('pdf.js se sirve desde este dominio y el deploy lo publica',()=>{
   for(const f of ['pdf.min.mjs','pdf.worker.min.mjs','LICENSE.txt'])assert.ok(fs.existsSync(path.join(raiz,'pdf',f)),f);
   const deploy=leer('.github/workflows/deploy.yml');
@@ -110,7 +135,8 @@ check('el modal ofrece subir la ficha primero y pegar el avance como alternativa
 check('el modal da la ruta exacta y el link directo al sistema de avance',()=>{
   run(`S.tenant='uc';`);
   const f=JSON.parse(run('JSON.stringify(AVANCE_CURRICULAR.uc)'));
-  assert.equal(f.url,'https://seguimientocurricular.uc.cl/avance/avancecurricular.xhtml');
+  assert.equal(f.url,'https://seguimientocurricular.uc.cl/');
+  assert.match(f.alternativa,/Información Académica › Avance curricular y Certificados/);
   const html=leer('src/app/avance-curricular.js');
   assert.match(html,/class="avance-pasos"/);
   assert.match(html,/fuente\.pestanaFicha/);
@@ -125,8 +151,9 @@ check('identifica el Seguimiento Curricular por su encabezado',()=>{
 
 check('pegar sin notas o un texto ajeno da un aviso distinto',()=>{
   const html=leer('src/app/avance-curricular.js');
-  assert.match(html,/Encontramos ramos, pero sin notas/);
+  assert.match(html,/No encontramos ramos con nota/);
   assert.match(html,/No reconocimos el texto/);
+  assert.match(html,/id="m-avance-texto-aviso" role="status"/);
   // El texto del avance real (forma del PDF, datos inventados) se sigue leyendo.
   ctx.__t=['01\tTST1000\tRamo Sintético Uno\t10\tSí\t202620\tTST1000\tRamo Sintético Uno\t10\t5.4\t\tSí',
     '02\tTST2000\tRamo Sintético Dos\t10\tSí\t202620\tTST2000\tRamo Sintético Dos\t10\t4.0\t\tSí',
@@ -154,10 +181,17 @@ check('el menú del perfil tiene «Cargar semestres pasados» junto a la calcula
   assert.match(leer('src/app/perfil-menu.js'),/ficha\.hidden=!avanceCurricularDisponible\(\)/);
 });
 
-async function probarSubida(){
+async function probarImportacion(){
   run(`cargarPdfJs=async()=>({});
     lineasDePdf=async()=>__lineasPdf;
     revisarFilasAvance=async filas=>{globalThis.__revisionFicha=filas;};`);
+  stub.value='Sigla\tSección\tCr.\tNombre Curso\tCalif(*)\tSem.\tAño\t(**)\nTST1010\t1\t5\tRamo Sintético\t5,6\t2\t2025';
+  await run('leerAvancePegado()');
+  check('el texto de la ficha llega a la misma revisión que el PDF',()=>{
+    assert.equal(ctx.__revisionFicha[0].sigla,'TST1010');
+    assert.equal(ctx.__revisionFicha[0].creditos,5);
+    assert.equal(ctx.__revisionFicha[0].periodo,'2025-2');
+  });
   const subir=async (ls,archivo={})=>{
     ctx.__lineasPdf=ls;
     ctx.__revisionFicha=null;
@@ -171,7 +205,7 @@ async function probarSubida(){
   });
   await subir(['FICHA ACADÉMICA ACUMULADA','Distribución que el lector no reconoce'],{name:'SC-renombrado.pdf'});
   check('un formato de ficha sin filas reconocibles explica el problema y ofrece pegar texto',()=>{
-    assert.match(stub.textContent,/no pudimos identificar ramos con nota/);
+    assert.match(stub.textContent,/no encontramos ramos con nota.*pegar la tabla de la ficha/);
     assert.match(stub.textContent,/Seguimiento Curricular/);
     assert.doesNotMatch(stub.textContent,/FAA|Ese PDF es/);
     assert.equal(ctx.__revisionFicha,null);
@@ -191,5 +225,5 @@ async function probarSubida(){
   });
 }
 
-probarSubida().then(()=>console.log(`\nPASS: ${ok}   FAIL: 0`))
+probarImportacion().then(()=>console.log(`\nPASS: ${ok}   FAIL: 0`))
   .catch(error=>{console.error(error);process.exitCode=1;});

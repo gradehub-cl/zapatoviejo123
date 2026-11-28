@@ -105,25 +105,25 @@ function avanceCurricularDisponible(){return !esCuentaProfesor()&&!!AVANCE_CURRI
 function openAvanceCurricular(){
   if(!avanceCurricularDisponible())return;
   const fuente=AVANCE_CURRICULAR[S.tenant];
-  // La ficha en PDF va primero: es una tabla limpia y no depende de cómo copie
-  // el celular. Pegar el avance queda como alternativa, igual que en el horario.
+  // El PDF va primero. La misma ficha y el seguimiento se pueden pegar como texto.
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Cargar tus semestres anteriores</div>
     <p class="modal-desc">Sube tu ${esc(fuente.ficha)} en PDF. La leemos en tu teléfono: <b>el archivo no sale de tu dispositivo</b>, y antes de agregar nada vas a poder revisarlo.</p>
     <ol class="avance-pasos">
-      <li>Abre el <a href="${esc(fuente.url)}" target="_blank" rel="noopener">${esc(fuente.sistema)}</a> con tu cuenta UC y toca «Consultar».</li>
+      <li>Abre <a href="${esc(fuente.url)}" target="_blank" rel="noopener">${esc(fuente.sistema)}</a> con tu cuenta UC. Elige tu programa y toca «Consultar».</li>
       <li>Elige la pestaña «${esc(fuente.pestanaFicha)}».</li>
       <li>Descarga el PDF y vuelve a GradeHub.</li>
     </ol>
-    <p class="settings-help">También llegas desde ${esc(fuente.alternativa)}. Si el portal muestra un error, entra de nuevo por ahí.</p>
+    <p class="settings-help">Si el enlace falla, entra desde ${esc(fuente.alternativa)}.</p>
     <label class="btn-confirm horario-foto-btn" for="m-avance-ficha">Subir ficha en PDF</label>
     <input type="file" id="m-avance-ficha" class="horario-foto-input" accept="application/pdf,.pdf" onchange="subirFichaAcademica(this)" aria-describedby="m-avance-aviso"/>
     <p class="settings-help" id="m-avance-aviso" role="status" aria-live="polite">Solo leemos siglas, créditos, notas y semestres.</p>
     <details class="horario-texto-alt">
-      <summary>Pegar el avance curricular como alternativa</summary>
-      <p class="settings-help">En el mismo sistema, abre la pestaña «${esc(fuente.pestanaAvance)}», selecciona toda la página, cópiala y pégala acá. Da lo mismo si viene texto de más.</p>
-      <textarea id="m-avance-texto" class="horario-importar-texto" rows="5" maxlength="200000" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Tu ${esc(fuente.documento)} copiado" oninput="document.getElementById('m-avance-leer').disabled=!this.value.trim()"></textarea>
+      <summary>Pegar texto de ${esc(fuente.portal)}</summary>
+      <p class="settings-help" id="m-avance-texto-ayuda">Copia la tabla de ramos con sus encabezados desde «${esc(fuente.pestanaFicha)}». También puedes copiar la página de «${esc(fuente.pestanaAvance)}» con los ramos que ya cursaste.</p>
+      <textarea id="m-avance-texto" class="horario-importar-texto" rows="5" maxlength="200000" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Texto de ${esc(fuente.portal)}" aria-describedby="m-avance-texto-ayuda m-avance-texto-aviso" oninput="document.getElementById('m-avance-leer').disabled=!this.value.trim()"></textarea>
       <button type="button" class="btn-cancel" id="m-avance-leer" disabled onclick="leerAvancePegado()">Revisar texto</button>
+      <p class="settings-help" id="m-avance-texto-aviso" role="status" aria-live="polite"></p>
     </details>
     <div class="modal-btns">
       <button type="button" class="btn-cancel" onclick="openSemestreAnteriorModal()">Atrás</button>
@@ -134,14 +134,15 @@ function openAvanceCurricular(){
 async function leerAvancePegado(){
   const campo=document.getElementById('m-avance-texto');
   if(!campo)return;
-  const {filas,omitidos}=leerAvanceCurricular(campo.value);
+  const ficha=leerFichaPegada(campo.value);
+  const {filas,omitidos}=ficha||leerAvanceCurricular(campo.value);
   if(!filas.length){
-    const aviso=document.getElementById('m-avance-aviso');
+    const aviso=document.getElementById('m-avance-texto-aviso');
     // Distingue "no hay notas" (copió solo los ramos en curso) de "no es el avance".
-    const conSiglas=(campo.value.match(SIGLA_AVANCE_RE)||[]).length>0;
+    const conSiglas=ficha||campo.value.match(SIGLA_AVANCE_RE);
     if(aviso)aviso.textContent=conSiglas
-      ?'Encontramos ramos, pero sin notas. Copia la pestaña «Seguimiento Curricular» completa, no solo los ramos en curso.'
-      :'No reconocimos el texto. Copia toda la pestaña «Seguimiento Curricular» e inténtalo de nuevo.';
+      ?'No encontramos ramos con nota. Copia la tabla de los ramos cursados con sus encabezados.'
+      :'No reconocimos el texto. Copia la tabla de la ficha o la página de Seguimiento Curricular.';
     return;
   }
   await revisarFilasAvance(filas,omitidos,()=>document.getElementById('m-avance-texto')===campo);
