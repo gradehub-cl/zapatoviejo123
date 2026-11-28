@@ -198,6 +198,7 @@
     "src/data/uai-pautas.js",
     "src/data/uandes-pautas.js",
     "src/data/udd-pautas.js",
+    "src/data/uach-pautas.js",
     "src/data/pautas-por-universidad.js",
     "src/data/profesor-etiquetas.js",
     "src/data/profesores-propuestos.js",
