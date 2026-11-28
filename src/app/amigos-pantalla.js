@@ -478,6 +478,13 @@ async function buscarAmigo(valor){
 // al tiro si ya los hay, o cuando cargarAmigos termine después del login.
 function recibirLinkAmigo(url){
   let u;try{u=new URL(String(url||''));}catch(e){return false;}
+  if((u.origin==='https://gradehub.cl'&&u.pathname==='/unirse')||(u.protocol==='cl.gradehub.app:'&&u.host==='grupo')){
+    const token=u.hash.slice(1);
+    if(!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(token))return false;
+    enlaceGrupoPendiente=token;
+    try{sessionStorage.setItem('gradehub_enlace_grupo',token);}catch(e){}
+    abrirAmigoPendiente();return true;
+  }
   if(u.origin!=='https://gradehub.cl'||u.pathname!=='/')return false;
   const n=u.searchParams.get('amigo');
   if(!n||!/^@?[A-Za-z0-9._]{3,20}$/.test(n))return false;
@@ -485,12 +492,59 @@ function recibirLinkAmigo(url){
   abrirAmigoPendiente();
   return true;
 }
+let enlaceGrupoPendiente=null, visitaEnlaceGrupo=0;
 function abrirAmigoPendiente(){
+  if(!enlaceGrupoPendiente)try{enlaceGrupoPendiente=sessionStorage.getItem('gradehub_enlace_grupo');}catch(e){}
+  if(enlaceGrupoPendiente&&amigosVisible()&&currentUser){
+    if(!amigosEstadoCache?.username){showTab('amigos');return;}
+    const token=enlaceGrupoPendiente;enlaceGrupoPendiente=null;
+    try{sessionStorage.removeItem('gradehub_enlace_grupo');}catch(e){}
+    verInvitacionPorEnlace(token);return;
+  }
   let u=null;try{u=sessionStorage.getItem(CLAVE_AMIGO_PENDIENTE);}catch(e){}
   if(!u||!amigosVisible()||!(amigosEstadoCache&&amigosEstadoCache.username))return;
   try{sessionStorage.removeItem(CLAVE_AMIGO_PENDIENTE);}catch(e){}
   if(u===amigosEstadoCache.username)return;
   showTab('amigos');abrirAgregarAmigo(u);
+}
+
+async function verInvitacionPorEnlace(token){
+  const visita=++visitaEnlaceGrupo,version=amigosVersion,uid=currentUser.id;
+  const vigente=()=>visita===visitaEnlaceGrupo&&version===amigosVersion&&currentUser?.id===uid;
+  const abrir=async id=>{showTab('amigos');await refrescarAmigos();if(vigente()&&currentTab==='amigos')abrirGrupo(id);};
+  try{
+    const info=await rpcAmigos('abrir_enlace_grupo',{p_enlace:token,p_unirse:false});
+    if(!vigente())return;
+    if(info.id){await abrir(info.id);return;}
+    showConfirm(`¿Unirte a ${info.nombre}?`,amigosEstadoCache.comparte_horario===false?'Tu horario está oculto. Puedes cambiarlo en Amigos.':'Quienes estén en el grupo podrán ver tu horario. Puedes ocultarlo en Amigos.',async()=>{
+      if(!vigente())return;
+      try{
+        const grupo=await rpcAmigos('abrir_enlace_grupo',{p_enlace:token,p_unirse:true});
+        if(vigente())await abrir(grupo.id);
+      }catch(e){if(vigente())showToast(mensajeErrorAmigos(e),true);}
+    },{label:'Unirme',danger:false});
+  }catch(e){if(vigente())showToast(mensajeErrorAmigos(e),true);}
+}
+
+async function prepararEnlaceGrupo(id,boton){
+  if(boton.disabled)return;
+  const visita=amigosGrupoDetalle,version=amigosVersion,desdeFicha=!!boton.closest('#modal-content');
+  boton.disabled=true;
+  try{
+    const token=await rpcAmigos('crear_enlace_grupo',{p_grupo:id});
+    if(visita!==amigosGrupoDetalle||version!==amigosVersion||!boton.isConnected||currentTab!=='amigos'||desdeFicha!==document.getElementById('modal').classList.contains('open'))return;
+    const url=URL_AMIGOS+'unirse#'+token;
+    const caja=document.getElementById('modal-content');
+    caja.innerHTML=`<h2 class="modal-title">Invitar con enlace</h2><p>Comparte este enlace con tus compañeros de universidad. Pueden unirse mientras haya cupos, durante siete días desde que se creó.</p><label class="modal-label" for="enlace-grupo">Enlace de invitación</label><input id="enlace-grupo" type="text" readonly value="${esc(url)}"><div class="modal-btns"><button class="btn-cancel" ${desdeFicha?'data-amigos="grupo-info"':'onclick="closeModal()"'} data-id="${esc(id)}">Volver</button><button class="btn-confirm" data-compartir-grupo>${navigator.share?'Compartir enlace':'Copiar enlace'}</button></div>`;
+    openModal();
+    caja.querySelector('[data-compartir-grupo]').onclick=async()=>{
+      try{
+        if(navigator.share)await navigator.share({title:'Invitación a un grupo de GradeHub',url});
+        else{await navigator.clipboard.writeText(url);showToast('Enlace copiado');}
+      }catch(e){if(e.name!=='AbortError'){caja.querySelector('#enlace-grupo')?.select();showToast('Selecciona y copia el enlace.');}}
+    };
+  }catch(e){if(version===amigosVersion&&boton.isConnected)showToast(mensajeErrorAmigos(e),true);}
+  finally{boton.disabled=false;}
 }
 
 // ─── Ficha de un amigo ───
@@ -1067,7 +1121,6 @@ function lineaGrupo(g){
 function seccionGruposHTML(){
   if(!amigosGruposDisponible)return '';
   const grupos=amigosGruposCache||[],invit=grupos.filter(g=>g.estado==='invitado'),mios=grupos.filter(g=>g.estado==='miembro');
-  const hayAmigos=(amigosListaCache||[]).some(a=>a.estado==='amigos');
   return `<section id="amigos-seccion-grupos" class="perfil-grupo amigos-grupo amigos-grupos" aria-labelledby="amigos-grupos-titulo">
     <h2 id="amigos-grupos-titulo">Grupos</h2>
     ${invit.length?`<h3 class="grupo-etiqueta">Invitaciones</h3><ul class="grupo-celdas grupo-invitaciones" role="list">
@@ -1077,16 +1130,16 @@ function seccionGruposHTML(){
       <span class="amigo-acciones"><button type="button" class="amigo-boton" data-amigos="grupo-rechazar" data-id="${esc(g.id)}" aria-label="Rechazar la invitación a ${esc(g.nombre)}">Rechazar</button>
       <button type="button" class="amigo-boton principal" data-amigos="grupo-aceptar" data-id="${esc(g.id)}" aria-label="Unirme a ${esc(g.nombre)}">Unirme</button></span></li>`).join('')}</ul>`:''}
     ${mios.length&&invit.length?'<h3 class="grupo-etiqueta">Tus grupos</h3>':''}
-    ${mios.length||hayAmigos?`<ul class="grupo-celdas" role="list">
+    <ul class="grupo-celdas" role="list">
     ${mios.map(g=>`<li><button type="button" class="amigo-fila" data-amigos="grupo" data-id="${esc(g.id)}">
       ${avatarGrupoHTML(g.nombres)}
       <span class="amigo-texto"><b>${esc(g.nombre)}</b><small>${esc(lineaGrupo(g))}</small>${amigosGrupoProximo.get(g.id)?`<small class="grupo-proximo">${esc(amigosGrupoProximo.get(g.id))}</small>`:''}</span>
       ${FLECHA_GRUPO}</button></li>`).join('')}
-    ${hayAmigos?`<li><button type="button" class="amigo-fila amigos-fila-mas" data-amigos="grupo-nuevo">
+    <li><button type="button" class="amigo-fila amigos-fila-mas" data-amigos="grupo-nuevo">
       <span class="amigo-avatar" aria-hidden="true">${ICONO_MAS}</span>
-      <span class="amigo-texto"><b>Crear grupo</b>${mios.length?'':'<small>Comparte pruebas, salas y horarios</small>'}</span>${FLECHA_GRUPO}</button></li>`:''}
-  </ul>`:''}
-    ${!mios.length&&!invit.length&&!hayAmigos?'<p class="amigos-vacio-texto">Cuando tengas amigos en GradeHub, podrás crear un grupo.</p>':''}
+      <span class="amigo-texto"><b>Crear grupo</b>${mios.length?'':'<small>Comparte pruebas, salas y horarios</small>'}</span>${FLECHA_GRUPO}</button></li>
+  </ul>
+
   </section>`;
 }
 // Elegir amigos, como al crear un grupo en WhatsApp: los marcados aparecen
@@ -1118,7 +1171,7 @@ function enlazarElegirAmigos(form,alCambiar){
   });
   pintar();
 }
-// Nombre opcional, como en Instagram: sin nombre se llama como sus personas.
+// Se puede crear primero e invitar desde el grupo.
 function abrirGrupoNuevo(preUser){
   const hayAmigos=(amigosListaCache||[]).some(a=>a.estado==='amigos');
   document.getElementById('modal-content').innerHTML=`
@@ -1126,7 +1179,7 @@ function abrirGrupoNuevo(preUser){
     <form id="amigos-grupo-form" class="amigos-grupo-form" novalidate>
       <label class="grupo-etiqueta" for="amigos-grupo-nombre">Nombre <small>(opcional)</small></label>
       <input id="amigos-grupo-nombre" class="amigos-grupo-nombre" type="text" maxlength="${GRUPO_NOMBRE_MAX}" autocomplete="off" placeholder="Ej. Grupo de estudio">
-      <fieldset><legend class="grupo-etiqueta">Amigos</legend>${hayAmigos?elegirAmigosHTML([]):'<p class="amigos-vacio-texto">Agrega amigos para armar un grupo.</p>'}</fieldset>
+      <fieldset><legend class="grupo-etiqueta">Amigos</legend>${hayAmigos?elegirAmigosHTML([]):'<p class="amigos-vacio-texto">Después de crear el grupo puedes invitar con un enlace.</p>'}</fieldset>
       <p class="grupo-privacidad">Al entrar al grupo, cada persona comparte su horario si lo tiene activado en Amigos. Las notas quedan privadas.</p>
     </form>
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button>
@@ -1134,11 +1187,11 @@ function abrirGrupoNuevo(preUser){
   openModal();
   const form=document.getElementById('amigos-grupo-form'),nombre=document.getElementById('amigos-grupo-nombre'),crear=document.getElementById('amigos-grupo-crear');
   if(preUser){const i=[...form.querySelectorAll('input[name=u]')].find(x=>x.value===preUser);if(i)i.checked=true;}
-  enlazarElegirAmigos(form,m=>{crear.disabled=!m.length||form.hasAttribute('aria-busy');});
+  enlazarElegirAmigos(form,()=>{crear.disabled=form.hasAttribute('aria-busy');});
   form.addEventListener('submit',async ev=>{
     ev.preventDefault();
     const marcados=[...form.querySelectorAll('input[name=u]:checked')];
-    if(crear.disabled||!marcados.length)return;
+    if(crear.disabled)return;
     crear.disabled=true;crear.textContent='Creando…';form.setAttribute('aria-busy','true');
     const v=amigosVersion;
     try{
@@ -1149,7 +1202,7 @@ function abrirGrupoNuevo(preUser){
       await refrescarAmigos();
       if(v===amigosVersion&&form.isConnected&&document.getElementById('modal').classList.contains('open'))abrirGrupo(id);
     }catch(e){if(v===amigosVersion)showToast(mensajeErrorAmigos(e),true);}
-    finally{form.removeAttribute('aria-busy');crear.textContent='Crear';crear.disabled=!form.querySelector('input[name=u]:checked');}
+    finally{form.removeAttribute('aria-busy');crear.textContent='Crear';crear.disabled=false;}
   });
 }
 function volverDeGrupo(){
@@ -1229,6 +1282,7 @@ function pintarActividadGrupo(d){
       ${cabecera&&!d.error?`<small id="grupo-participantes">${esc(lineaGrupo(cabecera))}${pendientes&&!d.cargando?` · ${pendientes===1?'1 invitación':pendientes+' invitaciones'}`:''}</small>`:''}</span>
     </button></h1></header>
     ${d.cargando?'<p role="status">Cargando grupo…</p>':d.error?`<p role="status">No se pudo cargar el grupo.</p>${acceso('grupo','Reintentar')}`:`
+    ${cabecera?.miembros===1&&!pendientes?acceso('grupo-enlace','Invitar con enlace'):''}
     ${ahoraGrupoHTML(d)}
     ${libresJuntosHTML(d)}
     <div class="grupo-actividad-titulo grupo-seccion-titulo"><h2>${d.nov?'Novedades':'Lo que viene'}</h2>${amigosCalendarioDisponible?acceso('reserva-nueva','Anotar sala'):''}</div>
@@ -1280,6 +1334,7 @@ function pintarGrupo(id,filas,seccion){
     <section class="grupo-seccion">
     <h3 class="grupo-etiqueta">Integrantes</h3>
     <ul class="amigo-lista amigo-lista-personas grupo-celdas" role="list">
+      <li><button type="button" class="amigo-fila amigos-fila-mas" data-amigos="grupo-enlace" data-id="${esc(id)}"><span class="amigo-texto"><b>Invitar con enlace</b></span>${FLECHA_GRUPO}</button></li>
       ${hayInvitables?`<li><button type="button" class="amigo-fila amigos-fila-mas" data-amigos="grupo-invitar" data-id="${esc(id)}">
         <span class="amigo-avatar" aria-hidden="true">${ICONO_MAS}</span><span class="amigo-texto"><b>Invitar amigos</b></span>${FLECHA_GRUPO}</button></li>`:''}
       ${miembros.map(filaHTML).join('')}
@@ -1417,7 +1472,7 @@ async function accionGrupo(accion,{id,user,confirmado}={}){
       if(!confirmado){
         const invitado=amigosGrupoDetalle?.filas.find(f=>f.username===user)?.estado==='invitado';
         return showConfirm(invitado?`¿Retirar la invitación de @${user}?`:`¿Sacar a @${user}?`,
-          invitado?'Si ya aceptó la invitación, también saldrá del grupo.':'Perderá acceso al grupo y a los horarios compartidos allí.',
+          (invitado?'Si ya aceptó la invitación, también saldrá del grupo.':'Perderá acceso al grupo y a los horarios compartidos allí.')+' Los enlaces de invitación actuales vencerán.',
           ()=>accionGrupo(accion,{id,user,confirmado:true}),{label:invitado?'Retirar':'Sacar',danger:true,focusCancel:true});
       }
       await rpcAmigos('quitar_de_grupo',{p_grupo:id,p_username:user});
@@ -1496,6 +1551,7 @@ if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
     }
     else if(acc==='menu-amigo')abrirMenuAmigo(id);
     else if(acc==='semana')abrirSemanaAmigo(id);
+    else if(acc==='grupo-enlace')prepararEnlaceGrupo(id,b);
     else if(acc==='grupo-invitar')abrirInvitarGrupo(id);
     else if(acc==='grupo-renombrar')abrirRenombrarGrupo(id);
     else if(acc==='grupo-miembro')abrirMiembroGrupo(id,user);

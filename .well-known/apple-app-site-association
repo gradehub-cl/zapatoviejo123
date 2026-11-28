@@ -3,6 +3,7 @@
     "details": [{
       "appIDs": ["PH6XQV8L2M.cl.gradehub.app"],
       "components": [
+        {"/": "/unirse", "comment": "Invitación a un grupo (gradehub.cl/unirse#token). Va antes de la exclusión de fragmentos: el token viaja en el #."},
         {"#": "?*", "exclude": true, "comment": "Fragmento no vacío: permanece en Safari."},
         {"?": {"code": "?*"}, "exclude": true},
         {"?": "code=*", "exclude": true},

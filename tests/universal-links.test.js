@@ -3,10 +3,10 @@ const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('ass
 const raiz=path.join(__dirname,'..'),leer=f=>fs.readFileSync(path.join(raiz,f),'utf8');
 const aasa=JSON.parse(leer('.well-known/apple-app-site-association')),detalle=aasa.applinks.details;
 assert.deepEqual(detalle.map(d=>d.appIDs),[['PH6XQV8L2M.cl.gradehub.app']]);
-assert.deepEqual(detalle[0].components.filter(c=>!c.exclude).map(c=>c['/']),['/']);
+assert.deepEqual(detalle[0].components.filter(c=>!c.exclude).map(c=>c['/']),['/unirse','/']);
 const patron=(p,v)=>new RegExp('^'+p.replace(/[.+^${}()|[\]\\]/g,'\\$&').replace(/\*/g,'.*').replace(/\?/g,'.')+'$').test(v);
 function asociado(url){const u=new URL(url);const c=detalle[0].components.find(c=>(!c['/']||patron(c['/'],u.pathname))&&(!c['#']||patron(c['#'],u.hash.slice(1)))&&(!c['?']||(typeof c['?']==='string'?patron(c['?'],u.search.slice(1)):Object.entries(c['?']).every(([k,v])=>(u.searchParams.has(k)?u.searchParams.getAll(k):['']).every(valor=>patron(v,valor))))));return !!c&&!c.exclude;}
-for(const ruta of ['/','/?profe=ABCD2345','/?dar-clases','/?desde=calculadora','/?amigo=usuario_sintetico'])assert(asociado('https://gradehub.cl'+ruta),ruta);
+for(const ruta of ['/','/?profe=ABCD2345','/?dar-clases','/?desde=calculadora','/?amigo=usuario_sintetico','/unirse#00000000-0000-4000-8000-000000000000'])assert(asociado('https://gradehub.cl'+ruta),ruta);
 for(const ruta of ['/privacidad.html','/terminos','/auth/callback','/login-callback','/cal/token-sintetico','/mcp/','/calculadora','/clase/inventada','/ramo/inventado','/#access_token=sintetico','/#type=recovery'])assert(!asociado('https://gradehub.cl'+ruta),ruta);
 for(const k of ['code','token','token_hash','access_token','refresh_token','type','state','error','error_code','error_description'])for(const cola of [k+'=sintetico',k+'=',k,k+'&profe=ABCD2345','profe=ABCD2345&'+k,'profe=ABCD2345&'+k+'=&desde=calculadora',k+'=&'+k+'=sintetico'])assert(!asociado('https://gradehub.cl/?'+cola),cola);
 const cabecera=leer('_headers').split('/.well-known/apple-app-site-association\n')[1];
