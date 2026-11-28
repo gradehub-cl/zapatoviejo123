@@ -672,13 +672,12 @@ const CARRERAS_UANDES={'ING-UA':'Ingeniería Civil','COM-UA':'Ingeniería Comerc
 
 // Dónde sacar el texto para "Pegar mi avance curricular". Una universidad sin
 // entrada acá no ofrece la opción.
-// Ruta verificada en el portal el 2026-11-11: el link directo abre el sistema
-// si hay sesión UC (si no, la pide); después «Consultar», la pestaña y «Descargar».
-// El link de descarga es un recurso interno que cambia: no sirve como link fijo.
-const AVANCE_CURRICULAR={uc:{portal:'Mi UC',documento:'avance curricular',ficha:'ficha académica acumulada',
-  url:'https://seguimientocurricular.uc.cl/avance/avancecurricular.xhtml',sistema:'Sistema de Avance Curricular',
+// Mi UC enlaza a la portada del sistema, que inicia la sesión antes de mostrar
+// el formulario de consulta. La descarga depende del programa elegido.
+const AVANCE_CURRICULAR={uc:{portal:'Mi UC',ficha:'ficha académica acumulada',
+  url:'https://seguimientocurricular.uc.cl/',sistema:'Avance curricular',
   pestanaFicha:'Ficha Académica Acumulada',pestanaAvance:'Seguimiento Curricular',
-  alternativa:'Mi UC › Información Académica › Avance curricular'}};
+  alternativa:'Mi UC › Información Académica › Avance curricular y Certificados › Avance curricular'}};
 
 // Dónde exportar a .ics las fechas de los cursos. Sin entrada, el importador solo
 // habla de Apple, Google u Outlook. Webcursos es Moodle 4.5: verificado el
