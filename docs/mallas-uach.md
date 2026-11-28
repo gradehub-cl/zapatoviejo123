@@ -116,10 +116,9 @@ que dice cada programa. El refundido cambia además el art. 16: con menos de 3,5
 «la asignatura se entenderá reprobada», sin decir con qué nota; la compuerta da
 el mismo resultado, reprobado.
 
-**Lo que el motor no hace.** El art. 16 aproxima la presentación a la décima
-*antes* de ponderarla con el examen. El motor pondera todas las notas de una vez
-y aproxima solo la final, así que en el borde puede diferir una décima. Está
-anotado en [reglas del motor](contexto/reglas-motor.md).
+**Redondeo.** La presentación completa se aproxima a la décima según el
+art. 16, antes de ponderarla con el examen. Por ejemplo, en Contratos, con
+parciales 3,5 y 3,6, la presentación es 3,6. Con examen 4,5, la nota final es 4,0.
 
 **Vigencia.** Cada pauta lleva su `periodo`. Solo cuatro son de 2026-2; las otras
 19 (una de 2025-1, trece de 2025-2 y cinco de 2026-1) se muestran como de un

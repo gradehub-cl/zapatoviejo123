@@ -94,12 +94,14 @@ function gh_crearCalculoRamo(deps){
   function ramoToStructure(r){
     const bonus=gh_bonusActivos(reglasBonusVigentes(r),r.bonusIngresado,r.bonusConfirmado);
     const conBonus=(nodo,lista)=>lista&&lista.length?{...nodo,bonus:lista}:nodo;
+    const redondearGrupo=Array.isArray(r.gates)?r.gates.find(g=>
+      g?.type==='group_min'&&g.redondearPonderado===true&&Array.isArray(g.catIds))?.catIds:undefined;
     const ex=reglaDeEximicion(r);
     const idDe=n=>(r.categorias||[]).find(c=>normName(c.nombre)===normName(n))?.id;
     const eximicion=ex?.notaExamen==='maxima'&&ex.segun?.every(n=>idDe(n))&&idDe(ex.evaluacion)
       ?{catIds:ex.segun.map(idDe),examenId:idDe(ex.evaluacion),min:ex.min,promedio:ex.promedio,confirmada:ex.requiereConfirmacion!==true||r.eximicionConfirmada===true,
         asistencia:!Number.isInteger(ex.maxInasistencias)||r.faltas?.activo===true&&Number.isInteger(r.faltas.cantidad)&&r.faltas.cantidad<=ex.maxInasistencias}:null;
-    return conBonus({__meta:reglasNota(),mejoras:bonus.mejoras,eximicion,
+    return conBonus({__meta:reglasNota(),mejoras:bonus.mejoras,eximicion,redondearGrupo,
       id:'final',name:r.nombre||'Ramo',type:'group',aggregation_rule:'weighted_average',
       formulas_condicionales:reglasCalculoVigentes(r).filter(g=>g.type==='conditional_weights'),
       children:categoriasVigentes(r).filter(c=>c.peso>0||(c.optativa===true&&(c.notas||[]).some(n=>Number.isFinite(n.valor)))).map(c=>conBonus({id:c.id,name:c.nombre,weight:c.peso,type:'group',aggregation_rule:'weighted_average',
@@ -648,7 +650,7 @@ function gh_crearCalculoRamo(deps){
       // excluida puede volver a entrar cuando se cumple la condición.
       const fuente=reglasCalculoVigentes(r).some(g=>g.type==='conditional_weights')?ramoToStructure(r):base.estructura;
       const formulas=(fuente.formulas_condicionales||[]).map(g=>({...g,cuando:g.cuando.map(c=>({...c,catIds:c.catIds.map(id=>prefijo+id)})),pesos:(g.pesos||[]).map(e=>({...e,catId:prefijo+e.catId}))}));
-      const raiz={...fuente,formulas_condicionales:formulas,children:fuente.children.map(node=>{
+      const raiz={...fuente,formulas_condicionales:formulas,redondearGrupo:fuente.redondearGrupo?.map(id=>prefijo+id),children:fuente.children.map(node=>{
         const cat=categorias.get(node.id),valor=valores.get(node.id);
         // Una lista sin cantidad declarada conserva su promedio conocido. Un
         // grupo completo conserva su descarte ya calculado, no sus pesos brutos.
@@ -679,7 +681,7 @@ function gh_crearCalculoRamo(deps){
       const externo=otro?preparar(otro,'externo:'):{id:'externo',name:link.ramo,type:'leaf'};
       // El bonus de la nota final es del ramo propio: va en su nodo, no otra
       // vez en el que lo combina con el vinculado.
-      estructura={...propio,bonus:undefined,children:[{...propio,id:'propio',weight:1-p},{...externo,id:'externo',weight:p}]};
+      estructura={...propio,bonus:undefined,redondearGrupo:undefined,children:[{...propio,id:'propio',weight:1-p},{...externo,id:'externo',weight:p}]};
 
       // El promedio ponderado NO basta cuando el vínculo declara un mínimo.
       //

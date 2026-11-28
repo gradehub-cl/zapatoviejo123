@@ -148,6 +148,16 @@ function calculateFinalGrade(structure,grades,overrides={}){
     });
     let sumW=0,acc=0;
     for(const k of known){acc+=k.value*k.weight;sumW+=k.weight;}
+    // La presentación a examen completa contribuye con su promedio a la
+    // décima. Se usan los pesos efectivos de la misma evaluación del árbol.
+    const grupo=node.redondearGrupo?.map(id=>valores.get(id));
+    if(grupo?.length&&grupo.every(k=>k?.complete)){
+      const peso=grupo.reduce((s,k)=>s+k.weight,0);
+      if(peso>0){
+        const subtotal=grupo.reduce((s,k)=>s+k.value*k.weight,0);
+        acc+=gh_notaOficial(subtotal/peso)*peso-subtotal;
+      }
+    }
     let value=ambiguo?null:sumW>0?acc/sumW:null;
     if(node.aggregation_rule==='gated_average'&&value!==null){const p=node.rule_params||{};const off=known.filter(k=>!gh_cumpleMinimo(k.value,p.min_required));const locked=off.filter(o=>o.complete);const ok=off.length===0;gates.push({nodeId:node.id,kind:'gated_average',ok,min_required:p.min_required,fail_cap:p.fail_cap,offenders:off.map(o=>o.child.name),lockedOffenders:locked.map(o=>o.child.name),pending:known.length<node.children.length});if(!ok)value=Math.min(value,p.fail_cap);}
     // Las décimas van encima del promedio del nodo, nunca sobre la escala.

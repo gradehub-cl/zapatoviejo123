@@ -7,6 +7,7 @@ function gh_hasPendingDrop(node,grades){
   return (!!node.drop_lowest&&gh_hasPendingLeaf(node,grades))||node.children.some(c=>gh_hasPendingDrop(c,grades));
 }
 function gh_hasConditionalFormula(node){return !!(node.formulas_condicionales||[]).length||(node.children||[]).some(gh_hasConditionalFormula);}
+function gh_hasRoundedGroup(node){return !!node.redondearGrupo?.length||(node.children||[]).some(gh_hasRoundedGroup);}
 function gh_projectGrades(grades,emptyLeaves,value){
   const projected={...grades};
   emptyLeaves.forEach(l=>{projected[l.id]=value;});
@@ -45,9 +46,8 @@ function solveForTarget(structure,grades,target,overrides={},options={}){
   // depende de su propio valor. En vez de fingir un peso fijo, proyectamos la
   // misma nota en todas las pendientes y buscamos el mínimo que llega a meta.
   const dropAware=gh_hasPendingDrop(structure,grades);
-  // Con décimas la nota deja de ser lineal (tienen tope y condición): se busca
-  // la nota necesaria con el motor completo, igual que con un descarte.
-  if(dropAware||gh_tieneBonus(structure)){
+  // Las décimas y el redondeo intermedio también requieren proyectar con el motor.
+  if(dropAware||gh_tieneBonus(structure)||gh_hasRoundedGroup(structure)){
     if(dropAware)conditions.push('El cálculo supone la misma nota en todas las evaluaciones pendientes y considera que la peor nota del grupo se descarta según la regla del programa.');
     const finalCon=value=>calculateFinalGrade(structure,gh_projectGrades(grades,direct.emptyLeaves,value),overrides).value;
     const conMax=finalCon(scaleMax);
