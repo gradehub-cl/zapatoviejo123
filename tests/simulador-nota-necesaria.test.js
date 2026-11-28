@@ -108,6 +108,39 @@ const pisoSimulado=ramo([c('prueba','Prueba escrita',50),c('cierre','Evaluación
 assert.match(pintar(pisoSimulado,{notas:{prueba:3}}),/^Con esto ya no alcanzas el 4,0/,
   'una nota hipotética ocupa su casilla y puede dejar una compuerta definitivamente bajo el mínimo');
 
+console.log('=== Requisitos por grupo y reemplazo por promedio en la app ===');
+const enAppOriginal=run('enAppNativa');
+const simuladorTenant=S.tenant;
+S.tenant='uc';
+run('enAppNativa=()=>true');
+const requisitos=ramo([c('escrita','Evaluación escrita',40,[n('n1',5)]),c('proyecto','Proyecto',60)],{
+  gates:[{type:'group_min',catIds:['escrita'],min:4,cap:3.9,nombre:'Parte escrita'},
+    {type:'group_min',catIds:['proyecto'],min:4.25,cap:3.9,exacto:true,nombre:'Parte práctica'}]});
+pintar(requisitos);
+assert.match(byId('sim-requisitos').innerHTML,/Parte escrita.*mínimo 4,0.*Cumple/);
+assert.match(byId('sim-requisitos').innerHTML,/Parte práctica.*mínimo 4,25.*Faltan notas/);
+assert.doesNotMatch(byId('sim-needed').textContent,/Parte práctica/);
+pintar(requisitos,{notas:{proyecto:4.24}});
+assert.match(byId('sim-requisitos').innerHTML,/Parte práctica.*mínimo 4,25.*4,24.*Bajo el mínimo/);
+assert.match(byId('sim-requisitos').innerHTML,/Parte escrita.*mínimo 4,0.*Cumple/);
+
+const promedio=ramo([c('rendida','Prueba rendida',30,[n('n1',3)]),c('ausente','Prueba ausente',20),c('cierre','Examen',50)]);
+pintar(promedio);
+run("simToggleFalta('ausente');simSetFalta('ausente','promedio');simSetFaltaFuente('ausente',0,'rendida');");
+assert.equal(run('simProjectedRamo(S.ramos[0]).ausenciasJustificadas'),undefined,'falta elegir una segunda fuente');
+assert.equal(byId('sim-needed').textContent,'Elige las dos evaluaciones para simular el reemplazo');
+run("simSetFaltaFuente('ausente',1,'cierre')");
+assert.match(byId('sim-cats').innerHTML,/Promedio simple de dos evaluaciones/);
+assert.equal(byId('sim-needed').textContent,'Ingresa las dos notas para calcular el reemplazo simulado');
+run("simState.cierre=[{id:'nota-examen',valor:7}];renderSimulador()");
+assert.equal(run('estadoAusenciasJustificadas(simProjectedRamo(S.ramos[0])).activas[0].valor'),5);
+assert.equal(byId('sim-avg').textContent,'5,4','las fuentes pesan lo mismo para el reemplazo, con sus pesos habituales en el ramo');
+assert.equal(promedio.ausenciasJustificadas,undefined);
+assert.equal(promedio.reglasAusenciaJustificada,undefined);
+ctx.__enAppOriginal=enAppOriginal;
+run('enAppNativa=__enAppOriginal');
+S.tenant=simuladorTenant;
+
 console.log('=== Reglas explícitas en pautas propias ===');
 const tenantAnterior=S.tenant;
 S.tenant='uc';
