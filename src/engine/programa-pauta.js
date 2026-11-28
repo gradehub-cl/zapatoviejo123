@@ -54,7 +54,7 @@ const GH_PROGRAMA_PAUTA=(function(){
   function esEncabezadoEvaluacion(linea, opciones = {}) {
     const crudo = String(linea || '').trim();
     if (!crudo || crudo.length > 120) return false;
-    const titulo = normalizar(tituloSinNumero(crudo));
+    const titulo = opciones.encabezadosAmplios ? normalizar(crudo.replace(/^(?:[IVXLCDM]+|\d+)[.)-]\s*/i,'')) : normalizar(tituloSinNumero(crudo));
     if (/^(?:evaluacion(?:es)?(?: de(?:l)? aprendizajes?| del curso)?|estrategias? evaluativas?|sistema de evaluacion)$/.test(titulo)) return true;
     // Los programas que escribe cada profe en Canvas titulan la sección con más
     // variedad. Solo se aceptan con esta opción: el catálogo no cambia.
@@ -207,6 +207,74 @@ const GH_PROGRAMA_PAUTA=(function(){
     return [...new Set(razones)];
   }
 
+  // Gramática cerrada, optativa para Canvas. Se reconoce la cláusula completa:
+  // una excepción o segunda condición desconocida invalida la interpretación.
+  function reglaDeLinea(cita, filas) {
+    const t = cita.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+      .replace(/^[•*-]\s+/, '').replace(/[.]$/, '').replace(/\s+/g, ' ');
+    const nota = '([1-7](?:[.,][0-9])?)';
+    const valor = s => Number(s.replace(',', '.'));
+    const nombre = s => filas.find(f => f.nombre.trim().localeCompare(s.trim(),'es',{sensitivity:'base'})===0);
+    const examen = filas.filter(f => /^examen(?: final)?$/.test(normalizar(f.nombre)));
+    const previas = filas.filter(f => !examen.includes(f));
+    let m = /^se (?:eliminan?|descartan?) (?:la (?:peor nota|nota mas baja)|las (\d+) (?:peores notas|notas mas bajas)) de (?:los |las )?(.+)$/.exec(t);
+    if (m) {
+      const fila = nombre(m[2]), count = Number(m[1] || 1);
+      if (fila && count > 0 && fila.cantidad > count)
+        return {tipo:'descarte',nombre:fila.nombre,count,cita};
+    }
+    m = new RegExp('^si (?:el promedio de |la nota de )(?:los |las )?(.+?) (?:es (?:inferior|menor) a|queda bajo|<) '+nota+', la nota final (?:tiene (?:un )?tope de|queda topada en) '+nota+'$').exec(t);
+    if (m) {
+      const fila=nombre(m[1]),min=valor(m[2]),cap=valor(m[3]);
+      if(fila && min<=7 && cap<=7)
+        return {tipo:'minimo',nombre:fila.nombre,min,cap,cita};
+    }
+    m = new RegExp('^si el promedio ponderado de (.+?) y (.+?) (?:es inferior a|queda bajo) '+nota+', la nota final tiene tope de '+nota+'$').exec(t);
+    if(m){
+      const a=nombre(m[1]),b=nombre(m[2]);
+      if(a&&b&&a!==b&&valor(m[3])<=7&&valor(m[4])<=7)
+        return {tipo:'grupo',nombre:a.nombre,otra:b.nombre,min:valor(m[3]),cap:valor(m[4]),cita};
+    }
+    m = new RegExp('^(?:se exime del examen con|eximicion del examen:|se eximen del examen quienes tengan) (?:un )?promedio( ponderado)?(?: de presentacion)? (?:≥|>=|igual o superior a|mayor o igual a|de al menos) '+nota+'(?: y ninguna nota (?:bajo|inferior a) '+nota+')?$').exec(t);
+    if (m && cita.trim().length<=220 && examen.length===1 && previas.length && (previas.length===1||m[1])
+      && valor(m[2])<=7 && (!m[3]||valor(m[3])<=7)) {
+      const segun=previas.map(f=>f.nombre);
+      return {tipo:'eximicion',nombre:examen[0].nombre,segun,min:valor(m[2]),...(m[3]?{cadaNota:valor(m[3])}:{}),cita};
+    }
+    m=/^el examen puede reemplazar la nota de (.+?) si mejora la nota final$/.exec(t);
+    if(m && cita.trim().length<=220 && examen.length===1){
+      const fila=nombre(m[1]);
+      if(fila && fila!==examen[0] && !fila.cantidad && !examen[0].cantidad)
+        return {tipo:'reemplazo',nombre:fila.nombre,examen:examen[0].nombre,cita};
+    }
+    return null;
+  }
+
+  function reglasDeEvaluacion(lineas, filas, recortado=false) {
+    const propuestas=[],revisar=[];
+    const alternativas=lineas.some(l=>/\b(?:alternativ[oa]s?|o bien|(?:esquema|opcion|modalidad) [ab12]|a criterio|a discrecion|segun (?:el |la )?(?:docente|profesor))\b/.test(normalizar(l)));
+    for(const cita of lineas){
+      const regla=reglaDeLinea(cita,filas);
+      const t=normalizar(cita);
+      // Incluso una continuación sin palabras clave podría limitar una regla.
+      // Las filas de pesos y los encabezados de tabla ya se excluyeron.
+      const motivo=recortado?'El texto recibido está incompleto.':alternativas?'El programa deja alternativas o una decisión al equipo docente.'
+        :/asistencia/.test(t)?'Esta condición de asistencia requiere revisión.'
+        :/reemplaz|sustitu|formula|pondera/.test(t)?'La fórmula no coincide con un cálculo disponible.'
+        :/minim|para aprobar|promedio/.test(t)?'Falta precisar el cálculo, sus condiciones o el tope.'
+        :'No pudimos identificar toda la condición.';
+      if(regla&&!recortado&&!alternativas)propuestas.push(regla);
+      else revisar.push({cita,motivo});
+    }
+    const claves=propuestas.map(p=>p.tipo==='reemplazo'?'formula del examen':p.tipo+'|'+p.nombre);
+    const repetidas=new Set(claves).size!==claves.length;
+    if(repetidas||revisar.length){
+      for(const p of propuestas)revisar.push({cita:p.cita,motivo:repetidas?'Hay más de una regla para la misma evaluación.':'Hay otra condición pendiente en esta sección.'});
+      return {propuestas:[],revisar,alternativas};
+    }
+    return {propuestas,revisar,alternativas};
+  }
+
   function legadoEstado(status) {
     return status === 'auto_importable' ? 'propuesta'
       : status === 'needs_review' ? 'revisar_a_mano' : 'sin_datos';
@@ -281,7 +349,7 @@ const GH_PROGRAMA_PAUTA=(function(){
     PARSER_VERSION, normalizar, decodificarEntidades, htmlATexto, tituloSinNumero, esEncabezadoEvaluacion,
     esEncabezadoEstructural, bloqueEvaluaciones, nombreLimpio, filaConPorcentaje, filasEnProsaConPorcentajes,
     filasConPorcentaje, asistenciaEsRequisito, esAgregado, quitarPadresDesglosados, lineaIgnorable,
-    senalesComplejidad, legadoEstado, extraerDeTexto,
+    senalesComplejidad, legadoEstado, extraerDeTexto, reglasDeEvaluacion,
   };
 })();
 // En la app se concatena con el resto del motor; en Node lo importa bin/.

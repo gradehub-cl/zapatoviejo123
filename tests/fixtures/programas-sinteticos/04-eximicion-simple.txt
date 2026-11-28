@@ -1,0 +1,4 @@
+# Ponderaciones
+Prueba 60%
+Examen 40%
+Se eximen del examen quienes tengan promedio igual o superior a 5,5.

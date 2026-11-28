@@ -1,0 +1,4 @@
+# Evaluación
+Prueba 60%
+Examen 40%
+Si la nota de Prueba es inferior a 3,7, la nota final tiene tope de 3,9.

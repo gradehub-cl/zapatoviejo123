@@ -1,0 +1,24 @@
+{
+  "estado": "propuesta",
+  "filas": [
+    [
+      "Controles",
+      60,
+      3
+    ],
+    [
+      "Examen",
+      40,
+      null
+    ]
+  ],
+  "propuestas": [
+    {
+      "tipo": "descarte",
+      "nombre": "Controles",
+      "cita": "Se elimina la peor nota de controles.",
+      "count": 1
+    }
+  ],
+  "revisar": []
+}

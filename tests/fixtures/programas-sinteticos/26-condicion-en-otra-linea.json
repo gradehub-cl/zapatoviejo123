@@ -1,0 +1,20 @@
+{
+  "estado": "propuesta",
+  "filas": [
+    [
+      "Prueba",
+      60,
+      null
+    ],
+    [
+      "Examen",
+      40,
+      null
+    ]
+  ],
+  "propuestas": [],
+  "revisar": [
+    "Siempre que entregue el portafolio.",
+    "Se exime del examen con promedio ≥ 5,0."
+  ]
+}

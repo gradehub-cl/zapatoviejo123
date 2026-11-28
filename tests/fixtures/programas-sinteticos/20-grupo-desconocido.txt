@@ -1,0 +1,4 @@
+# Evaluación
+Prueba 60%
+Examen 40%
+Se elimina la peor nota de Taller.

@@ -1,0 +1,19 @@
+{
+  "estado": "propuesta",
+  "filas": [
+    [
+      "Interrogaciones",
+      60,
+      null
+    ],
+    [
+      "Examen",
+      40,
+      null
+    ]
+  ],
+  "propuestas": [],
+  "revisar": [
+    "Promedio de interrogaciones ≥ 3,7 para aprobar."
+  ]
+}

@@ -73,7 +73,19 @@ function modeloReglasRamo(r){
   const canvas=copiarProgramaCanvas(r.programaCanvas);
   if(canvas){
     const origen=canvas.archivo?`De “${canvas.archivo}” en Canvas`:'Del programa escrito en Canvas';
+    const filas=r.categorias.map(c=>({nombre:c.nombre,cantidad:c.slots}));
     canvas.citas.forEach(c=>{
+      const p=GH_PROGRAMA_PAUTA.reglasDeEvaluacion([c],filas).propuestas[0];
+      const cat=p&&r.categorias.find(cat=>cat.nombre===p.nombre);
+      const coincide=cat&&(p.tipo==='descarte'&&cat.descarteOrigen==='canvas'&&cat.dropLowest?.count===p.count||
+        ['grupo','minimo'].includes(p.tipo)&&r.gates?.some(g=>g.ayuda===c&&g.min===p.min&&g.cap===p.cap)||
+        p.tipo==='eximicion'&&ex?.regla.ayuda===c||p.tipo==='reemplazo'&&citaReemplazoCanvas(r)===c);
+      if(coincide){
+        const fila=reglas.find(f=>f.citas.includes(c)||p.tipo==='descarte'&&f.titulo===p.nombre&&f.simple.includes('más bajas'));
+        if(fila){fila.citas=[c];fila.fuente=origen;}
+        else agregar('Regla del programa',descripcionReglaCanvas(p),[c],origen);
+        return;
+      }
       const tipo=/exim/i.test(c)?'Eximición':/asisten|falta/i.test(c)?'Asistencia':/mínim|minim|tope/i.test(c)?'Mínimo o tope':'Condición del programa';
       agregar(tipo,`${tipo} por revisar: importar el programa no aplica esta condición al promedio.`,[c],origen,'Texto leído de Canvas. Revisa sus condiciones con el curso.');
     });

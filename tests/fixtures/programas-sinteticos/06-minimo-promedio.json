@@ -1,0 +1,25 @@
+{
+  "estado": "propuesta",
+  "filas": [
+    [
+      "Controles",
+      60,
+      3
+    ],
+    [
+      "Examen",
+      40,
+      null
+    ]
+  ],
+  "propuestas": [
+    {
+      "tipo": "minimo",
+      "nombre": "Controles",
+      "cita": "Si el promedio de Controles queda bajo 4,0, la nota final queda topada en 3,5.",
+      "min": 4,
+      "cap": 3.5
+    }
+  ],
+  "revisar": []
+}
