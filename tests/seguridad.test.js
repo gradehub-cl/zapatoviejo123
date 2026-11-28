@@ -161,8 +161,11 @@ console.log('\n=== Todas las contraseñas aceptan el mismo largo ===');
   for(const m of (html+'\n'+src).matchAll(/<input[^>]*type="password"[^>]*id="(?:auth-pass2?|reset-pass2?|s-account-pass2?)"[^>]*>|<input[^>]*id="(?:auth-pass2?|reset-pass2?|s-account-pass2?)"[^>]*type="password"[^>]*>/g)){
     const l=(m[0].match(/maxlength="(\d+)"/)||[])[1];largos.push(l||'sin límite');
   }
+  // Ajustes cambia la contraseña en una hoja: sus tres campos salen de una plantilla.
+  const plantilla=(src.match(/<input id="\$\{id\}"[^>]*type="password"[^>]*>/)||[''])[0];
   chk('los campos de contraseña del login, la recuperación y Ajustes usan 72 ('+[...new Set(largos)].join(', ')+')',
-    largos.length>=6&&largos.every(l=>l==='72'));
+    largos.length>=4&&largos.every(l=>l==='72')&&/maxlength="72"/.test(plantilla)
+    &&(src.match(/\$\{campo\('clave-(?:actual|nueva|repetida)'/g)||[]).length===3);
   chk('el login prueba también los primeros 60 de una contraseña más larga',
     /p\.length>60&&[\s\S]{0,120}signInWithPassword\(\{email,password:p\.slice\(0,60\)\}\)/.test(src));
 }

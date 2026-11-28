@@ -52,6 +52,21 @@ test('correo vive en Perfil y las acciones destructivas siguen en Datos y cuenta
   vm.runInContext("openSettings('datos')",k.ctx);
   assert.match(k.html(),/onclick="confirmarEliminarCuenta\(\)"/);assert.doesNotMatch(k.html(),/id="s-account-email"/);
 });
+test('solo la cuenta de origen email ve y puede abrir Cambiar contraseña',()=>{
+  const k=kit();
+  for(const provider of ['email','google','apple',null]){
+    k.ctx.provider=provider;
+    vm.runInContext("currentUser.app_metadata={provider,providers:['email','google']};openSettings()",k.ctx);
+    const fila=k.buttons().find(b=>b.dataset.settingsSection==='clave');
+    assert.equal(!!fila,provider==='email');
+    if(fila)fila.onclick();else vm.runInContext('abrirCambioClaveCuenta()',k.ctx);
+    assert.equal(k.html().includes('id="cuenta-clave"'),provider==='email');
+    if(fila){
+      assert.match(k.html(),/autocomplete="current-password"/);
+      assert.equal((k.html().match(/autocomplete="new-password"/g)||[]).length,2);
+    }
+  }
+});
 test('Apariencia tiene exactamente un selector de fondo',()=>{
   const k=kit();vm.runInContext("openSettings('apariencia')",k.ctx);
   assert.equal((k.html().match(/id="s-fondo-grid"/g)||[]).length,1);

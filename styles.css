@@ -1144,6 +1144,18 @@ button,[role="button"],a{touch-action:manipulation;}
    cerraban tocando fuera del sheet. Desde que eso se retiró, necesitan la suya. */
 .settings-modal-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
 .settings-modal-head .modal-title{margin-bottom:16px;}
+#cuenta-clave{display:grid;gap:16px;}
+#cuenta-clave .clave-campo{display:grid;gap:6px;}
+#cuenta-clave [hidden]{display:none;}
+#cuenta-clave label{font-weight:600;color:var(--fg);}
+#cuenta-clave input{width:100%;min-height:44px;font-size:1rem;}
+#cuenta-clave small,#cuenta-clave [aria-live]{font-size:.875rem;line-height:1.4;color:var(--fg);}
+#cuenta-clave [aria-invalid="true"]{border-color:var(--fg);}
+#cuenta-clave [aria-live]:empty{margin:0;height:0;}
+#cuenta-clave .clave-campo span:empty{display:block;margin-top:-6px;}
+#cuenta-clave #clave-estado{margin:0;}
+#cuenta-clave #clave-estado:empty{margin-top:-16px;}
+#cuenta-clave button,.settings-cerrar.clave-cerrar{min-width:44px;min-height:44px;}
 .settings-cerrar{background:none;border:none;padding:4px 2px;margin:0;font:inherit;font-size:0.875rem;font-weight:600;color:var(--fg2);cursor:pointer;flex:none;}
 @media(hover:hover) and (pointer:fine){.settings-cerrar:hover{color:var(--fg);}}
 .settings-cerrar:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
